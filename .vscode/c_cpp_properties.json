@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "gcc",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/contrib",
+                "${workspaceFolder}/src/contrib/restclient-cpp/include",
+                "${workspaceFolder}/src/contrib/jsoncpp/include",
+                "${workspaceFolder}/src/contrib/cryptopp",
+                "${workspaceFolder}/src/contrib/spdlog/include",
+                "${workspaceFolder}/src/contrib/clipp/include",
+                "${workspaceFolder}/src/contrib/v8/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

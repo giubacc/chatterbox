@@ -1,0 +1,22 @@
+{
+  "conversations": [
+    {
+      "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
+      "access_key": "test",
+      "secret_key": "test",
+      "service": "s3",
+      "conversation": [
+        {
+          "for": 1,
+          "talk": {
+            "auth": "v4",
+            "verb": "HEAD",
+            "uri": "foo",
+            "query_string": "format=json",
+            "body_res_format": "json"
+          }
+        }
+      ]
+    }
+  ]
+}

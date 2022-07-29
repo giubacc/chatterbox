@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "GET info",
+      "type": "shell",
+      "command": "rm -rf ${workspaceFolder}/wd/consumed && mkdir -p ${workspaceFolder}/wd/consumed && cp ${workspaceFolder}/scenarios/get_info.json ${workspaceFolder}/wd",
+      "problemMatcher": []
+    },
+    {
+      "label": "PUT user",
+      "type": "shell",
+      "command": "rm -rf ${workspaceFolder}/wd/consumed && mkdir -p ${workspaceFolder}/wd/consumed && cp ${workspaceFolder}/scenarios/put_user.json ${workspaceFolder}/wd",
+      "problemMatcher": []
+    },
+    {
+      "label": "astyle",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/src && astyle --project=.astylerc *.cpp *.h"
+    },
+    {
+      "label": "build [chatterbox]",
+      "type": "shell",
+      "command": "mkdir -p ${workspaceFolder}/build && cd ${workspaceFolder}/build && cmake .. && make",
+      "options": {
+        "env": {
+          "CMAKE_BUILD_TYPE": "Debug",
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "clean [chatterbox]",
+      "type": "shell",
+      "command": "rm -rf ${workspaceFolder}/build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "build [restclient-cpp]",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/src/contrib/restclient-cpp && ./autogen.sh && ./configure && make",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "build [jsoncpp]",
+      "type": "shell",
+      "command": "rm -rf ${workspaceFolder}/src/contrib/jsoncpp-build && mkdir -p ${workspaceFolder}/src/contrib/jsoncpp-build && cd ${workspaceFolder}/src/contrib/jsoncpp-build && cmake ../jsoncpp && make",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

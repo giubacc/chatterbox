@@ -1,0 +1,6 @@
+build
+jsoncpp-build
+wd
+src/contrib/v8
+src/contrib/.cipd
+src/contrib/.gclient*
