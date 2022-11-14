@@ -1,19 +1,19 @@
 [submodule "src/contrib/jsoncpp"]
-	path = src/contrib/jsoncpp
+	path = contrib/jsoncpp
 	url = https://github.com/open-source-parsers/jsoncpp.git
 [submodule "src/contrib/cryptopp"]
-	path = src/contrib/cryptopp
+	path = contrib/cryptopp
 	url = https://github.com/weidai11/cryptopp.git
 [submodule "src/contrib/spdlog"]
-	path = src/contrib/spdlog
+	path = contrib/spdlog
 	url = https://github.com/gabime/spdlog.git
 [submodule "src/contrib/clipp"]
-	path = src/contrib/clipp
+	path = contrib/clipp
 	url = https://github.com/muellan/clipp.git
 [submodule "src/contrib/restclient-cpp"]
-	path = src/contrib/restclient-cpp
+	path = contrib/restclient-cpp
 	url = git@github.com:giubacc/restclient-cpp.git
 	branch = set-verify-host
 [submodule "src/contrib/depot_tools"]
-	path = src/contrib/depot_tools
+	path = contrib/depot_tools
 	url = https://chromium.googlesource.com/chromium/tools/depot_tools.git

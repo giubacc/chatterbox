@@ -7,11 +7,46 @@ Every time a new json file is placed within the working directory, `chatterbox` 
 and then generates the conversation(s) against the rest endpoint(s).  
 Once the file has been processed, the file is deleted or optionally moved into `./consumed` directory.
 
+## Build requirements
+
+Currently, `chatterbox` can be solely built under Linux.  
+It is possible to use a Dockerfile build image to compile the binary of `chatterbox`.
+
+Current supported Dockerfile list:
+
+- `Dockerfile.build-opensuse`
+
+To build `chatterbox` with a Dockerfile build image your system needs to provide Podman.
+
+If you intend to build the `chatterbox` binary directly on your Linux distribution, ensure your system provides:
+
+- `Make`, `AutoGen`
+- `GCC` with `g++`
+- `Python`
+- `CMake`
+- `Ninja`
+- `Git`
+- `curl`
+
 ## How to build
 
-In order to build `chatterbox` alongside with all its dependencies, use the provided script:
+First, ensure you have checked out the `chatterbox`'s submodules:
 
-- `scripts/build.sh`
+```shell
+git submodule init
+git submodule update
+```
+
+## Build on bare metal
+
+In order to build the `chatterbox` binary alongside with all its dependencies, use the provided script:
+
+```shell
+cd scripts
+./build.sh build-all
+```
+
+## Build with the Dockerfile build image
 
 ## Usage
 

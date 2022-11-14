@@ -25,9 +25,17 @@ struct chatterbox {
     int init(int argc, char *argv[]);
     int reset_scenario_ctx(const Json::Value &scenario_ctx);
     int reset_conversation_ctx(const Json::Value &conversation_ctx);
-
     void poll();
+
     void execute_scenario(std::istream &is);
+
+    void execute_talk(const std::string &verb,
+                      const std::string &auth,
+                      const std::string &uri,
+                      const std::string &query_string,
+                      const std::string &data,
+                      bool body_res_dump,
+                      const std::string &body_res_format);
 
     // --------------------
     // --- HTTP METHODS ---

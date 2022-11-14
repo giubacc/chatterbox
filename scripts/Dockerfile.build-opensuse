@@ -1,0 +1,25 @@
+FROM opensuse/leap:15.4
+LABEL Name=chatterbox-opensuse-builder
+
+RUN zypper -n install --no-recommends \
+    sudo dnf bash \
+    make \
+    cmake \
+    git \
+    ccache \
+    cmake \
+    ninja \
+    binutils \
+    gcc-c++ \
+    automake \
+    autogen \
+    libtool \
+    libcurl-devel \
+    libopenssl-devel
+
+RUN zypper clean --all
+
+COPY build.sh /usr/bin/build.sh
+
+ENTRYPOINT ["build.sh"]
+CMD ["build"]

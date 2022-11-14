@@ -1,6 +1,8 @@
+.vscode
+.devcontainer
 build
 jsoncpp-build
 wd
-src/contrib/v8
-src/contrib/.cipd
-src/contrib/.gclient*
+contrib/v8
+contrib/.cipd
+contrib/.gclient*

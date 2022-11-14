@@ -409,108 +409,124 @@ void chatterbox::execute_scenario(std::istream &is)
     //talks cycle
     for(uint32_t i = 0; i < conversation.size(); ++i) {
 
+      //talk
+      auto talk = conversation[i].get("talk", "");
+
       //for
       auto pfor = eval_as_uint32_t(conversation[i], "for", 0);
       if(!pfor) {
         log_->error("failed to read 'for' field");
         return;
       }
-
-      //talk
-      auto talk = conversation[i].get("talk", "");
-
-      //verb
-      auto verb = eval_as_string(talk, "verb");
-      if(!verb) {
-        log_->error("failed to read 'verb' field");
-        return;
-      }
-
-      //uri
-      auto uri = eval_as_string(talk, "uri", "");
-      if(!uri) {
-        log_->error("failed to read 'uri' field");
-        return;
-      }
-
-      //query_string
-      auto query_string = eval_as_string(talk, "query_string", "");
-      if(!query_string) {
-        log_->error("failed to read 'query_string' field");
-        return;
-      }
-
-      //data
-      auto data = eval_as_string(talk, "data", "");
-      if(!data) {
-        log_->error("failed to read 'data' field");
-        return;
-      }
-
-      //body_res_dump
-      auto body_res_dump = eval_as_bool(talk, "body_res_dump", true);
-      if(!body_res_dump) {
-        log_->error("failed to read 'body_res_dump' field");
-        return;
-      }
-
-      //body_res_format
-      auto body_res_format = eval_as_string(talk, "body_res_format", "");
-      if(!body_res_format) {
-        log_->error("failed to read 'body_res_format' field");
-        return;
-      }
-
-      //S3 specific
-      auto auth = talk.get("auth", "v4").asString();
-
-      {
-        glob::scoped_log_fmt<chatterbox> slf(*this, RAW_LOG_PATTERN);
-        log_->info("for:{}\n{}\n{}\n{}", *pfor, *verb, *uri, *query_string);
-      }
       talk_count += *pfor;
 
       for(uint32_t i = 0; i<pfor; ++i) {
-        if(*verb == "GET") {
-          get(auth, *uri, *query_string, [&](RestClient::Response &res) -> int {
-            if(*body_res_dump)
-              dump_response(*body_res_format, res);
-            return 0;
-          });
-        } else if(*verb == "POST") {
-          post(auth, *uri, *query_string, *data, [&](RestClient::Response &res) -> int {
-            if(*body_res_dump)
-              dump_response(*body_res_format, res);
-            return 0;
-          });
-        } else if(*verb == "PUT") {
-          put(auth, *uri, *query_string, *data, [&](RestClient::Response &res) -> int {
-            if(*body_res_dump)
-              dump_response(*body_res_format, res);
-            return 0;
-          });
-        } else if(*verb == "DELETE") {
-          del(auth, *uri, *query_string, [&](RestClient::Response &res) -> int {
-            if(*body_res_dump)
-              dump_response(*body_res_format, res);
-            return 0;
-          });
-        } else if(*verb == "HEAD") {
-          head(auth, *uri, *query_string, [&](RestClient::Response &res) -> int {
-            if(*body_res_dump)
-              dump_response(*body_res_format, res);
-            return 0;
-          });
-        } else {
-          log_->error("bad verb:{}", *verb);
+
+        //verb
+        auto verb = eval_as_string(talk, "verb");
+        if(!verb) {
+          log_->error("failed to read 'verb' field");
           return;
         }
+
+        //uri
+        auto uri = eval_as_string(talk, "uri", "");
+        if(!uri) {
+          log_->error("failed to read 'uri' field");
+          return;
+        }
+
+        //query_string
+        auto query_string = eval_as_string(talk, "query_string", "");
+        if(!query_string) {
+          log_->error("failed to read 'query_string' field");
+          return;
+        }
+
+        //data
+        auto data = eval_as_string(talk, "data", "");
+        if(!data) {
+          log_->error("failed to read 'data' field");
+          return;
+        }
+
+        //body_res_dump
+        auto body_res_dump = eval_as_bool(talk, "body_res_dump", true);
+        if(!body_res_dump) {
+          log_->error("failed to read 'body_res_dump' field");
+          return;
+        }
+
+        //body_res_format
+        auto body_res_format = eval_as_string(talk, "body_res_format", "");
+        if(!body_res_format) {
+          log_->error("failed to read 'body_res_format' field");
+          return;
+        }
+
+        //optional auth directive
+        auto auth = eval_as_string(talk, "auth", "v4");
+        if(!auth) {
+          log_->error("failed to read 'auth' field");
+          return;
+        }
+
+        execute_talk(*verb,
+                     *auth,
+                     *uri,
+                     *query_string,
+                     *data,
+                     *body_res_dump,
+                     *body_res_format);
       }
     }
     {
       glob::scoped_log_fmt<chatterbox> slf(*this, RAW_LOG_PATTERN);
       log_->info("\ntalk count:{}\n", talk_count);
     }
+  }
+}
+
+void chatterbox::execute_talk(const std::string &verb,
+                              const std::string &auth,
+                              const std::string &uri,
+                              const std::string &query_string,
+                              const std::string &data,
+                              bool body_res_dump,
+                              const std::string &body_res_format)
+{
+  if(verb == "GET") {
+    get(auth, uri, query_string, [&](RestClient::Response &res) -> int {
+      if(body_res_dump)
+        dump_response(body_res_format, res);
+      return 0;
+    });
+  } else if(verb == "POST") {
+    post(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
+      if(body_res_dump)
+        dump_response(body_res_format, res);
+      return 0;
+    });
+  } else if(verb == "PUT") {
+    put(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
+      if(body_res_dump)
+        dump_response(body_res_format, res);
+      return 0;
+    });
+  } else if(verb == "DELETE") {
+    del(auth, uri, query_string, [&](RestClient::Response &res) -> int {
+      if(body_res_dump)
+        dump_response(body_res_format, res);
+      return 0;
+    });
+  } else if(verb == "HEAD") {
+    head(auth, uri, query_string, [&](RestClient::Response &res) -> int {
+      if(body_res_dump)
+        dump_response(body_res_format, res);
+      return 0;
+    });
+  } else {
+    log_->error("bad verb:{}", verb);
   }
 }
 
