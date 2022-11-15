@@ -2,7 +2,7 @@
 
 basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
-base_build_image=${BASE_BUILD_IMAGE:-"opensuse"}
+base_image=${BASE_IMAGE:-"opensuse"}
 contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
 
 usage() {
@@ -10,22 +10,23 @@ usage() {
 usage: $0 CMD
 
 commands
-  build                     Build chatterbox.
+  build                     Build chatterbox binary.
   clean                     Clean chatterbox build directory.
-  build-all                 Build chatterbox with all its dependencies.
+  build-all                 Build chatterbox binary with all its dependencies.
   clean-all                 Clean all build directories (chatterbox and dependencies).
   build-deps                Build chatterbox's dependencies.
   clean-deps                Clean chatterbox's dependencies.
   build-v8                  Build V8 JavaScript and WebAssembly engine.
   clean-v8                  Clean V8 JavaScript and WebAssembly engine.
-  builder-create            Create the chatterbox builder.
-  builder-build             Build chatterbox with the chatterbox builder.
+  builder-create            Create the chatterbox builder image.
+  builder-build             Build chatterbox binary with the chatterbox builder.
+  chatterbox-create         Create the chatterbox image.
   help                      This message.
 
 env variables
   BASE_DIR            Specifies the directory containing src (default: ../).
   NINJA_JOBS          Specifies the number of parallel ninja jobs.
-  BASE_BUILD_IMAGE    Specifies the base image for the Docker chatterbox build image.
+  BASE_IMAGE          Specifies the base image for the chatterbox builder image.
   CONTRIB_PATH        Specifies the path where contrib resources are placed.
 EOF
 }
@@ -35,13 +36,13 @@ error() {
 }
 
 create_builder() {
-  echo "Creating the chatterbox builder ..."
-  podman build -t chatterbox-builder-${base_build_image} \
-    -f Dockerfile.build-${base_build_image} . || exit 1
+  echo "Creating the chatterbox builder image ..."
+  podman build -t chatterbox-builder-${base_image} \
+    -f Dockerfile.builder-${base_image} . || exit 1
 }
 
 builder_build() {
-  echo "Building chatterbox with the chatterbox builder ..."
+  echo "Building chatterbox binary with the chatterbox builder ..."
   volumes="-v $basedir:/project"
 
   podman run -it \
@@ -49,14 +50,17 @@ builder_build() {
     -e NINJA_JOBS=${ninja_jobs} \
     -e CONTRIB_PATH="/contrib" \
     ${volumes[@]} \
-    chatterbox-builder-${base_build_image} build || exit 1
+    chatterbox-builder-${base_image} build || exit 1
+}
+
+create_chatterbox() {
+  echo "Creating the chatterbox image ..."
+  podman build -t chatterbox-${base_image} \
+    -f Dockerfile.chatterbox-${base_image} ${basedir}/build || exit 1
 }
 
 build() {
-  echo "Building chatterbox ..."
-  if [[ -n "${contrib_path}" ]]; then
-    echo ${contrib_path}
-  fi
+  echo "Building chatterbox binary ..."
   mkdir -p $basedir/build && cd $basedir/build && cmake .. && make
 }
 
@@ -168,12 +172,6 @@ echo "Invoked with basedir: ${basedir}"
 echo
 
 case ${cmd} in
-  builder-create)
-    create_builder || exit 1
-    ;;
-  builder-build)
-    builder_build || exit 1
-    ;;
   build)
     build || exit 1
     ;;
@@ -197,6 +195,15 @@ case ${cmd} in
     ;;
   clean-v8)
     clean_v8 || exit 1
+    ;;
+  builder-create)
+    create_builder || exit 1
+    ;;
+  builder-build)
+    builder_build || exit 1
+    ;;
+  chatterbox-create)
+    create_chatterbox || exit 1
     ;;
   *)
     error "unknown command '${cmd}'"

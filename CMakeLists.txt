@@ -32,10 +32,11 @@ add_executable(chatterbox
                src/chatterbox.cpp)
 
 target_link_libraries(chatterbox
-                      restclient-cpp
-                      jsoncpp
+                      "librestclient-cpp.a"
+                      "libjsoncpp.a"
                       cryptopp
                       v8_monolith
+                      curl
                       dl
                       pthread)
 

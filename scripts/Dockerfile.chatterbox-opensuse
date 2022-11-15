@@ -1,0 +1,12 @@
+FROM opensuse/tumbleweed
+LABEL Name=chatterbox-opensuse
+
+RUN zypper -n install --no-recommends \
+    sudo dnf bash curl
+
+RUN zypper clean --all
+
+COPY chatterbox /usr/bin/chatterbox
+
+ENTRYPOINT ["chatterbox"]
+CMD ["-p"]
