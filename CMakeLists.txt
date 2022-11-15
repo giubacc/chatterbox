@@ -9,7 +9,7 @@ endif()
 add_definitions(-DV8_COMPRESS_POINTERS
                 -DV8_ENABLE_SANDBOX)
 
-set(CONTRIB_PATH "contrib" CACHE STRING "build with specified python3 version")
+set(CONTRIB_PATH "contrib" CACHE STRING "the path where contrib resources are placed")
 
 include_directories(contrib
                     ${CONTRIB_PATH}/jsoncpp/include
