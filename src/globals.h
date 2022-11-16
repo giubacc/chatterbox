@@ -19,10 +19,10 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/fmt/bundled/color.h"
 
-#define DEF_LOG_PATTERN "[%H:%M:%S:%e][%t][%^%l%$]%v"
+#define DEF_LOG_PATTERN "[%^%l%$]%v"
 #define RAW_LOG_PATTERN "%v"
 
-namespace glob {
+namespace utils {
 
 inline spdlog::level::level_enum get_spdloglvl(const char *log_level)
 {
@@ -91,5 +91,9 @@ inline bool ends_with(const std::string &str, const std::string &match)
     return false;
   }
 }
+
+int read_file(const char *fname,
+              std::stringstream &out,
+              spdlog::logger *log);
 
 }

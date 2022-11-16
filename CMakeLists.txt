@@ -27,6 +27,7 @@ link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
 
 add_executable(chatterbox
                src/main.cpp
+               src/utils.cpp
                src/crypto.cpp
                src/jsenv.cpp
                src/chatterbox.cpp)

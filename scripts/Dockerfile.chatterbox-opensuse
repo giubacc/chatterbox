@@ -6,7 +6,9 @@ RUN zypper -n install --no-recommends \
 
 RUN zypper clean --all
 
+RUN mkdir /monitor
+VOLUME /monitor
+
 COPY chatterbox /usr/bin/chatterbox
 
 ENTRYPOINT ["chatterbox"]
-CMD ["-p"]

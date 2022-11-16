@@ -43,7 +43,7 @@ int js_env::init()
 
   log_fmt_ = DEF_LOG_PATTERN;
   log->set_pattern(log_fmt_);
-  log->set_level(glob::get_spdloglvl(chatterbox_.cfg_.log_level.c_str()));
+  log->set_level(utils::get_spdloglvl(chatterbox_.cfg_.log_level.c_str()));
   spdlog::flush_every(std::chrono::seconds(2));
   log_ = log;
 
@@ -179,7 +179,7 @@ void js_env::cbk_log(const v8::FunctionCallbackInfo<v8::Value> &args)
     return;
   }
 
-  self->log_->log(glob::get_spdloglvl(*log_level), "[{}]{}", *marker, *message);
+  self->log_->log(utils::get_spdloglvl(*log_level), "[{}]{}", *marker, *message);
 }
 
 void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
@@ -200,9 +200,14 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
     return;
   }
 
+  char file_path[PATH_MAX_LEN] = {0};
+  strncpy(file_path, self->chatterbox_.cfg_.source_path.c_str(), sizeof(file_path)-1);
+  strncat(file_path, "/", sizeof(file_path)-1);
+  strncat(file_path, *script_path, sizeof(file_path)-1);
+
   //read the script's source
   v8::Local<v8::String> source;
-  if(!self->read_script_file(*script_path).ToLocal(&source)) {
+  if(!self->read_script_file(file_path).ToLocal(&source)) {
     self->log_->error("error reading script:{}", *script_path);
     return;
   }
@@ -235,26 +240,26 @@ int js_env::load_scripts()
   int lerrno = 0;
   errno = 0;
 
-  if((dir = opendir(chatterbox_.cfg_.source_origin.c_str())) != nullptr) {
+  if((dir = opendir(chatterbox_.cfg_.source_path.c_str())) != nullptr) {
     std::vector<v8::Local<v8::String>> sources;
     std::vector<v8::Local<v8::Script>> scripts;
 
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
-        strncpy(file_path, chatterbox_.cfg_.source_origin.c_str(), sizeof(file_path)-1);
+        strncpy(file_path, chatterbox_.cfg_.source_path.c_str(), sizeof(file_path)-1);
         strncat(file_path, "/", sizeof(file_path)-1);
         strncat(file_path, ent->d_name, sizeof(file_path)-1);
         stat(file_path, &info);
         if(!S_ISDIR(info.st_mode)) {
-          if(!glob::ends_with(ent->d_name, ".js")) {
+          if(!utils::ends_with(ent->d_name, ".js")) {
             continue;
           }
           log_->trace("loading script:{}", ent->d_name);
 
           //read the script's source
           sources.emplace_back();
-          if(!read_script_file(ent->d_name).ToLocal(&sources.back())) {
+          if(!read_script_file(file_path).ToLocal(&sources.back())) {
             log_->error("error reading script file:{}", ent->d_name);
             res = -1;
             break;
@@ -287,21 +292,21 @@ int js_env::load_scripts()
 
     if((lerrno = errno)) {
       log_->trace("[readdir] failure for location:{}, errno:{}, {}",
-                  chatterbox_.cfg_.source_origin,
+                  chatterbox_.cfg_.source_path,
                   lerrno,
                   strerror(lerrno));
     }
     if(closedir(dir)) {
       lerrno = errno;
       log_->error("[closedir] failure for location:{}, errno:{}, {}",
-                  chatterbox_.cfg_.source_origin,
+                  chatterbox_.cfg_.source_path,
                   lerrno,
                   strerror(lerrno));
     }
   } else {
     lerrno = errno;
     log_->critical("cannot open source location:{}, [opendir] errno:{}, {}",
-                   chatterbox_.cfg_.source_origin,
+                   chatterbox_.cfg_.source_path,
                    lerrno,
                    strerror(lerrno));
     res = -1;
@@ -345,30 +350,15 @@ bool js_env::run_script(const v8::Local<v8::Script> &script,
 // Reads a script into a v8 string.
 v8::MaybeLocal<v8::String> js_env::read_script_file(const std::string &name)
 {
-  FILE *file = fopen(name.c_str(), "rb");
-  if(file == nullptr) {
+  std::stringstream content;
+  if(utils::read_file(name.c_str(), content, log_.get())) {
     return v8::MaybeLocal<v8::String>();
   }
 
-  fseek(file, 0, SEEK_END);
-  size_t size = ftell(file);
-  rewind(file);
-
-  std::unique_ptr<char> chars(new char[size + 1]);
-  chars.get()[size] = '\0';
-  for(size_t i = 0; i < size;) {
-    i += fread(&chars.get()[i], 1, size - i, file);
-    if(ferror(file)) {
-      fclose(file);
-      return v8::MaybeLocal<v8::String>();
-    }
-  }
-  fclose(file);
-
   v8::MaybeLocal<v8::String> result = v8::String::NewFromUtf8(isolate_,
-                                                              chars.get(),
+                                                              content.str().c_str(),
                                                               v8::NewStringType::kNormal,
-                                                              static_cast<int>(size));
+                                                              static_cast<int>(content.str().size()));
 
   return result;
 }

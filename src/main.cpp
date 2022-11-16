@@ -8,7 +8,8 @@ int main(int argc, char *argv[])
   auto cli = (
                clipp::option("-p", "--poll")
                .set(pr.cfg_.poll, true)
-               .doc("monitor working directory for new scenarios"),
+               .doc("monitor filesystem for new scenarios")
+               & clipp::value("path", pr.cfg_.source_path),
 
                clipp::option("-m", "--move")
                .set(pr.cfg_.move_scenario, false)

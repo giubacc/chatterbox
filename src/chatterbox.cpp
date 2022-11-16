@@ -15,8 +15,8 @@ int chatterbox::reset_conversation_ctx(const Json::Value &conversation_ctx)
 {
   raw_host_ = conversation_ctx.get("host", "").asString();
   host_ = raw_host_;
-  glob::find_and_replace(host_, "http://", "");
-  glob::find_and_replace(host_, "https://", "");
+  utils::find_and_replace(host_, "http://", "");
+  utils::find_and_replace(host_, "https://", "");
   host_ = host_.substr(0, (host_.find(':') == std::string::npos ? host_.length() : host_.find(':')));
 
   service_ = conversation_ctx.get("service", "").asString();
@@ -58,7 +58,7 @@ int chatterbox::init(int argc, char *argv[])
 
   log_fmt_ = DEF_LOG_PATTERN;
   log->set_pattern(log_fmt_);
-  log->set_level(glob::get_spdloglvl(cfg_.log_level.c_str()));
+  log->set_level(utils::get_spdloglvl(cfg_.log_level.c_str()));
   spdlog::flush_every(std::chrono::seconds(2));
   log_ = log;
 
@@ -259,49 +259,53 @@ void chatterbox::poll()
   int lerrno = 0;
   errno = 0;
 
-  if((dir = opendir(cfg_.source_origin.c_str())) != nullptr) {
+  if((dir = opendir(cfg_.source_path.c_str())) != nullptr) {
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
-        strncpy(file_path, cfg_.source_origin.c_str(), sizeof(file_path)-1);
+        strncpy(file_path, cfg_.source_path.c_str(), sizeof(file_path)-1);
         strncat(file_path, "/", sizeof(file_path)-1);
         strncat(file_path, ent->d_name, sizeof(file_path)-1);
         stat(file_path, &info);
         if(!S_ISDIR(info.st_mode)) {
-          if(!glob::ends_with(ent->d_name, ".json")) {
+          if(!utils::ends_with(ent->d_name, ".json")) {
             continue;
           }
-          log_->trace("processing json file:{}", ent->d_name);
-          std::ifstream ifs(ent->d_name);
-          if(ifs.bad()) {
+          log_->trace("processing scenario file:{}", ent->d_name);
+          std::stringstream ss;
+          int res = 0;
+          if((res = utils::read_file(file_path, ss, log_.get()))) {
+            log_->error("[read_file] {}, {}",
+                        ent->d_name,
+                        strerror(res));
             continue;
           }
-          execute_scenario(ifs);
+          execute_scenario(ss);
           if(cfg_.move_scenario) {
             move_file(ent->d_name);
           } else {
-            rm_file(ent->d_name);
+            rm_file(file_path);
           }
         }
       }
     }
     if((lerrno = errno)) {
       log_->trace("[readdir] failure for location:{}, errno:{}, {}",
-                  cfg_.source_origin,
+                  cfg_.source_path,
                   lerrno,
                   strerror(lerrno));
     }
     if(closedir(dir)) {
       lerrno = errno;
       log_->error("[closedir] failure for location:{}, errno:{}, {}",
-                  cfg_.source_origin,
+                  cfg_.source_path,
                   lerrno,
                   strerror(lerrno));
     }
   } else {
     lerrno = errno;
     log_->critical("cannot open source location:{}, [opendir] errno:{}, {}",
-                   cfg_.source_origin,
+                   cfg_.source_path,
                    lerrno,
                    strerror(lerrno));
   }
@@ -310,8 +314,8 @@ void chatterbox::poll()
 void chatterbox::move_file(const char *filename)
 {
   std::ostringstream os_src, os_to;
-  os_src << cfg_.source_origin << "/" << filename;
-  os_to << cfg_.processed_dest << "/" << filename;
+  os_src << cfg_.source_path << "/" << filename;
+  os_to << cfg_.source_path << "/" << "consumed" << "/" << filename;
 
   std::string to_fname_base(os_to.str());
   std::string to_fname(to_fname_base);
@@ -327,7 +331,11 @@ void chatterbox::move_file(const char *filename)
 
 void chatterbox::rm_file(const char *filename)
 {
-  unlink(filename);
+  if(unlink(filename)) {
+    log_->error("[unlink] failure for removing:{}, errno:{}",
+                filename,
+                strerror(errno));
+  }
 }
 
 std::string get_formatted_code(int code)
@@ -358,7 +366,7 @@ std::string get_formatted_code(int code)
 void chatterbox::dump_response(const std::string &body_res_format,
                                RestClient::Response &res)
 {
-  glob::scoped_log_fmt<chatterbox> slf(*this, RAW_LOG_PATTERN);
+  utils::scoped_log_fmt<chatterbox> slf(*this, RAW_LOG_PATTERN);
 
   if(res.body.empty()) {
     log_->info("\n{}\n\n{}\n", get_formatted_code(res.code), "{}");
@@ -481,7 +489,7 @@ void chatterbox::execute_scenario(std::istream &is)
       }
     }
     {
-      glob::scoped_log_fmt<chatterbox> slf(*this, RAW_LOG_PATTERN);
+      utils::scoped_log_fmt<chatterbox> slf(*this, RAW_LOG_PATTERN);
       log_->info("\ntalk count:{}\n", talk_count);
     }
   }

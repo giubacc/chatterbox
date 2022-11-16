@@ -12,8 +12,7 @@ struct chatterbox {
       bool poll = false;
       bool move_scenario = false;
 
-      std::string source_origin = ".";
-      std::string processed_dest = "./consumed";
+      std::string source_path = ".";
 
       std::string log_type = "shell";
       std::string log_level = "inf";
