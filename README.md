@@ -19,7 +19,6 @@ distribution, ensure your system provides:
 
 - `Make`, `AutoGen`
 - `GCC` with `g++`
-- `Python`
 - `CMake`
 - `Ninja`
 - `Git`
@@ -95,54 +94,128 @@ localhost/chatterbox-opensuse              latest      d80adb80f677  About a min
 
 ```text
 SYNOPSIS
-        chatterbox [-p] [-m] [-l <logging type>] [-v <logging verbosity>]
+        chatterbox [-o <output>] [-p <path>] [-m] [-l <event log output>] [-v <event log
+                         verbosity>]
 
 OPTIONS
-        -p, --poll  monitor working directory for new scenarios
+        -o, --out   specify the output channel [stdout, stderr, filename]
+        -p, --poll  monitor filesystem for new scenarios
         -m, --move  move scenario files once consumed
-        -l, --log   specify logging type [shell, filename]
+        -l, --log   specify the event log output channel [stderr, stdout, filename]
         -v, --verbosity
-                    specify logging verbosity [off, dbg, trc, inf, wrn, err]
+                    specify the event log verbosity [off, dbg, trc, inf, wrn, err]
 ```
 
-## conversation scenarios
+## Conversation scenario format
 
-An S3 conversation scenario example:
+The conversation scenario format is pretty straightforward:
+it is a json defining properties for the conversations you want to realize.
+
+At the root level you define an array of `conversations`:
+
+```json
+{
+  "conversations": [
+    {
+      "host" : "http://service1.host1.domain1",
+      "conversation": {..}
+    },
+    {
+      "host" : "https://service2.host2.domain2",
+      "s3_access_key" : "test",
+      "s3_secret_key" : "test",
+      "service" : "s3",
+      "conversation": {..}
+    }
+    ..
+  ]
+}
+```
+
+## Examples
+
+A simple S3 conversation where the client creates a bucket: `foobar` and then
+checks that the newly created bucket actually exists.
+
+- Input conversation
 
 ```json
 {
   "conversations": [
     {
       "host" : "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "access_key" : "test",
-      "secret_key" : "test",
+      "s3_access_key" : "test",
+      "s3_secret_key" : "test",
       "service" : "s3",
 
       "conversation": [
         {
           "for" : 1,
           "talk" : {
-            "auth" : "v4",
+            "auth" : "aws_v4",
             "verb" : "PUT",
             "uri" : "foo",
             "query_string" : "format=json",
-            "body_res_dump" : true,
-            "body_res_format" : "json"
+            "res_body_dump" : true,
+            "res_body_format" : "json"
           }
         },
         {
           "for" : 3,
           "talk" : {
-            "auth" : "v4",
+            "auth" : "aws_v4",
             "verb" : "HEAD",
             "uri" : "foo",
             "query_string" : "format=json",
-            "body_res_dump" : true,
-            "body_res_format" : "json"
+            "res_body_dump" : true,
+            "res_body_format" : "json"
           }
         }
       ]
     }
   ]
+}
+```
+
+- Output rendered conversation:
+
+```json
+{
+        "rendered_conversations" :
+        [
+                {
+                        "host" : "s3gw.127.0.0.1.omg.howdoi.website:7480",
+                        "rendered_conversation" :
+                        [
+                                {
+                                        "rendered_talk" :
+                                        {
+                                                "auth" : "aws_v4",
+                                                "data" : "",
+                                                "query_string" : "format=json",
+                                                "uri" : "foobar",
+                                                "verb" : "PUT"
+                                        },
+                                        "res_body" : null,
+                                        "res_code" : 200
+                                },
+                                {
+                                        "rendered_talk" :
+                                        {
+                                                "auth" : "aws_v4",
+                                                "data" : "",
+                                                "query_string" : "format=json",
+                                                "uri" : "foobar",
+                                                "verb" : "HEAD"
+                                        },
+                                        "res_body" : null,
+                                        "res_code" : 200
+                                }
+                        ],
+                        "s3_access_key" : "test",
+                        "s3_secret_key" : "test",
+                        "service" : "s3"
+                }
+        ]
 }
 ```

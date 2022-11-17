@@ -14,8 +14,10 @@ struct chatterbox {
 
       std::string source_path = ".";
 
-      std::string log_type = "shell";
-      std::string log_level = "inf";
+      std::string out_channel = "stdout";
+
+      std::string evt_log_channel = "stderr";
+      std::string evt_log_level = "inf";
     };
 
     chatterbox();
@@ -33,8 +35,9 @@ struct chatterbox {
                       const std::string &uri,
                       const std::string &query_string,
                       const std::string &data,
-                      bool body_res_dump,
-                      const std::string &body_res_format);
+                      bool res_body_dump,
+                      const std::string &res_body_format,
+                      Json::Value &conversation_out);
 
     // --------------------
     // --- HTTP METHODS ---
@@ -132,8 +135,10 @@ struct chatterbox {
 
     void dump_hdr(const RestClient::HeaderFields &hdr) const;
 
-    void dump_response(const std::string &body_res_format,
-                       RestClient::Response &res);
+    void dump_talk_response(const Json::Value &talk,
+                            const std::string &res_body_format,
+                            RestClient::Response &res,
+                            Json::Value &conversation_out);
 
     void move_file(const char *filename);
     void rm_file(const char *filename);
@@ -172,9 +177,12 @@ struct chatterbox {
     // js environment
     js::js_env js_env_;
 
+    //output
+    std::shared_ptr<spdlog::logger> output_;
+
   public:
-    std::string log_fmt_;
-    std::shared_ptr<spdlog::logger> log_;
+    std::string event_log_fmt_;
+    std::shared_ptr<spdlog::logger> event_log_;
 };
 
 }

@@ -2,8 +2,8 @@
   "conversations": [
     {
       "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "access_key": "test",
-      "secret_key": "test",
+      "s3_access_key": "test",
+      "s3_secret_key": "test",
       "service": "s3",
       "conversation": [
         {
@@ -12,14 +12,14 @@
             "args": []
           },
           "talk": {
-            "auth": "v4",
+            "auth": "aws_v4",
             "verb": {
               "function": "GetVerb",
               "args": []
             },
             "uri": "foo",
             "query_string": "format=json",
-            "body_res_dump": {
+            "res_body_dump": {
               "function": "GetResDump",
               "args": [
                 "one1",
@@ -27,7 +27,7 @@
                 "three3"
               ]
             },
-            "body_res_format": "json"
+            "res_body_format": "json"
           }
         }
       ]

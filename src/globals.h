@@ -19,8 +19,8 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/fmt/bundled/color.h"
 
-#define DEF_LOG_PATTERN "[%^%l%$]%v"
-#define RAW_LOG_PATTERN "%v"
+#define DEF_EVT_LOG_PATTERN "[%^%l%$]%v"
+#define RAW_EVT_LOG_PATTERN "%v"
 
 namespace utils {
 
@@ -48,10 +48,10 @@ struct scoped_log_fmt {
   T &p_;
 
   scoped_log_fmt(T &p, const std::string &scoped_log_fmt) : p_(p) {
-    p_.log_->set_pattern(scoped_log_fmt);
+    p_.event_log_->set_pattern(scoped_log_fmt);
   }
   ~scoped_log_fmt() {
-    p_.log_->set_pattern(p_.log_fmt_);
+    p_.event_log_->set_pattern(p_.event_log_fmt_);
   }
 };
 

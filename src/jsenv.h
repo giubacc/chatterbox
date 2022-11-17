@@ -30,7 +30,7 @@ struct js_env {
   js_env(rest::chatterbox &chatterbox);
   ~js_env();
 
-  int init();
+  int init(std::shared_ptr<spdlog::logger> &event_log);
 
   int renew_scenario_context();
 
@@ -86,9 +86,9 @@ struct js_env {
   //it is disposed and then recreated on every scenario.
   v8::Global<v8::Context> current_scenario_context_;
 
-  //logger
-  std::string log_fmt_;
-  std::shared_ptr<spdlog::logger> log_;
+  //event logger
+  std::string event_log_fmt_;
+  std::shared_ptr<spdlog::logger> event_log_;
 };
 
 }

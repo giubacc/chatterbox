@@ -2,18 +2,18 @@
   "conversations": [
     {
       "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "access_key": "test",
-      "secret_key": "test",
+      "s3_access_key": "test",
+      "s3_secret_key": "test",
       "service": "s3",
       "conversation": [
         {
           "for": 1,
           "talk": {
-            "auth": "v2",
+            "auth": "aws_v2",
             "verb": "PUT",
             "uri": "admin/bucket",
             "query_string": "format=json&owner&uid=jack&bucket=foo",
-            "body_res_format": "json"
+            "res_body_format": "json"
           }
         }
       ]
