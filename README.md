@@ -1,15 +1,27 @@
 # chatterbox
 
-In nutshell, `chatterbox` is a tool to define conversations with a generic
-rest endpoint.  
-You can write json files describing scenarios for conversations between the
-client (chatterbox) and a restful server.  
-In polling mode, you can drop the files into `chatterbox` working directory
-to see them being consumed by the tool.  
-Every time a new json file is placed within the working directory, `chatterbox`
-parses it and then generates the conversation(s) against the rest endpoint(s).  
-Once the file has been processed, the file is deleted or optionally moved
-into `./consumed` directory.
+## Description
+
+`chatterbox` is a tool to define restful conversations with a
+generic endpoint.  
+You can define scenarios with a json formalism describing conversations between the
+client (chatterbox) and the endpoint.  
+In polling mode, you can drop scenario files into a directory monitored by `chatterbox`
+and see them being consumed by the tool.  
+Every time a new scenario is placed within the directory, `chatterbox`
+parses it and then generates the conversation(s) against the endpoint(s).  
+Once the scenario has been processed, the file is deleted or optionally moved
+into `${directoy}/consumed`.  
+
+### Scripting capabilities
+
+`chatterbox` embeds [V8](https://v8.dev/), that is Google’s open source high-performance
+JavaScript and WebAssembly engine.  
+This allows the user to define scenarios in a dynamic way.  
+For example, the user could choose to compute the value of a certain
+rest-call's property as the result of a user defined JavaScript function.  
+More use cases could benefit from this capability and could be evaluated
+in the future as the tool evolves.
 
 ## Build requirements
 
@@ -111,25 +123,92 @@ OPTIONS
 The conversation scenario format is pretty straightforward:
 it is a json defining properties for the conversations you want to realize.
 
-At the root level you define an array of `conversations`:
+At the root level, or scenario level, you define an array of `conversations`:
 
 ```json
 {
   "conversations": [
     {
       "host" : "http://service1.host1.domain1",
-      "conversation": {..}
+      "conversation": []
     },
     {
       "host" : "https://service2.host2.domain2",
-      "s3_access_key" : "test",
-      "s3_secret_key" : "test",
-      "service" : "s3",
-      "conversation": {..}
+      "conversation": []
     }
-    ..
   ]
 }
+```
+
+This means that the tool is able to issue a set of restful calls against
+multiple endpoints.
+
+A `conversation` is defined as an array of `talk`(s):
+
+```json
+{
+  "conversation": [
+    {
+      "for" : 1,
+      "talk" : {
+        "auth" : "aws_v4",
+        "verb" : "GET",
+        "uri" : "foo",
+        "query_string" : "param=value",
+      }
+    },
+    {
+      "for" : 4,
+      "talk" : {
+        "auth" : "aws_v2",
+        "verb" : "HEAD",
+        "uri" : "bar",
+        "query_string" : "param=value",
+      }
+    }
+  ]
+}
+```
+
+A `talk` describes a single `HTTP` call.  
+You can repeat a `talk` for `n` times specifying the `for` attribute
+in the talk's context.
+
+## Scripted scenarios
+
+Every time a scenario runs, a brand new JavaScript context is spawned
+into `V8` engine and it lasts for the whole scenario's lifespan.  
+Generally speaking, attributes can be scripted defining JavaScript functions
+that are executed into the scenario's JavaScript context.  
+For example, the `query_string` attribute of a talk could be defined as this:
+
+```json
+{
+  "talk" : {
+    "auth" : "aws_v2",
+    "verb" : "HEAD",
+    "uri" : "bar",
+    "query_string" : {
+      "function": "GetQueryString",
+      "args": ["foo", "bar"]
+    },
+  }
+}
+```
+
+When the scenario runs, the `query_string` attribute's value is
+evaluated as a JavaScript function named: `GetQueryString` taking 2 string parameters
+valued respectively `foo` and `bar`.  
+The `GetQueryString` function must be defined inside a file with
+extension `.js` and placed into the directory that is being monitored by `chatterbox`.
+
+```javascript
+
+function GetQueryString(p1, p2) {
+  log("inf", "GetQueryString", "Invoked with: " + p1 + "," + p2);
+  return p1+p2;
+}
+
 ```
 
 ## Examples
@@ -161,7 +240,7 @@ checks that the newly created bucket actually exists.
           }
         },
         {
-          "for" : 3,
+          "for" : 1,
           "talk" : {
             "auth" : "aws_v4",
             "verb" : "HEAD",
