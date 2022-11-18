@@ -269,61 +269,29 @@ void chatterbox::dump_hdr(const RestClient::HeaderFields &hdr) const
 
 void chatterbox::poll()
 {
-  char file_path[PATH_MAX_LEN] = {0};
   DIR *dir;
   struct dirent *ent;
-  int lerrno = 0;
-  errno = 0;
 
   if((dir = opendir(cfg_.source_path.c_str())) != nullptr) {
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
-        strncpy(file_path, cfg_.source_path.c_str(), sizeof(file_path)-1);
-        strncat(file_path, "/", sizeof(file_path)-1);
-        strncat(file_path, ent->d_name, sizeof(file_path)-1);
-        stat(file_path, &info);
+        std::ostringstream fpath;
+        fpath << cfg_.source_path << "/" << ent->d_name;
+        stat(fpath.str().c_str(), &info);
         if(!S_ISDIR(info.st_mode)) {
           if(!utils::ends_with(ent->d_name, ".json")) {
             continue;
           }
-          event_log_->trace("processing scenario file:{}", ent->d_name);
-          std::stringstream ss;
-          int res = 0;
-          if((res = utils::read_file(file_path, ss, event_log_.get()))) {
-            event_log_->error("[read_file] {}, {}",
-                              ent->d_name,
-                              strerror(res));
-            continue;
-          }
-          execute_scenario(ss);
-          if(cfg_.move_scenario) {
-            move_file(ent->d_name);
-          } else {
-            rm_file(file_path);
-          }
+          execute_scenario(ent->d_name);
         }
       }
     }
-    if((lerrno = errno)) {
-      event_log_->trace("[readdir] failure for location:{}, errno:{}, {}",
-                        cfg_.source_path,
-                        lerrno,
-                        strerror(lerrno));
-    }
     if(closedir(dir)) {
-      lerrno = errno;
-      event_log_->error("[closedir] failure for location:{}, errno:{}, {}",
-                        cfg_.source_path,
-                        lerrno,
-                        strerror(lerrno));
+      event_log_->error("closedir: {}", strerror(errno));
     }
   } else {
-    lerrno = errno;
-    event_log_->critical("cannot open source location:{}, [opendir] errno:{}, {}",
-                         cfg_.source_path,
-                         lerrno,
-                         strerror(lerrno));
+    event_log_->critical("opendir: {}", strerror(errno));
   }
 }
 
@@ -347,14 +315,15 @@ void chatterbox::move_file(const char *filename)
 
 void chatterbox::rm_file(const char *filename)
 {
-  if(unlink(filename)) {
-    event_log_->error("[unlink] failure for removing:{}, errno:{}",
-                      filename,
-                      strerror(errno));
+  std::ostringstream fpath;
+  fpath << cfg_.source_path << "/" << filename;
+  if(unlink(fpath.str().c_str())) {
+    event_log_->error("unlink: {}", strerror(errno));
   }
 }
 
 void chatterbox::dump_talk_response(const Json::Value &talk,
+                                    bool res_body_dump,
                                     const std::string &res_body_format,
                                     RestClient::Response &res,
                                     Json::Value &conversation_out)
@@ -365,37 +334,67 @@ void chatterbox::dump_talk_response(const Json::Value &talk,
   talk_response["rendered_talk"] = talk;
   talk_response["res_code"] = res.code;
 
-  if(res.body.empty()) {
-    talk_response["res_body"] = Json::Value::null;
-  } else {
-    if(res_body_format == "json") {
-      try {
-        Json::Value body;
-        std::istringstream is(res.body);
-        is >> body;
-        talk_response["res_body"] = body;
-      } catch(const Json::RuntimeError &) {
+  if(res_body_dump) {
+    if(res.body.empty()) {
+      talk_response["res_body"] = Json::Value::null;
+    } else {
+      if(res_body_format == "json") {
+        try {
+          Json::Value body;
+          std::istringstream is(res.body);
+          is >> body;
+          talk_response["res_body"] = body;
+        } catch(const Json::RuntimeError &) {
+          talk_response["res_body"] = res.body;
+        }
+      } else {
         talk_response["res_body"] = res.body;
       }
-    } else {
-      talk_response["res_body"] = res.body;
     }
   }
+
   conversation_out.append(talk_response);
 }
 
-void chatterbox::execute_scenario(std::istream &is)
+int chatterbox::execute_scenario(const char *fname)
 {
+  int res = 0;
+  event_log_->trace("processing scenario file:{}", fname);
+
+  std::stringstream ss;
+  std::ostringstream fpath;
+  fpath << cfg_.source_path << "/" << fname;
+  if((res = utils::read_file(fpath.str().c_str(), ss, event_log_.get()))) {
+    event_log_->error("[read_file] {}", fname);
+  } else {
+    res = execute_scenario(ss);
+  }
+
+  if(cfg_.poll) {
+    if(cfg_.move_scenario) {
+      move_file(fname);
+    } else {
+      rm_file(fname);
+    }
+  }
+
+  return res;
+}
+
+int chatterbox::execute_scenario(std::istream &is)
+{
+  int res = 0;
+
   Json::Value scenario;
   try {
     is >> scenario;
   } catch(Json::RuntimeError &e) {
     event_log_->error("malformed scenario:\n{}", e.what());
-    return;
+    return 1;
   }
-  if(reset_scenario_ctx(scenario)) {
+  if((res = reset_scenario_ctx(scenario))) {
     event_log_->error("failed to reset scenario context");
-    return;
+    return res;
   }
 
   Json::Value conversations = scenario["conversations"];
@@ -408,9 +407,9 @@ void chatterbox::execute_scenario(std::istream &is)
   for(uint32_t i = 0; i < conversations.size(); ++i) {
 
     Json::Value conversation_ctx = conversations[i];
-    if(reset_conversation_ctx(conversation_ctx)) {
+    if((res = reset_conversation_ctx(conversation_ctx))) {
       event_log_->error("failed to reset conversation context");
-      return;
+      return res;
     }
 
     //output conversation value
@@ -432,7 +431,7 @@ void chatterbox::execute_scenario(std::istream &is)
       auto pfor = eval_as_uint32_t(conversation[i], "for", 0);
       if(!pfor) {
         event_log_->error("failed to read 'for' field");
-        return;
+        return 1;
       }
       talk_count += *pfor;
 
@@ -442,65 +441,68 @@ void chatterbox::execute_scenario(std::istream &is)
         auto verb = eval_as_string(talk, "verb");
         if(!verb) {
           event_log_->error("failed to read 'verb' field");
-          return;
+          return 1;
         }
 
         //uri
         auto uri = eval_as_string(talk, "uri", "");
         if(!uri) {
           event_log_->error("failed to read 'uri' field");
-          return;
+          return 1;
         }
 
         //query_string
         auto query_string = eval_as_string(talk, "query_string", "");
         if(!query_string) {
           event_log_->error("failed to read 'query_string' field");
-          return;
+          return 1;
         }
 
         //data
         auto data = eval_as_string(talk, "data", "");
         if(!data) {
           event_log_->error("failed to read 'data' field");
-          return;
+          return 1;
         }
 
         //res_body_dump
         auto res_body_dump = eval_as_bool(talk, "res_body_dump", true);
         if(!res_body_dump) {
           event_log_->error("failed to read 'res_body_dump' field");
-          return;
+          return 1;
         }
 
         //res_body_format
         auto res_body_format = eval_as_string(talk, "res_body_format", "");
         if(!res_body_format) {
           event_log_->error("failed to read 'res_body_format' field");
-          return;
+          return 1;
         }
 
         //optional auth directive
         auto auth = eval_as_string(talk, "auth", "aws_v4");
         if(!auth) {
           event_log_->error("failed to read 'auth' field");
-          return;
+          return 1;
         }
 
-        execute_talk(*verb,
-                     *auth,
-                     *uri,
-                     *query_string,
-                     *data,
-                     *res_body_dump,
-                     *res_body_format,
-                     conversation_out);
+        if((res = execute_talk(*verb,
+                               *auth,
+                               *uri,
+                               *query_string,
+                               *data,
+                               *res_body_dump,
+                               *res_body_format,
+                               conversation_out))) {
+          return res;
+        }
       }
     }
   }
 
   //finally write scenario_out on the output
   output_->info("{}", scenario_out.toStyledString());
+  return res;
 }
 
 Json::Value render_talk_json(const std::string &verb,
@@ -518,83 +520,85 @@ Json::Value render_talk_json(const std::string &verb,
   return talk;
 }
 
-void chatterbox::execute_talk(const std::string &verb,
-                              const std::string &auth,
-                              const std::string &uri,
-                              const std::string &query_string,
-                              const std::string &data,
-                              bool res_body_dump,
-                              const std::string &res_body_format,
-                              Json::Value &conversation_out)
+int chatterbox::execute_talk(const std::string &verb,
+                             const std::string &auth,
+                             const std::string &uri,
+                             const std::string &query_string,
+                             const std::string &data,
+                             bool res_body_dump,
+                             const std::string &res_body_format,
+                             Json::Value &conversation_out)
 {
   if(verb == "GET") {
     get(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      if(res_body_dump)
-        dump_talk_response(render_talk_json(verb,
-                                            auth,
-                                            uri,
-                                            query_string,
-                                            data),
-                           res_body_format,
-                           res,
-                           conversation_out);
+      dump_talk_response(render_talk_json(verb,
+                                          auth,
+                                          uri,
+                                          query_string,
+                                          data),
+                         res_body_dump,
+                         res_body_format,
+                         res,
+                         conversation_out);
       return 0;
     });
   } else if(verb == "POST") {
     post(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
-      if(res_body_dump)
-        dump_talk_response(render_talk_json(verb,
-                                            auth,
-                                            uri,
-                                            query_string,
-                                            data),
-                           res_body_format,
-                           res,
-                           conversation_out);
+      dump_talk_response(render_talk_json(verb,
+                                          auth,
+                                          uri,
+                                          query_string,
+                                          data),
+                         res_body_dump,
+                         res_body_format,
+                         res,
+                         conversation_out);
       return 0;
     });
   } else if(verb == "PUT") {
     put(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
-      if(res_body_dump)
-        dump_talk_response(render_talk_json(verb,
-                                            auth,
-                                            uri,
-                                            query_string,
-                                            data),
-                           res_body_format,
-                           res,
-                           conversation_out);
+      dump_talk_response(render_talk_json(verb,
+                                          auth,
+                                          uri,
+                                          query_string,
+                                          data),
+                         res_body_dump,
+                         res_body_format,
+                         res,
+                         conversation_out);
       return 0;
     });
   } else if(verb == "DELETE") {
     del(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      if(res_body_dump)
-        dump_talk_response(render_talk_json(verb,
-                                            auth,
-                                            uri,
-                                            query_string,
-                                            data),
-                           res_body_format,
-                           res,
-                           conversation_out);
+      dump_talk_response(render_talk_json(verb,
+                                          auth,
+                                          uri,
+                                          query_string,
+                                          data),
+                         res_body_dump,
+                         res_body_format,
+                         res,
+                         conversation_out);
       return 0;
     });
   } else if(verb == "HEAD") {
     head(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      if(res_body_dump)
-        dump_talk_response(render_talk_json(verb,
-                                            auth,
-                                            uri,
-                                            query_string,
-                                            data),
-                           res_body_format,
-                           res,
-                           conversation_out);
+      dump_talk_response(render_talk_json(verb,
+                                          auth,
+                                          uri,
+                                          query_string,
+                                          data),
+                         res_body_dump,
+                         res_body_format,
+                         res,
+                         conversation_out);
       return 0;
     });
   } else {
     event_log_->error("bad verb:{}", verb);
+    return 1;
   }
+  return 0;
 }
 
 // --------------------

@@ -26,6 +26,9 @@ js_env::js_env(rest::chatterbox &chatterbox) : chatterbox_(chatterbox)
 js_env::~js_env()
 {
   if(isolate_) {
+    if(!current_scenario_context_.IsEmpty()) {
+      current_scenario_context_.Empty();
+    }
     isolate_->Dispose();
     delete params_.array_buffer_allocator;
   }
@@ -188,14 +191,12 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
     return;
   }
 
-  char file_path[PATH_MAX_LEN] = {0};
-  strncpy(file_path, self->chatterbox_.cfg_.source_path.c_str(), sizeof(file_path)-1);
-  strncat(file_path, "/", sizeof(file_path)-1);
-  strncat(file_path, *script_path, sizeof(file_path)-1);
+  std::ostringstream fpath;
+  fpath << self->chatterbox_.cfg_.source_path << "/" << *script_path;
 
   //read the script's source
   v8::Local<v8::String> source;
-  if(!self->read_script_file(file_path).ToLocal(&source)) {
+  if(!self->read_script_file(fpath.str().c_str()).ToLocal(&source)) {
     self->event_log_->error("error reading script:{}", *script_path);
     return;
   }
@@ -222,11 +223,8 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
 int js_env::load_scripts()
 {
   int res = 0;
-  char file_path[PATH_MAX_LEN] = {0};
   DIR *dir;
   struct dirent *ent;
-  int lerrno = 0;
-  errno = 0;
 
   if((dir = opendir(chatterbox_.cfg_.source_path.c_str())) != nullptr) {
     std::vector<v8::Local<v8::String>> sources;
@@ -235,10 +233,9 @@ int js_env::load_scripts()
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
-        strncpy(file_path, chatterbox_.cfg_.source_path.c_str(), sizeof(file_path)-1);
-        strncat(file_path, "/", sizeof(file_path)-1);
-        strncat(file_path, ent->d_name, sizeof(file_path)-1);
-        stat(file_path, &info);
+        std::ostringstream fpath;
+        fpath << chatterbox_.cfg_.source_path << "/" << ent->d_name;
+        stat(fpath.str().c_str(), &info);
         if(!S_ISDIR(info.st_mode)) {
           if(!utils::ends_with(ent->d_name, ".js")) {
             continue;
@@ -247,7 +244,7 @@ int js_env::load_scripts()
 
           //read the script's source
           sources.emplace_back();
-          if(!read_script_file(file_path).ToLocal(&sources.back())) {
+          if(!read_script_file(fpath.str().c_str()).ToLocal(&sources.back())) {
             event_log_->error("error reading script file:{}", ent->d_name);
             res = -1;
             break;
@@ -278,25 +275,11 @@ int js_env::load_scripts()
       }
     }
 
-    if((lerrno = errno)) {
-      event_log_->trace("[readdir] failure for location:{}, errno:{}, {}",
-                        chatterbox_.cfg_.source_path,
-                        lerrno,
-                        strerror(lerrno));
-    }
     if(closedir(dir)) {
-      lerrno = errno;
-      event_log_->error("[closedir] failure for location:{}, errno:{}, {}",
-                        chatterbox_.cfg_.source_path,
-                        lerrno,
-                        strerror(lerrno));
+      event_log_->error("closedir: {}", strerror(errno));
     }
   } else {
-    lerrno = errno;
-    event_log_->critical("cannot open source location:{}, [opendir] errno:{}, {}",
-                         chatterbox_.cfg_.source_path,
-                         lerrno,
-                         strerror(lerrno));
+    event_log_->error("opendir: {}", strerror(errno));
     res = -1;
   }
 
@@ -340,6 +323,7 @@ v8::MaybeLocal<v8::String> js_env::read_script_file(const std::string &name)
 {
   std::stringstream content;
   if(utils::read_file(name.c_str(), content, event_log_.get())) {
+    event_log_->error("[read_file] {}", name.c_str());
     return v8::MaybeLocal<v8::String>();
   }
 

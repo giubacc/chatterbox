@@ -14,6 +14,7 @@ struct chatterbox {
 
       std::string source_path = ".";
 
+      std::string in_channel = "";
       std::string out_channel = "stdout";
 
       std::string evt_log_channel = "stderr";
@@ -28,16 +29,17 @@ struct chatterbox {
     int reset_conversation_ctx(const Json::Value &conversation_ctx);
     void poll();
 
-    void execute_scenario(std::istream &is);
+    int execute_scenario(const char *fname);
+    int execute_scenario(std::istream &is);
 
-    void execute_talk(const std::string &verb,
-                      const std::string &auth,
-                      const std::string &uri,
-                      const std::string &query_string,
-                      const std::string &data,
-                      bool res_body_dump,
-                      const std::string &res_body_format,
-                      Json::Value &conversation_out);
+    int execute_talk(const std::string &verb,
+                     const std::string &auth,
+                     const std::string &uri,
+                     const std::string &query_string,
+                     const std::string &data,
+                     bool res_body_dump,
+                     const std::string &res_body_format,
+                     Json::Value &conversation_out);
 
     // --------------------
     // --- HTTP METHODS ---
@@ -136,6 +138,7 @@ struct chatterbox {
     void dump_hdr(const RestClient::HeaderFields &hdr) const;
 
     void dump_talk_response(const Json::Value &talk,
+                            bool res_body_dump,
                             const std::string &res_body_format,
                             RestClient::Response &res,
                             Json::Value &conversation_out);

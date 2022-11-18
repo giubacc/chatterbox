@@ -92,6 +92,19 @@ inline bool ends_with(const std::string &str, const std::string &match)
   }
 }
 
+inline void base_name(const std::string &input,
+                      std::string &base_path,
+                      std::string &file_name)
+{
+  if(input.find("/") != std::string::npos) {
+    base_path = input.substr(0, input.find_last_of("/"));
+    file_name = input.substr(input.find_last_of("/") + 1);
+  } else {
+    base_path = ".";
+    file_name = input;
+  }
+}
+
 int read_file(const char *fname,
               std::stringstream &out,
               spdlog::logger *log);

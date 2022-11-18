@@ -1,10 +1,10 @@
 #!/bin/bash
 
-image=localhost/chatterbox-opensuse:latest
+image=ghcr.io/giubacc/chatterbox-opensuse:latest
 host_path=$(realpath ${1})
 
 podman run \
 	-it \
-  --network=host \
+	--network=host \
 	-v $host_path:/monitor \
 	$image -p /monitor

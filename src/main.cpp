@@ -3,11 +3,17 @@
 
 int main(int argc, char *argv[])
 {
+  int res = 0;
+
   {
     rest::chatterbox cbox;
 
     auto cli = (
-                 clipp::option("-o", "--out")
+                 clipp::option("-i", "--input")
+                 .doc("specify the input scenario [filename]")
+                 & clipp::value("input", cbox.cfg_.in_channel),
+
+                 clipp::option("-o", "--output")
                  .doc("specify the output channel [stdout, stderr, filename]")
                  & clipp::value("output", cbox.cfg_.out_channel),
 
@@ -41,7 +47,6 @@ int main(int argc, char *argv[])
     }
 
     //init chatterbox
-    int res = 0;
     if((res = cbox.init(argc, argv))) {
       std::cerr << "error init chatterbox, exiting..." << std::endl;
       return res;
@@ -57,9 +62,13 @@ int main(int argc, char *argv[])
         cbox.poll();
         usleep(2*1000*1000);
       }
+    } else if(!cbox.cfg_.in_channel.empty()) {
+      std::string base_path, file_name;
+      utils::base_name(cbox.cfg_.in_channel, cbox.cfg_.source_path, file_name);
+      res = cbox.execute_scenario(file_name.c_str());
     }
   }
 
   js::js_env::stop_V8();
-  return 0;
+  return res;
 }

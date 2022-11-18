@@ -106,11 +106,14 @@ localhost/chatterbox-opensuse              latest      d80adb80f677  About a min
 
 ```text
 SYNOPSIS
-        chatterbox [-o <output>] [-p <path>] [-m] [-l <event log output>] [-v <event log
-                         verbosity>]
+        chatterbox [-i <input>] [-o <output>] [-p <path>] [-m] [-l <event log output>] [-v
+                            <event log verbosity>]
 
 OPTIONS
-        -o, --out   specify the output channel [stdout, stderr, filename]
+        -i, --input specify the input scenario [filename]
+        -o, --output
+                    specify the output channel [stdout, stderr, filename]
+
         -p, --poll  monitor filesystem for new scenarios
         -m, --move  move scenario files once consumed
         -l, --log   specify the event log output channel [stderr, stdout, filename]
