@@ -3,29 +3,34 @@
 ## Description
 
 `chatterbox` is a tool to define restful conversations with a
-generic endpoint.  
-You can define scenarios with a json formalism describing conversations between the
-client (chatterbox) and the endpoint.  
-In polling mode, you can drop scenario files into a directory monitored by `chatterbox`
-and see them being consumed by the tool.  
+generic endpoint.
+
+You can define scenarios with a json formalism describing conversations
+between the client (chatterbox) and the endpoint.
+
+In polling mode, you can drop scenario files into a directory monitored
+by `chatterbox` and see them being consumed by the tool.
 Every time a new scenario is placed within the directory, `chatterbox`
-parses it and then generates the conversation(s) against the endpoint(s).  
-Once the scenario has been processed, the file is deleted or optionally moved
-into `${directoy}/consumed`.  
+parses it and then generates the conversation(s) against the endpoint(s).
+Once the scenario has been processed, the file is deleted or optionally
+moved into `${directory}/consumed`.
 
 ### Scripting capabilities
 
-`chatterbox` embeds [V8](https://v8.dev/), that is Google’s open source high-performance
-JavaScript and WebAssembly engine.  
-This allows the user to define scenarios in a dynamic way.  
+`chatterbox` embeds [V8](https://v8.dev/) the Google’s open source
+high-performance JavaScript and WebAssembly engine.
+
+This allows the user to define scenarios in a dynamic way.
 For example, the user could choose to compute the value of a certain
-rest-call's property as the result of a user defined JavaScript function.  
-More use cases could benefit from this capability and could be evaluated
-in the future as the tool evolves.
+rest-call's property as the result of a user defined JavaScript function.
+
+More use cases could benefit from scripting capabilities and these could
+be evaluated in the future as the tool evolves.
 
 ## Build requirements
 
-Currently, `chatterbox` can be solely built under Linux.  
+Currently, `chatterbox` can be solely built under Linux.
+
 If you intend to build the `chatterbox` binary directly on your Linux
 distribution, ensure your system provides:
 
@@ -76,8 +81,8 @@ cd scripts
 ```shell
 $ podman images
 
-REPOSITORY                                 TAG         IMAGE ID      CREATED             SIZE
-localhost/chatterbox-builder-opensuse      latest      5739a6d404bc  38 minutes ago      7.57 GB
+REPOSITORY                                  TAG
+localhost/chatterbox-builder-opensuse       latest
 ```
 
 With this image it is possible to build the `chatterbox` binary:
@@ -98,27 +103,32 @@ cd scripts
 ```shell
 $ podman images
 
-REPOSITORY                                 TAG         IMAGE ID      CREATED             SIZE
-localhost/chatterbox-opensuse              latest      d80adb80f677  About a minute ago  331 MB
+REPOSITORY                                 TAG
+localhost/chatterbox-opensuse              latest
 ```
 
 ## Usage
 
 ```text
 SYNOPSIS
-        chatterbox [-i <input>] [-o <output>] [-p <path>] [-m] [-l <event log output>] [-v
-                            <event log verbosity>]
+        chatterbox [-i <input>] [-o <output>] [-p <path>] [-m]
+                   [-l <event log output>] [-v <event log verbosity>]
 
 OPTIONS
         -i, --input specify the input scenario [filename]
+
         -o, --output
-                    specify the output channel [stdout, stderr, filename]
+                specify the output channel [stdout, stderr, filename]
 
         -p, --poll  monitor filesystem for new scenarios
+
         -m, --move  move scenario files once consumed
-        -l, --log   specify the event log output channel [stderr, stdout, filename]
+
+        -l, --log
+                specify the event log output channel [stderr, stdout, filename]
+
         -v, --verbosity
-                    specify the event log verbosity [off, dbg, trc, inf, wrn, err]
+                specify the event log verbosity [off, dbg, trc, inf, wrn, err]
 ```
 
 ## Conversation scenario format
@@ -173,16 +183,19 @@ A `conversation` is defined as an array of `talk`(s):
 }
 ```
 
-A `talk` describes a single `HTTP` call.  
+A `talk` describes a single `HTTP` call.
+
 You can repeat a `talk` for `n` times specifying the `for` attribute
 in the talk's context.
 
 ## Scripted scenarios
 
 Every time a scenario runs, a brand new JavaScript context is spawned
-into `V8` engine and it lasts for the whole scenario's lifespan.  
+into `V8` engine and it lasts for the whole scenario's lifespan.
+
 Generally speaking, attributes can be scripted defining JavaScript functions
-that are executed into the scenario's JavaScript context.  
+that are executed into the scenario's JavaScript context.
+
 For example, the `query_string` attribute of a talk could be defined as this:
 
 ```json
@@ -200,10 +213,11 @@ For example, the `query_string` attribute of a talk could be defined as this:
 ```
 
 When the scenario runs, the `query_string` attribute's value is
-evaluated as a JavaScript function named: `GetQueryString` taking 2 string parameters
-valued respectively `foo` and `bar`.  
+evaluated as a JavaScript function named: `GetQueryString`
+taking 2 string parameters valued respectively with `foo` and `bar`.
+
 The `GetQueryString` function must be defined inside a file with
-extension `.js` and placed into the directory that is being monitored by `chatterbox`.
+extension `.js` and placed into the directory checked by `chatterbox`.
 
 ```javascript
 
@@ -259,45 +273,41 @@ checks that the newly created bucket actually exists.
 }
 ```
 
-- Output rendered conversation:
+- Output rendered conversation
 
 ```json
 {
-        "rendered_conversations" :
-        [
-                {
-                        "host" : "s3gw.127.0.0.1.omg.howdoi.website:7480",
-                        "rendered_conversation" :
-                        [
-                                {
-                                        "rendered_talk" :
-                                        {
-                                                "auth" : "aws_v4",
-                                                "data" : "",
-                                                "query_string" : "format=json",
-                                                "uri" : "foobar",
-                                                "verb" : "PUT"
-                                        },
-                                        "res_body" : null,
-                                        "res_code" : 200
-                                },
-                                {
-                                        "rendered_talk" :
-                                        {
-                                                "auth" : "aws_v4",
-                                                "data" : "",
-                                                "query_string" : "format=json",
-                                                "uri" : "foobar",
-                                                "verb" : "HEAD"
-                                        },
-                                        "res_body" : null,
-                                        "res_code" : 200
-                                }
-                        ],
-                        "s3_access_key" : "test",
-                        "s3_secret_key" : "test",
-                        "service" : "s3"
-                }
-        ]
+   "rendered_conversations":[
+      {
+         "host":"s3gw.127.0.0.1.omg.howdoi.website:7480",
+         "rendered_conversation":[
+            {
+               "rendered_talk":{
+                  "auth":"aws_v4",
+                  "data":"",
+                  "query_string":"format=json",
+                  "uri":"foobar",
+                  "verb":"PUT"
+               },
+               "res_body":null,
+               "res_code":200
+            },
+            {
+               "rendered_talk":{
+                  "auth":"aws_v4",
+                  "data":"",
+                  "query_string":"format=json",
+                  "uri":"foobar",
+                  "verb":"HEAD"
+               },
+               "res_body":null,
+               "res_code":200
+            }
+         ],
+         "s3_access_key":"test",
+         "s3_secret_key":"test",
+         "service":"s3"
+      }
+   ]
 }
 ```
