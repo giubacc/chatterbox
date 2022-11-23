@@ -2,7 +2,8 @@
 
 basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
-base_image=${BASE_IMAGE:-"opensuse"}
+base_image_vendor=${BASE_IMAGE_VENDOR:-"opensuse"}
+builder_image=${BUILDER_IMAGE:-"chatterbox-builder-"${base_image_vendor}}
 contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
 
 usage() {
@@ -24,10 +25,11 @@ commands
   help                      This message.
 
 env variables
-  BASE_DIR            Specifies the directory containing src (default: ../).
-  NINJA_JOBS          Specifies the number of parallel ninja jobs.
-  BASE_IMAGE          Specifies the base image for the chatterbox builder image.
-  CONTRIB_PATH        Specifies the path where contrib resources are placed.
+  BASE_DIR            Specify the directory containing src (default: ../).
+  NINJA_JOBS          Specify the number of parallel ninja jobs.
+  BASE_IMAGE_VENDOR   Specify the base image vendor for the chatterbox and the chatterbox-builder image.
+  BUILDER_IMAGE       Specify the builder's image to use.
+  CONTRIB_PATH        Specify the path where contrib resources are placed.
 EOF
 }
 
@@ -37,8 +39,8 @@ error() {
 
 create_builder() {
   echo "Creating the chatterbox builder image ..."
-  podman build -t chatterbox-builder-${base_image} \
-    -f Dockerfile.builder-${base_image} . || exit 1
+  podman build --no-cache -t chatterbox-builder-${base_image_vendor} \
+    -f Dockerfile.builder-${base_image_vendor} . || exit 1
 }
 
 builder_build() {
@@ -50,13 +52,13 @@ builder_build() {
     -e NINJA_JOBS=${ninja_jobs} \
     -e CONTRIB_PATH="/contrib" \
     ${volumes[@]} \
-    chatterbox-builder-${base_image} build || exit 1
+    ${builder_image} build || exit 1
 }
 
 create_chatterbox() {
   echo "Creating the chatterbox image ..."
-  podman build -t chatterbox-${base_image} \
-    -f Dockerfile.chatterbox-${base_image} ${basedir}/build || exit 1
+  podman build -t chatterbox-${base_image_vendor} \
+    -f Dockerfile.chatterbox-${base_image_vendor} ${basedir}/build || exit 1
 }
 
 build() {

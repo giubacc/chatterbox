@@ -9,12 +9,12 @@ struct chatterbox {
 
     // chatterbox configuration
     struct cfg {
-      bool poll = false;
-      bool move_scenario = false;
+      bool monitor = false;
+      bool move_scenario = true;
 
-      std::string source_path = ".";
+      std::string in_scenario_path = "";
+      std::string in_scenario_name = "";
 
-      std::string in_channel = "";
       std::string out_channel = "stdout";
 
       std::string evt_log_channel = "stderr";

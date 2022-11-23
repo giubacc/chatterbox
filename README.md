@@ -1,5 +1,19 @@
 # chatterbox
 
+## Contents
+
+- [chatterbox](#chatterbox)
+  - [Description](#description)
+    - [Scripting capabilities](#scripting-capabilities)
+  - [Build requirements](#build-requirements)
+  - [How to build](#how-to-build)
+    - [Build on host](#build-on-host)
+    - [Build with a Dockerfile builder image](#build-with-a-dockerfile-builder-image)
+  - [Usage](#usage)
+  - [Conversation scenario format](#conversation-scenario-format)
+  - [Scripted scenarios](#scripted-scenarios)
+  - [Examples](#examples)
+
 ## Description
 
 `chatterbox` is a tool to define restful conversations with a
@@ -50,7 +64,7 @@ git submodule init
 git submodule update
 ```
 
-## Build on bare metal
+### Build on host
 
 Build the `chatterbox` binary alongside with all its dependencies:
 
@@ -59,7 +73,7 @@ cd scripts
 ./build.sh build-all
 ```
 
-## Build with a Dockerfile builder image
+### Build with a Dockerfile builder image
 
 It is possible to use a Dockerfile builder image to compile the binary
 of `chatterbox`.
@@ -85,7 +99,7 @@ REPOSITORY                                  TAG
 localhost/chatterbox-builder-opensuse       latest
 ```
 
-With this image it is possible to build the `chatterbox` binary:
+With this image, it is possible to build the `chatterbox` binary:
 
 ```shell
 cd scripts
@@ -111,24 +125,27 @@ localhost/chatterbox-opensuse              latest
 
 ```text
 SYNOPSIS
-        chatterbox [-i <input>] [-o <output>] [-p <path>] [-m]
+        chatterbox [-i <input>] [-p <path>] [-o <output>] [-m] [-d]
                    [-l <event log output>] [-v <event log verbosity>]
 
 OPTIONS
-        -i, --input specify the input scenario [filename]
+        -i, --input specify input scenario [filename]
+
+        -p, --path  specify scenario's path [path]
 
         -o, --output
-                specify the output channel [stdout, stderr, filename]
+                    specify output channel [stdout, stderr, filename]
 
-        -p, --poll  monitor filesystem for new scenarios
+        -m, --monitor
+                    monitor filesystem for new scenarios
 
-        -m, --move  move scenario files once consumed
+        -d, --delete
+                    delete scenario files once consumed
 
-        -l, --log
-                specify the event log output channel [stderr, stdout, filename]
+        -l, --log   specify event log output channel [stderr, stdout, filename]
 
         -v, --verbosity
-                specify the event log verbosity [off, dbg, trc, inf, wrn, err]
+                    specify event log verbosity [off, dbg, trc, inf, wrn, err]
 ```
 
 ## Conversation scenario format
@@ -277,12 +294,12 @@ checks that the newly created bucket actually exists.
 
 ```json
 {
-   "rendered_conversations":[
+   "conversations":[
       {
          "host":"s3gw.127.0.0.1.omg.howdoi.website:7480",
-         "rendered_conversation":[
+         "conversation":[
             {
-               "rendered_talk":{
+               "talk":{
                   "auth":"aws_v4",
                   "data":"",
                   "query_string":"format=json",
@@ -293,7 +310,7 @@ checks that the newly created bucket actually exists.
                "res_code":200
             },
             {
-               "rendered_talk":{
+               "talk":{
                   "auth":"aws_v4",
                   "data":"",
                   "query_string":"format=json",

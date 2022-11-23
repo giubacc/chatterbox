@@ -1,10 +1,8 @@
 FROM opensuse/tumbleweed
 LABEL Name=chatterbox-opensuse
 
-RUN zypper -n install --no-recommends \
-    sudo dnf bash curl
-
-RUN zypper clean --all
+RUN zypper -n install --no-recommends curl \
+&& zypper clean --all
 
 RUN mkdir /monitor
 VOLUME /monitor

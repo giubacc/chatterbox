@@ -10,28 +10,31 @@ int main(int argc, char *argv[])
 
     auto cli = (
                  clipp::option("-i", "--input")
-                 .doc("specify the input scenario [filename]")
-                 & clipp::value("input", cbox.cfg_.in_channel),
+                 .doc("specify input scenario [filename]")
+                 & clipp::value("input", cbox.cfg_.in_scenario_name),
+
+                 clipp::option("-p", "--path")
+                 .doc("specify scenario's path [path]")
+                 & clipp::value("path", cbox.cfg_.in_scenario_path),
 
                  clipp::option("-o", "--output")
-                 .doc("specify the output channel [stdout, stderr, filename]")
+                 .doc("specify output channel [stdout, stderr, filename]")
                  & clipp::value("output", cbox.cfg_.out_channel),
 
-                 clipp::option("-p", "--poll")
-                 .set(cbox.cfg_.poll, true)
-                 .doc("monitor filesystem for new scenarios")
-                 & clipp::value("path", cbox.cfg_.source_path),
+                 clipp::option("-m", "--monitor")
+                 .set(cbox.cfg_.monitor, true)
+                 .doc("monitor filesystem for new scenarios"),
 
-                 clipp::option("-m", "--move")
-                 .set(cbox.cfg_.move_scenario, false)
-                 .doc("move scenario files once consumed"),
+                 clipp::option("-d", "--delete")
+                 .set(cbox.cfg_.move_scenario, true)
+                 .doc("delete scenario files once consumed"),
 
                  clipp::option("-l", "--log")
-                 .doc("specify the event log output channel [stderr, stdout, filename]")
+                 .doc("specify event log output channel [stderr, stdout, filename]")
                  & clipp::value("event log output", cbox.cfg_.evt_log_channel),
 
                  clipp::option("-v", "--verbosity")
-                 .doc("specify the event log verbosity [off, dbg, trc, inf, wrn, err]")
+                 .doc("specify event log verbosity [off, dbg, trc, inf, wrn, err]")
                  & clipp::value("event log verbosity", cbox.cfg_.evt_log_level)
                );
 
@@ -52,19 +55,25 @@ int main(int argc, char *argv[])
       return res;
     }
 
-    if(cbox.cfg_.poll) {
+    if(cbox.cfg_.monitor) {
       cbox.event_log_->set_pattern(RAW_EVT_LOG_PATTERN);
       cbox.event_log_->info("{}", fmt::format(fmt::fg(fmt::terminal_color::magenta) |
                                               fmt::emphasis::bold,
-                                              ">>POLLING MODE<<\n"));
+                                              ">>MONITORING MODE<<\n"));
       cbox.event_log_->set_pattern(cbox.event_log_fmt_);
       while(true) {
         cbox.poll();
         usleep(2*1000*1000);
       }
-    } else if(!cbox.cfg_.in_channel.empty()) {
-      std::string base_path, file_name;
-      utils::base_name(cbox.cfg_.in_channel, cbox.cfg_.source_path, file_name);
+    } else if(!cbox.cfg_.in_scenario_name.empty()) {
+      std::string file_name;
+      if(cbox.cfg_.in_scenario_path.empty()) {
+        utils::base_name(cbox.cfg_.in_scenario_name,
+                         cbox.cfg_.in_scenario_path,
+                         file_name);
+      } else {
+        file_name = cbox.cfg_.in_scenario_name;
+      }
       res = cbox.execute_scenario(file_name.c_str());
     }
   }

@@ -272,12 +272,12 @@ void chatterbox::poll()
   DIR *dir;
   struct dirent *ent;
 
-  if((dir = opendir(cfg_.source_path.c_str())) != nullptr) {
+  if((dir = opendir(cfg_.in_scenario_path.c_str())) != nullptr) {
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
         std::ostringstream fpath;
-        fpath << cfg_.source_path << "/" << ent->d_name;
+        fpath << cfg_.in_scenario_path << "/" << ent->d_name;
         stat(fpath.str().c_str(), &info);
         if(!S_ISDIR(info.st_mode)) {
           if(!utils::ends_with(ent->d_name, ".json")) {
@@ -298,8 +298,11 @@ void chatterbox::poll()
 void chatterbox::move_file(const char *filename)
 {
   std::ostringstream os_src, os_to;
-  os_src << cfg_.source_path << "/" << filename;
-  os_to << cfg_.source_path << "/" << "consumed" << "/" << filename;
+  os_src << cfg_.in_scenario_path;
+  mkdir((os_src.str() + "/consumed").c_str(), 0777);
+
+  os_src << "/" << filename;
+  os_to << cfg_.in_scenario_path << "/consumed/" << filename;
 
   std::string to_fname_base(os_to.str());
   std::string to_fname(to_fname_base);
@@ -316,7 +319,7 @@ void chatterbox::move_file(const char *filename)
 void chatterbox::rm_file(const char *filename)
 {
   std::ostringstream fpath;
-  fpath << cfg_.source_path << "/" << filename;
+  fpath << cfg_.in_scenario_path << "/" << filename;
   if(unlink(fpath.str().c_str())) {
     event_log_->error("unlink: {}", strerror(errno));
   }
@@ -331,7 +334,7 @@ void chatterbox::dump_talk_response(const Json::Value &talk,
   utils::scoped_log_fmt<chatterbox> slf(*this, RAW_EVT_LOG_PATTERN);
   Json::Value talk_response;
 
-  talk_response["rendered_talk"] = talk;
+  talk_response["talk"] = talk;
   talk_response["res_code"] = res.code;
 
   if(res_body_dump) {
@@ -363,14 +366,14 @@ int chatterbox::execute_scenario(const char *fname)
 
   std::stringstream ss;
   std::ostringstream fpath;
-  fpath << cfg_.source_path << "/" << fname;
+  fpath << cfg_.in_scenario_path << "/" << fname;
   if((res = utils::read_file(fpath.str().c_str(), ss, event_log_.get()))) {
     event_log_->error("[read_file] {}", fname);
   } else {
     res = execute_scenario(ss);
   }
 
-  if(cfg_.poll) {
+  if(cfg_.monitor) {
     if(cfg_.move_scenario) {
       move_file(fname);
     } else {
@@ -401,7 +404,7 @@ int chatterbox::execute_scenario(std::istream &is)
 
   //output scenario value
   Json::Value scenario_out;
-  Json::Value &conversations_out = scenario_out["rendered_conversations"] = Json::Value::null;
+  Json::Value &conversations_out = scenario_out["conversations"] = Json::Value::null;
 
   //conversations cycle
   for(uint32_t i = 0; i < conversations.size(); ++i) {
@@ -416,7 +419,7 @@ int chatterbox::execute_scenario(std::istream &is)
     Json::Value conversation_ctx_light = conversation_ctx;
     conversation_ctx_light.removeMember("conversation");
     Json::Value &conversation_ctx_out = conversations_out.append(conversation_ctx_light);
-    Json::Value &conversation_out = conversation_ctx_out["rendered_conversation"] = Json::Value::null;
+    Json::Value &conversation_out = conversation_ctx_out["conversation"] = Json::Value::null;
 
     uint32_t talk_count = 0;
     Json::Value conversation = conversation_ctx["conversation"];

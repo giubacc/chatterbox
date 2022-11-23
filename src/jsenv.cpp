@@ -192,7 +192,7 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
   }
 
   std::ostringstream fpath;
-  fpath << self->chatterbox_.cfg_.source_path << "/" << *script_path;
+  fpath << self->chatterbox_.cfg_.in_scenario_path << "/" << *script_path;
 
   //read the script's source
   v8::Local<v8::String> source;
@@ -226,7 +226,7 @@ int js_env::load_scripts()
   DIR *dir;
   struct dirent *ent;
 
-  if((dir = opendir(chatterbox_.cfg_.source_path.c_str())) != nullptr) {
+  if((dir = opendir(chatterbox_.cfg_.in_scenario_path.c_str())) != nullptr) {
     std::vector<v8::Local<v8::String>> sources;
     std::vector<v8::Local<v8::Script>> scripts;
 
@@ -234,7 +234,7 @@ int js_env::load_scripts()
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
         std::ostringstream fpath;
-        fpath << chatterbox_.cfg_.source_path << "/" << ent->d_name;
+        fpath << chatterbox_.cfg_.in_scenario_path << "/" << ent->d_name;
         stat(fpath.str().c_str(), &info);
         if(!S_ISDIR(info.st_mode)) {
           if(!utils::ends_with(ent->d_name, ".js")) {

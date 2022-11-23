@@ -2,7 +2,7 @@ FROM opensuse/tumbleweed
 LABEL Name=chatterbox-opensuse-builder
 
 RUN zypper -n install --no-recommends \
-    sudo dnf bash \
+    find \
     make \
     cmake \
     git \
@@ -14,9 +14,8 @@ RUN zypper -n install --no-recommends \
     autogen \
     libtool \
     libcurl-devel \
-    libopenssl-devel
-
-RUN zypper clean --all
+    libopenssl-devel \
+    && zypper clean --all
 
 COPY contrib_init.sh /usr/bin/contrib_init.sh
 COPY build.sh /usr/bin/build.sh
@@ -24,8 +23,20 @@ COPY build.sh /usr/bin/build.sh
 ENV CONTRIB_PATH /contrib
 ENV TAR_OPTIONS --no-same-owner
 
-RUN contrib_init.sh
-RUN build.sh build-deps
+RUN contrib_init.sh && build.sh build-deps \
+&& find /contrib -name "*.o" -type f -delete \
+&& find /contrib -name "*.exe" -type f -delete \
+&& cp -R --parents /contrib/jsoncpp/include /tmp \
+&& cp -R --parents /contrib/restclient-cpp/include /tmp \
+&& cp -R --parents /contrib/cryptopp /tmp \
+&& cp -R --parents /contrib/spdlog/include /tmp \
+&& cp -R --parents /contrib/clipp/include /tmp \
+&& cp -R --parents /contrib/v8/include /tmp \
+&& cp -R --parents /contrib/restclient-cpp/.libs /tmp \
+&& cp -R --parents /contrib/jsoncpp-build/lib /tmp \
+&& cp -R --parents /contrib/v8/out/x86.release/obj /tmp \
+&& rm -rf /contrib \
+&& mv /tmp/contrib /contrib
 
 ENTRYPOINT ["build.sh"]
 CMD ["build"]
