@@ -123,30 +123,33 @@ localhost/chatterbox-opensuse              latest
 
 ## Usage
 
-```text
-SYNOPSIS
-        chatterbox [-i <input>] [-p <path>] [-o <output>] [-m] [-d]
-                   [-l <event log output>] [-v <event log verbosity>]
+You typically want to write your scenarios on files and then submit them to
+`chatterbox`.
 
-OPTIONS
-        -i, --input specify input scenario [filename]
+Once you have your scenario ready, you can submit it to `chatterbox` with:
 
-        -p, --path  specify scenario's path [path]
-
-        -o, --output
-                    specify output channel [stdout, stderr, filename]
-
-        -m, --monitor
-                    monitor filesystem for new scenarios
-
-        -d, --delete
-                    delete scenario files once consumed
-
-        -l, --log   specify event log output channel [stderr, stdout, filename]
-
-        -v, --verbosity
-                    specify event log verbosity [off, dbg, trc, inf, wrn, err]
+```shell
+chatterbox -i scenario.json
 ```
+
+You can specify indifferently a relative or an absolute path.
+If you want, you can also specify a relative path from where files are read.
+
+```shell
+chatterbox -p /scenarios -i scenario.json
+```
+
+You can use `chatterbox` to monitor a directory on filesystem.
+On this mode, `chatterbox` will constantly check the monitored directory
+for new scenarios.
+
+```shell
+$ chatterbox -p /scenarios -m
+>>MONITORING MODE<<
+```
+
+By default, files are moved into `${directory}/consumed` once they have
+been consumed. If you prefer them to be deleted you can specify the `-d` flag.
 
 ## Conversation scenario format
 
