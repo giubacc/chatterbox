@@ -1,5 +1,5 @@
 FROM opensuse/tumbleweed
-LABEL Name=chatterbox-opensuse-builder
+LABEL Name=chatterbox-builder
 
 RUN zypper -n install --no-recommends \
     find \

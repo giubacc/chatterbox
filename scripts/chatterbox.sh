@@ -1,6 +1,6 @@
 #!/bin/bash
 
-image=${CHBOX_IMAGE:-"ghcr.io/giubacc/chatterbox-opensuse:latest"}
+image=${CHBOX_IMAGE:-"ghcr.io/giubacc/chatterbox:latest"}
 host_path=$(realpath ${HOST_PATH:-"."})
 
 usage() {

@@ -1,0 +1,44 @@
+---
+name: Build Builder
+on:
+  push:
+    tags:
+      - v*
+  workflow_call:
+    inputs:
+      tag:
+        description: "A tag to use for the image"
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME_BUILDER: chatterbox-builder
+
+jobs:
+  build-and-push-builder:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push builder-image
+        uses: docker/build-push-action@v3
+        with:
+          file: 'scripts/Dockerfile.builder'
+          context: scripts
+          push: true
+          tags: |
+            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:latest
+            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ inputs.tag }}
+          labels: ${{ env.IMAGE_NAME_BUILDER }}

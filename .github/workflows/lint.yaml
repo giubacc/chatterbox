@@ -1,9 +1,14 @@
 ---
 name: Lint
 on:
-  - push
-  - pull_request
-  - workflow_dispatch
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
 
 jobs:
   lint:

@@ -1,9 +1,9 @@
 #!/bin/bash
 
+container_mng=${CNT_MNG:-"podman"}
 basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
-base_image_vendor=${BASE_IMAGE_VENDOR:-"opensuse"}
-builder_image=${BUILDER_IMAGE:-"chatterbox-builder-"${base_image_vendor}}
+builder_image=${BUILDER_IMAGE:-"chatterbox-builder"}
 contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
 
 usage() {
@@ -25,9 +25,9 @@ commands
   help                      This message.
 
 env variables
+  CNT_MNG             Specify the container manager.
   BASE_DIR            Specify the directory containing src (default: ../).
   NINJA_JOBS          Specify the number of parallel ninja jobs.
-  BASE_IMAGE_VENDOR   Specify the base image vendor for the chatterbox and the chatterbox-builder image.
   BUILDER_IMAGE       Specify the builder's image to use.
   CONTRIB_PATH        Specify the path where contrib resources are placed.
 EOF
@@ -39,31 +39,31 @@ error() {
 
 create_builder() {
   echo "Creating the chatterbox builder image ..."
-  podman build --no-cache -t chatterbox-builder-${base_image_vendor} \
-    -f Dockerfile.builder-${base_image_vendor} . || exit 1
+  $container_mng build --no-cache -t chatterbox-builder \
+    -f Dockerfile.builder . || exit 1
 }
 
 builder_build() {
   echo "Building chatterbox binary with the chatterbox builder ..."
   volumes="-v $basedir:/project"
 
-  podman run -it \
+  $container_mng run -it \
     -e BASE_DIR=/project \
     -e NINJA_JOBS=${ninja_jobs} \
-    -e CONTRIB_PATH="/contrib" \
+    -e CONTRIB_PATH=/contrib \
     ${volumes[@]} \
     ${builder_image} build || exit 1
 }
 
 create_chatterbox() {
   echo "Creating the chatterbox image ..."
-  podman build -t chatterbox-${base_image_vendor} \
-    -f Dockerfile.chatterbox-${base_image_vendor} ${basedir}/build || exit 1
+  $container_mng build -t chatterbox \
+    -f Dockerfile.chatterbox ${basedir}/build || exit 1
 }
 
 build() {
   echo "Building chatterbox binary ..."
-  mkdir -p $basedir/build && cd $basedir/build && cmake .. && make
+  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make
 }
 
 clean() {

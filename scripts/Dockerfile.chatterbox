@@ -1,5 +1,5 @@
 FROM opensuse/tumbleweed
-LABEL Name=chatterbox-opensuse
+LABEL Name=chatterbox
 
 RUN zypper -n install --no-recommends curl \
 && zypper clean --all

@@ -1,5 +1,10 @@
 # chatterbox
 
+![License](https://img.shields.io/github/license/giubacc/chatterbox)
+![Lint](https://github.com/giubacc/chatterbox/actions/workflows/lint.yaml/badge.svg)
+![Builder Build](https://github.com/giubacc/chatterbox/actions/workflows/build-builder.yaml/badge.svg)
+![Chatterbox Build](https://github.com/giubacc/chatterbox/actions/workflows/build-chatterbox.yaml/badge.svg)
+
 ## Contents
 
 - [chatterbox](#chatterbox)
@@ -78,12 +83,10 @@ cd scripts
 It is possible to use a Dockerfile builder image to compile the binary
 of `chatterbox`.
 
-Current supported Dockerfile list:
-
-- `Dockerfile.builder-opensuse`
+- `scripts/Dockerfile.builder`
 
 To build `chatterbox` with a Dockerfile builder image, your system needs
-to provide Podman.
+to provide Podman or Docker.
 
 To create the `chatterbox` builder image:
 
@@ -96,7 +99,7 @@ cd scripts
 $ podman images
 
 REPOSITORY                                  TAG
-localhost/chatterbox-builder-opensuse       latest
+localhost/chatterbox-builder                latest
 ```
 
 With this image, it is possible to build the `chatterbox` binary:
@@ -118,7 +121,7 @@ cd scripts
 $ podman images
 
 REPOSITORY                                 TAG
-localhost/chatterbox-opensuse              latest
+localhost/chatterbox                       latest
 ```
 
 ## Usage
