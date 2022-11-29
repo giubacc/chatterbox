@@ -1,15 +1,8 @@
 ---
 name: Build Builder
 on:
-  push:
-    tags:
-      - v*
-  workflow_call:
-    inputs:
-      tag:
-        description: "A tag to use for the image"
-        required: false
-        type: string
+  schedule:
+    - cron: '0 0 * * 0'  # build every sunday night
 
 env:
   IMAGE_NAME_BUILDER: chatterbox-builder
@@ -38,7 +31,5 @@ jobs:
           file: 'scripts/Dockerfile.builder'
           context: scripts
           push: true
-          tags: |
-            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:latest
-            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ inputs.tag }}
+          tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:latest
           labels: ${{ env.IMAGE_NAME_BUILDER }}
