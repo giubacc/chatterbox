@@ -41,6 +41,19 @@ struct chatterbox {
                      const std::string &res_body_format,
                      Json::Value &conversation_out);
 
+    int on_talk_response(const RestClient::Response &res,
+                         const std::string &verb,
+                         const std::string &auth,
+                         const std::string &uri,
+                         const std::string &query_string,
+                         const std::string &data,
+                         bool res_body_dump,
+                         const std::string &res_body_format,
+                         Json::Value &conversation_out);
+
+    void on_conversation_complete(Json::Value &conversation_ctx_out);
+    void on_scenario_complete(Json::Value &scenario_out);
+
     // --------------------
     // --- HTTP METHODS ---
     // --------------------
@@ -140,7 +153,7 @@ struct chatterbox {
     void dump_talk_response(const Json::Value &talk,
                             bool res_body_dump,
                             const std::string &res_body_format,
-                            RestClient::Response &res,
+                            const RestClient::Response &res,
                             Json::Value &conversation_out);
 
     void move_file(const char *filename);
@@ -150,15 +163,15 @@ struct chatterbox {
     // --- Evaluators ---
     // ------------------
 
-    std::optional<bool> eval_as_bool(Json::Value &from,
+    std::optional<bool> eval_as_bool(const Json::Value &from,
                                      const char *key,
                                      const std::optional<bool> default_value = std::nullopt);
 
-    std::optional<uint32_t> eval_as_uint32_t(Json::Value &from,
+    std::optional<uint32_t> eval_as_uint32_t(const Json::Value &from,
                                              const char *key,
                                              const std::optional<uint32_t> default_value = std::nullopt);
 
-    std::optional<std::string> eval_as_string(Json::Value &from,
+    std::optional<std::string> eval_as_string(const Json::Value &from,
                                               const char *key,
                                               const std::optional<std::string> &default_value = std::nullopt);
 
@@ -166,8 +179,10 @@ struct chatterbox {
     cfg cfg_;
 
   private:
-    std::unique_ptr<RestClient::Connection> resource_conn_;
+    //conversation connection
+    std::unique_ptr<RestClient::Connection> conv_conn_;
 
+    //conversation context
     std::string access_key_;
     std::string secret_key_;
     std::string raw_host_;
@@ -176,8 +191,18 @@ struct chatterbox {
     std::string signed_headers_;
     std::string region_;
     std::string service_;
+    bool res_conv_dump_ = true;
 
-    // js environment
+    //conversation statistics
+    uint32_t conv_talk_count_ = 0;
+    std::unordered_map<std::string, int32_t> conv_res_code_categorization_;
+
+    //scenario statistics
+    uint32_t scen_conversation_count_ = 0;
+    uint32_t scen_talk_count_ = 0;
+    std::unordered_map<std::string, int32_t> scen_res_code_categorization_;
+
+    //js environment
     js::js_env js_env_;
 
     //output

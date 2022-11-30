@@ -5,41 +5,6 @@ const std::string algorithm = "AWS4-HMAC-SHA256";
 
 namespace rest {
 
-int chatterbox::reset_scenario_ctx(const Json::Value &scenario_ctx)
-{
-  int res = js_env_.renew_scenario_context();
-  return res;
-}
-
-int chatterbox::reset_conversation_ctx(const Json::Value &conversation_ctx)
-{
-  raw_host_ = conversation_ctx.get("host", "").asString();
-  host_ = raw_host_;
-  utils::find_and_replace(host_, "http://", "");
-  utils::find_and_replace(host_, "https://", "");
-  host_ = host_.substr(0, (host_.find(':') == std::string::npos ? host_.length() : host_.find(':')));
-
-  service_ = conversation_ctx.get("service", "").asString();
-
-  //S3 specific
-  access_key_ = conversation_ctx.get("s3_access_key", "").asString();
-  secret_key_ = conversation_ctx.get("s3_secret_key", "").asString();
-  signed_headers_ = conversation_ctx.get("signed_headers", "host;x-amz-content-sha256;x-amz-date").asString();
-  region_ = conversation_ctx.get("region", "US").asString();
-
-  //connection reset
-  resource_conn_.reset(new RestClient::Connection(raw_host_));
-  if(!resource_conn_) {
-    event_log_->error("failed creating resource_conn_ object");
-    return -1;
-  }
-  resource_conn_->SetVerifyPeer(false);
-  resource_conn_->SetVerifyHost(false);
-  resource_conn_->SetTimeout(30);
-
-  return 0;
-}
-
 chatterbox::chatterbox() : js_env_(*this)
 {}
 
@@ -325,40 +290,6 @@ void chatterbox::rm_file(const char *filename)
   }
 }
 
-void chatterbox::dump_talk_response(const Json::Value &talk,
-                                    bool res_body_dump,
-                                    const std::string &res_body_format,
-                                    RestClient::Response &res,
-                                    Json::Value &conversation_out)
-{
-  utils::scoped_log_fmt<chatterbox> slf(*this, RAW_EVT_LOG_PATTERN);
-  Json::Value talk_response;
-
-  talk_response["talk"] = talk;
-  talk_response["res_code"] = res.code;
-
-  if(res_body_dump) {
-    if(res.body.empty()) {
-      talk_response["res_body"] = Json::Value::null;
-    } else {
-      if(res_body_format == "json") {
-        try {
-          Json::Value body;
-          std::istringstream is(res.body);
-          is >> body;
-          talk_response["res_body"] = body;
-        } catch(const Json::RuntimeError &) {
-          talk_response["res_body"] = res.body;
-        }
-      } else {
-        talk_response["res_body"] = res.body;
-      }
-    }
-  }
-
-  conversation_out.append(talk_response);
-}
-
 int chatterbox::execute_scenario(const char *fname)
 {
   int res = 0;
@@ -382,226 +313,6 @@ int chatterbox::execute_scenario(const char *fname)
   }
 
   return res;
-}
-
-int chatterbox::execute_scenario(std::istream &is)
-{
-  int res = 0;
-
-  Json::Value scenario;
-  try {
-    is >> scenario;
-  } catch(Json::RuntimeError &e) {
-    event_log_->error("malformed scenario:\n{}", e.what());
-    return 1;
-  }
-  if((res = reset_scenario_ctx(scenario))) {
-    event_log_->error("failed to reset scenario context");
-    return res;
-  }
-
-  Json::Value conversations = scenario["conversations"];
-
-  //output scenario value
-  Json::Value scenario_out;
-  Json::Value &conversations_out = scenario_out["conversations"] = Json::Value::null;
-
-  //conversations cycle
-  for(uint32_t i = 0; i < conversations.size(); ++i) {
-
-    Json::Value conversation_ctx = conversations[i];
-    if((res = reset_conversation_ctx(conversation_ctx))) {
-      event_log_->error("failed to reset conversation context");
-      return res;
-    }
-
-    //output conversation value
-    Json::Value conversation_ctx_light = conversation_ctx;
-    conversation_ctx_light.removeMember("conversation");
-    Json::Value &conversation_ctx_out = conversations_out.append(conversation_ctx_light);
-    Json::Value &conversation_out = conversation_ctx_out["conversation"] = Json::Value::null;
-
-    uint32_t talk_count = 0;
-    Json::Value conversation = conversation_ctx["conversation"];
-
-    //talks cycle
-    for(uint32_t i = 0; i < conversation.size(); ++i) {
-
-      //talk
-      auto talk = conversation[i].get("talk", "");
-
-      //for
-      auto pfor = eval_as_uint32_t(conversation[i], "for", 0);
-      if(!pfor) {
-        event_log_->error("failed to read 'for' field");
-        return 1;
-      }
-      talk_count += *pfor;
-
-      for(uint32_t i = 0; i<pfor; ++i) {
-
-        //verb
-        auto verb = eval_as_string(talk, "verb");
-        if(!verb) {
-          event_log_->error("failed to read 'verb' field");
-          return 1;
-        }
-
-        //uri
-        auto uri = eval_as_string(talk, "uri", "");
-        if(!uri) {
-          event_log_->error("failed to read 'uri' field");
-          return 1;
-        }
-
-        //query_string
-        auto query_string = eval_as_string(talk, "query_string", "");
-        if(!query_string) {
-          event_log_->error("failed to read 'query_string' field");
-          return 1;
-        }
-
-        //data
-        auto data = eval_as_string(talk, "data", "");
-        if(!data) {
-          event_log_->error("failed to read 'data' field");
-          return 1;
-        }
-
-        //res_body_dump
-        auto res_body_dump = eval_as_bool(talk, "res_body_dump", true);
-        if(!res_body_dump) {
-          event_log_->error("failed to read 'res_body_dump' field");
-          return 1;
-        }
-
-        //res_body_format
-        auto res_body_format = eval_as_string(talk, "res_body_format", "");
-        if(!res_body_format) {
-          event_log_->error("failed to read 'res_body_format' field");
-          return 1;
-        }
-
-        //optional auth directive
-        auto auth = eval_as_string(talk, "auth", "aws_v4");
-        if(!auth) {
-          event_log_->error("failed to read 'auth' field");
-          return 1;
-        }
-
-        if((res = execute_talk(*verb,
-                               *auth,
-                               *uri,
-                               *query_string,
-                               *data,
-                               *res_body_dump,
-                               *res_body_format,
-                               conversation_out))) {
-          return res;
-        }
-      }
-    }
-  }
-
-  //finally write scenario_out on the output
-  output_->info("{}", scenario_out.toStyledString());
-  return res;
-}
-
-Json::Value render_talk_json(const std::string &verb,
-                             const std::string &auth,
-                             const std::string &uri,
-                             const std::string &query_string,
-                             const std::string &data)
-{
-  Json::Value talk;
-  talk["verb"] = verb;
-  talk["auth"] = auth;
-  talk["uri"] = uri;
-  talk["query_string"] = query_string;
-  talk["data"] = data;
-  return talk;
-}
-
-int chatterbox::execute_talk(const std::string &verb,
-                             const std::string &auth,
-                             const std::string &uri,
-                             const std::string &query_string,
-                             const std::string &data,
-                             bool res_body_dump,
-                             const std::string &res_body_format,
-                             Json::Value &conversation_out)
-{
-  if(verb == "GET") {
-    get(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      dump_talk_response(render_talk_json(verb,
-                                          auth,
-                                          uri,
-                                          query_string,
-                                          data),
-                         res_body_dump,
-                         res_body_format,
-                         res,
-                         conversation_out);
-      return 0;
-    });
-  } else if(verb == "POST") {
-    post(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
-      dump_talk_response(render_talk_json(verb,
-                                          auth,
-                                          uri,
-                                          query_string,
-                                          data),
-                         res_body_dump,
-                         res_body_format,
-                         res,
-                         conversation_out);
-      return 0;
-    });
-  } else if(verb == "PUT") {
-    put(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
-      dump_talk_response(render_talk_json(verb,
-                                          auth,
-                                          uri,
-                                          query_string,
-                                          data),
-                         res_body_dump,
-                         res_body_format,
-                         res,
-                         conversation_out);
-      return 0;
-    });
-  } else if(verb == "DELETE") {
-    del(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      dump_talk_response(render_talk_json(verb,
-                                          auth,
-                                          uri,
-                                          query_string,
-                                          data),
-                         res_body_dump,
-                         res_body_format,
-                         res,
-                         conversation_out);
-      return 0;
-    });
-  } else if(verb == "HEAD") {
-    head(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      dump_talk_response(render_talk_json(verb,
-                                          auth,
-                                          uri,
-                                          query_string,
-                                          data),
-                         res_body_dump,
-                         res_body_format,
-                         res,
-                         conversation_out);
-      return 0;
-    });
-  } else {
-    event_log_->error("bad verb:{}", verb);
-    return 1;
-  }
-  return 0;
 }
 
 // --------------------
@@ -630,7 +341,7 @@ int chatterbox::post(const std::string &auth,
     }
   }
 
-  resource_conn_->SetHeaders(reqHF);
+  conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
   if(query_string != "") {
@@ -639,7 +350,7 @@ int chatterbox::post(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = resource_conn_->post(luri, data);
+  res = conv_conn_->post(luri, data);
 
   cb(res);
   return res.code;
@@ -667,7 +378,7 @@ int chatterbox::put(const std::string &auth,
     }
   }
 
-  resource_conn_->SetHeaders(reqHF);
+  conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
   if(query_string != "") {
@@ -676,7 +387,7 @@ int chatterbox::put(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = resource_conn_->put(luri, data);
+  res = conv_conn_->put(luri, data);
 
   cb(res);
   return res.code;
@@ -703,7 +414,7 @@ int chatterbox::get(const std::string &auth,
     }
   }
 
-  resource_conn_->SetHeaders(reqHF);
+  conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
   if(query_string != "") {
@@ -712,7 +423,7 @@ int chatterbox::get(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = resource_conn_->get(luri);
+  res = conv_conn_->get(luri);
 
   cb(res);
   return res.code;
@@ -739,7 +450,7 @@ int chatterbox::del(const std::string &auth,
     }
   }
 
-  resource_conn_->SetHeaders(reqHF);
+  conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
   if(query_string != "") {
@@ -748,7 +459,7 @@ int chatterbox::del(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = resource_conn_->del(luri);
+  res = conv_conn_->del(luri);
 
   cb(res);
   return res.code;
@@ -775,7 +486,7 @@ int chatterbox::head(const std::string &auth,
     }
   }
 
-  resource_conn_->SetHeaders(reqHF);
+  conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
   if(query_string != "") {
@@ -784,221 +495,10 @@ int chatterbox::head(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = resource_conn_->head(luri);
+  res = conv_conn_->head(luri);
 
   cb(res);
   return res.code;
-}
-
-std::optional<bool> chatterbox::eval_as_bool(Json::Value &from,
-                                             const char *key,
-                                             const std::optional<bool> default_value)
-{
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
-    if(val.isBool()) {
-      //eval as primitive value
-      return val.asBool();
-    } else {
-      //eval as javascript function
-      Json::Value function = val.get("function", Json::Value::null);
-      if(!function || !function.isString()) {
-        event_log_->error("function name is not string type");
-        return std::nullopt;
-      }
-
-      Json::Value j_args = val.get("args", Json::Value::null);
-      std::vector<std::string> args;
-      if(j_args) {
-        if(!j_args.isArray()) {
-          event_log_->error("function args are not array type");
-          return std::nullopt;
-        }
-        for(uint32_t i = 0; i < j_args.size(); ++i) {
-          Json::Value arg = j_args[i];
-          if(!arg.isString()) {
-            event_log_->error("function arg is not string type");
-            return std::nullopt;
-          }
-          args.emplace_back(arg.asString());
-        }
-      }
-
-      //finally invoke the javascript function
-      bool result = false;
-      std::string error;
-
-      bool js_res = js_env_.invoke_js_function(function.asCString(),
-                                               args,
-      [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool{
-
-        std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String> {
-          return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
-        });
-
-        return true;
-      },
-      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
-        if(!res->IsBoolean())
-        {
-          event_log_->error("function result is not boolean type");
-          return false;
-        }
-        result = res->BooleanValue(isl);
-        return true;
-      },
-      error);
-
-      if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-        return std::nullopt;
-      }
-      return result;
-    }
-  } else {
-    return default_value;
-  }
-}
-
-std::optional<uint32_t> chatterbox::eval_as_uint32_t(Json::Value &from,
-                                                     const char *key,
-                                                     const std::optional<uint32_t> default_value)
-{
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
-    if(val.isUInt()) {
-      //eval as primitive value
-      return val.asUInt();
-    } else {
-      //eval as javascript function
-      Json::Value function = val.get("function", Json::Value::null);
-      if(!function || !function.isString()) {
-        event_log_->error("function name is not string type");
-        return std::nullopt;
-      }
-
-      Json::Value j_args = val.get("args", Json::Value::null);
-      std::vector<std::string> args;
-      if(j_args) {
-        if(!j_args.isArray()) {
-          event_log_->error("function args are not array type");
-          return std::nullopt;
-        }
-        for(uint32_t i = 0; i < j_args.size(); ++i) {
-          Json::Value arg = j_args[i];
-          if(!arg.isString()) {
-            event_log_->error("function arg is not string type");
-            return std::nullopt;
-          }
-          args.emplace_back(arg.asString());
-        }
-      }
-
-      //finally invoke the javascript function
-      uint32_t result = 0;
-      std::string error;
-
-      bool js_res = js_env_.invoke_js_function(function.asCString(),
-                                               args,
-      [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool{
-
-        std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String> {
-          return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
-        });
-
-        return true;
-      },
-      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
-        if(!res->IsUint32())
-        {
-          event_log_->error("function result is not UInt type");
-          return false;
-        }
-        result = res->Uint32Value(isl->GetCurrentContext()).FromMaybe(0);
-        return true;
-      },
-      error);
-
-      if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-        return std::nullopt;
-      }
-      return result;
-    }
-  } else {
-    return default_value;
-  }
-}
-
-std::optional<std::string> chatterbox::eval_as_string(Json::Value &from,
-                                                      const char *key,
-                                                      const std::optional<std::string> &default_value)
-{
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
-    if(val.isString()) {
-      //eval as primitive value
-      return val.asString();
-    } else {
-      //eval as javascript function
-      Json::Value function = val.get("function", Json::Value::null);
-      if(!function || !function.isString()) {
-        event_log_->error("function name is not string type");
-        return std::nullopt;
-      }
-
-      Json::Value j_args = val.get("args", Json::Value::null);
-      std::vector<std::string> args;
-      if(j_args) {
-        if(!j_args.isArray()) {
-          event_log_->error("function args are not array type");
-          return std::nullopt;
-        }
-        for(uint32_t i = 0; i < j_args.size(); ++i) {
-          Json::Value arg = j_args[i];
-          if(!arg.isString()) {
-            event_log_->error("function arg is not string type");
-            return std::nullopt;
-          }
-          args.emplace_back(arg.asString());
-        }
-      }
-
-      //finally invoke the javascript function
-      std::string result;
-      std::string error;
-
-      bool js_res = js_env_.invoke_js_function(function.asCString(),
-                                               args,
-      [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool{
-
-        std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String> {
-          return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
-        });
-
-        return true;
-      },
-      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
-        if(!res->IsString())
-        {
-          event_log_->error("function result is not String type");
-          return false;
-        }
-        v8::String::Utf8Value utf_res(isl, res);
-        result = *utf_res;
-        return true;
-      },
-      error);
-
-      if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-        return std::nullopt;
-      }
-      return result;
-    }
-  } else {
-    return default_value;
-  }
 }
 
 }

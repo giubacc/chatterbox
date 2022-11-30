@@ -29,7 +29,8 @@ add_executable(chatterbox
                src/utils.cpp
                src/crypto.cpp
                src/jsenv.cpp
-               src/chatterbox.cpp)
+               src/chatterbox.cpp
+               src/scenario.cpp)
 
 target_link_libraries(chatterbox
                       "librestclient-cpp.a"
