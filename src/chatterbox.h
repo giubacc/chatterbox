@@ -54,9 +54,9 @@ struct chatterbox {
     void on_conversation_complete(Json::Value &conversation_ctx_out);
     void on_scenario_complete(Json::Value &scenario_out);
 
-    // --------------------
-    // --- HTTP METHODS ---
-    // --------------------
+    // ------------
+    // --- HTTP ---
+    // ------------
 
     /** post
      *
@@ -175,12 +175,24 @@ struct chatterbox {
                                               const char *key,
                                               const std::optional<std::string> &default_value = std::nullopt);
 
+    // ----------------
+    // --- JS Utils ---
+    // ----------------
+
+    bool exec_as_function(const Json::Value &from,
+                          const char *key,
+                          bool optional = true);
+
   public:
     cfg cfg_;
 
   private:
     //conversation connection
     std::unique_ptr<RestClient::Connection> conv_conn_;
+
+    //current scenario and scenario_out
+    Json::Value scenario_;
+    Json::Value scenario_out_;
 
     //conversation context
     std::string access_key_;

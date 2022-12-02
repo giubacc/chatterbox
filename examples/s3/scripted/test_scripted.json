@@ -1,21 +1,69 @@
 {
+  "on_begin": {
+    "function": "OnScenarioBegin"
+  },
+  "on_end": {
+    "function": "OnScenarioEnd"
+  },
   "conversations": [
     {
       "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
       "s3_access_key": "test",
       "s3_secret_key": "test",
       "service": "s3",
+      "res_conversation_dump": true,
+      "on_begin": {
+        "function": "OnConversationBegin"
+      },
+      "on_end": {
+        "function": "OnConversationEnd"
+      },
       "conversation": [
         {
           "for": {
-            "function": "GetFor",
-            "args": []
+            "function": "GetFor"
+          },
+          "on_begin": {
+            "function": "OnTalkBegin"
+          },
+          "on_end": {
+            "function": "OnTalkEnd"
           },
           "talk": {
             "auth": "aws_v4",
             "verb": {
-              "function": "GetVerb",
-              "args": []
+              "function": "GetVerb"
+            },
+            "uri": "foo",
+            "query_string": "format=json",
+            "res_body_dump": {
+              "function": "GetResDump",
+              "args": [
+                "one1",
+                "two2",
+                "three3"
+              ]
+            },
+            "res_body_format": "json"
+          }
+        }
+      ]
+    },
+    {
+      "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
+      "s3_access_key": "test",
+      "s3_secret_key": "test",
+      "service": "s3",
+      "res_conversation_dump": false,
+      "conversation": [
+        {
+          "for": {
+            "function": "GetFor"
+          },
+          "talk": {
+            "auth": "aws_v4",
+            "verb": {
+              "function": "GetVerb"
             },
             "uri": "foo",
             "query_string": "format=json",
