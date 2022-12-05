@@ -159,21 +159,82 @@ struct chatterbox {
     void move_file(const char *filename);
     void rm_file(const char *filename);
 
+    template <typename T>
+    struct Converter;
+
     // ------------------
     // --- Evaluators ---
     // ------------------
 
-    std::optional<bool> eval_as_bool(const Json::Value &from,
-                                     const char *key,
-                                     const std::optional<bool> default_value = std::nullopt);
+    template <typename T>
+    std::optional<T> eval_as(const Json::Value &from,
+                             const char *key,
+                             const std::optional<T> default_value = std::nullopt) {
+      Json::Value val = from.get(key, Json::Value::null);
+      if(val) {
+        if(Converter<T>::isType(val)) {
+          //eval as primitive value
+          return Converter<T>::asType(val);
+        } else {
+          //eval as javascript function
+          Json::Value function = val.get("function", Json::Value::null);
+          if(!function || !function.isString()) {
+            event_log_->error("function name is not string type");
+            return std::nullopt;
+          }
 
-    std::optional<uint32_t> eval_as_uint32_t(const Json::Value &from,
-                                             const char *key,
-                                             const std::optional<uint32_t> default_value = std::nullopt);
+          Json::Value j_args = val.get("args", Json::Value::null);
+          std::vector<std::string> args;
+          if(j_args) {
+            if(!j_args.isArray()) {
+              event_log_->error("function args are not array type");
+              return std::nullopt;
+            }
+            for(uint32_t i = 0; i < j_args.size(); ++i) {
+              Json::Value arg = j_args[i];
+              if(!arg.isString()) {
+                event_log_->error("function arg is not string type");
+                return std::nullopt;
+              }
+              args.emplace_back(arg.asString());
+            }
+          }
 
-    std::optional<std::string> eval_as_string(const Json::Value &from,
-                                              const char *key,
-                                              const std::optional<std::string> &default_value = std::nullopt);
+          //finally invoke the javascript function
+          T result;
+          std::string error;
+
+          bool js_res = js_env_.invoke_js_function(function.asCString(),
+                                                   args,
+          [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool{
+            std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String> {
+              return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
+            });
+            return true;
+          },
+          [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
+            if(!Converter<T>::isType(res)) {
+              std::stringstream ss;
+              ss << "function result is not " << Converter<T>::name() << " type";
+              event_log_->error(ss.str());
+              return false;
+            }
+            result = Converter<T>::asType(res, isl);
+            return true;
+          },
+          error);
+
+          if(!js_res) {
+            event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
+            return std::nullopt;
+          }
+          return result;
+        }
+      } else {
+        return default_value;
+      }
+    }
+
 
     // ----------------
     // --- JS Utils ---
@@ -223,6 +284,64 @@ struct chatterbox {
   public:
     std::string event_log_fmt_;
     std::shared_ptr<spdlog::logger> event_log_;
+};
+
+template <>
+struct chatterbox::Converter<bool> {
+  static bool isType(const Json::Value &val) {
+    return val.isBool();
+  }
+  static bool isType(const v8::Local<v8::Value> &val) {
+    return val->IsBoolean();
+  }
+  static bool asType(const Json::Value &val) {
+    return val.asBool();
+  }
+  static bool asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
+    return val->BooleanValue(isl);
+  }
+  static std::string name() {
+    return "boolean";
+  }
+};
+
+template <>
+struct chatterbox::Converter<uint32_t> {
+  static bool isType(const Json::Value &val) {
+    return val.isUInt();
+  }
+  static bool isType(const v8::Local<v8::Value> &val) {
+    return val->IsUint32();
+  }
+  static uint32_t asType(const Json::Value &val) {
+    return val.asUInt();
+  }
+  static uint32_t asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
+    return val->Uint32Value(isl->GetCurrentContext()).FromMaybe(0);
+  }
+  static std::string name() {
+    return "uint32_t";
+  }
+};
+
+template <>
+struct chatterbox::Converter<std::string> {
+  static bool isType(const Json::Value &val) {
+    return val.isString();
+  }
+  static bool isType(const v8::Local<v8::Value> &val) {
+    return val->IsString();
+  }
+  static std::string asType(const Json::Value &val) {
+    return val.asString();
+  }
+  static std::string asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
+    v8::String::Utf8Value utf_res(isl, val);
+    return *utf_res;
+  }
+  static std::string name() {
+    return "string";
+  }
 };
 
 }
