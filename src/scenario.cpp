@@ -6,7 +6,7 @@ namespace rest {
 int chatterbox::reset_scenario_ctx(const Json::Value &scenario_ctx)
 {
   // reset stats
-  scen_conversation_count_ = scen_talk_count_ = 0;
+  scen_conversation_count_ = scen_request_count_ = 0;
   scen_res_code_categorization_.clear();
 
   int res = js_env_.renew_scenario_context();
@@ -16,7 +16,7 @@ int chatterbox::reset_scenario_ctx(const Json::Value &scenario_ctx)
 int chatterbox::reset_conversation_ctx(const Json::Value &conversation_ctx)
 {
   // reset stats
-  conv_talk_count_ = 0;
+  conv_request_count_ = 0;
   conv_res_code_categorization_.clear();
 
   auto raw_host = eval_as<std::string>(conversation_ctx, "host");
@@ -110,96 +110,95 @@ int chatterbox::execute_scenario(std::istream &is)
     Json::Value conversation_ctx_light = conversation_ctx;
     conversation_ctx_light.removeMember("conversation");
     conversation_ctx_light.removeMember("res_conversation_dump");
+    conversation_ctx_light.removeMember("on_begin");
+    conversation_ctx_light.removeMember("on_end");
     Json::Value &conversation_ctx_out = conversations_out.append(conversation_ctx_light);
     Json::Value &conversation_out = conversation_ctx_out["conversation"] = Json::Value::null;
 
-    uint32_t talk_count = 0;
+    uint32_t request_count = 0;
     Json::Value conversation = conversation_ctx["conversation"];
 
-    // talks cycle
+    // requests cycle
     for(uint32_t i = 0; i < conversation.size(); ++i) {
-      Json::Value talk_ctx = conversation[i];
+      Json::Value request_ctx = conversation[i];
 
       // for
-      auto pfor = eval_as<uint32_t>(talk_ctx, "for", 0);
+      auto pfor = eval_as<uint32_t>(request_ctx, "for", 0);
       if(!pfor) {
         event_log_->error("failed to read 'for' field");
         return 1;
       }
-      talk_count += *pfor;
-
-      // talk
-      auto talk = talk_ctx.get("talk", "");
+      request_count += *pfor;
 
       for(uint32_t i = 0; i < pfor; ++i) {
 
-        // verb
-        auto verb = eval_as<std::string>(talk, "verb");
-        if(!verb) {
-          event_log_->error("failed to read 'verb' field");
+        // method
+        auto method = eval_as<std::string>(request_ctx, "method");
+        if(!method) {
+          event_log_->error("failed to read 'method' field");
           return 1;
         }
 
         // uri
-        auto uri = eval_as<std::string>(talk, "uri", "");
+        auto uri = eval_as<std::string>(request_ctx, "uri", "");
         if(!uri) {
           event_log_->error("failed to read 'uri' field");
           return 1;
         }
 
         // query_string
-        auto query_string = eval_as<std::string>(talk, "query_string", "");
+        auto query_string = eval_as<std::string>(request_ctx, "query_string", "");
         if(!query_string) {
           event_log_->error("failed to read 'query_string' field");
           return 1;
         }
 
         //data
-        auto data = eval_as<std::string>(talk, "data", "");
+        auto data = eval_as<std::string>(request_ctx, "data", "");
         if(!data) {
           event_log_->error("failed to read 'data' field");
           return 1;
         }
 
         //res_body_dump
-        auto res_body_dump = eval_as<bool>(talk, "res_body_dump", true);
+        auto res_body_dump = eval_as<bool>(request_ctx, "res_body_dump", true);
         if(!res_body_dump) {
           event_log_->error("failed to read 'res_body_dump' field");
           return 1;
         }
 
         //res_body_format
-        auto res_body_format = eval_as<std::string>(talk, "res_body_format", "");
+        auto res_body_format = eval_as<std::string>(request_ctx, "res_body_format", "");
         if(!res_body_format) {
           event_log_->error("failed to read 'res_body_format' field");
           return 1;
         }
 
         //optional auth directive
-        auto auth = eval_as<std::string>(talk, "auth", "aws_v4");
+        auto auth = eval_as<std::string>(request_ctx, "auth", "aws_v4");
         if(!auth) {
           event_log_->error("failed to read 'auth' field");
           return 1;
         }
 
-        //exec talk-begin handler
-        if(!exec_as_function(talk_ctx, "on_begin")) {
-          event_log_->error("failed to execute talk.on_end handler");
+        //exec equest-begin handler
+        if(!exec_as_function(request_ctx, "on_begin")) {
+          event_log_->error("failed to execute request.on_end handler");
           return 1;
         }
-        if((res = execute_talk(*verb,
-                               *auth,
-                               *uri,
-                               *query_string,
-                               *data,
-                               *res_body_dump,
-                               *res_body_format,
-                               conversation_out))) {
+        if((res = execute_request(*method,
+                                  *auth,
+                                  *uri,
+                                  *query_string,
+                                  *data,
+                                  *res_body_dump,
+                                  *res_body_format,
+                                  conversation_out))) {
           return res;
         }
-        //exec talk-end handler
-        if(!exec_as_function(talk_ctx, "on_end")) {
-          event_log_->error("failed to execute talk.on_end handler");
+        //exec request-end handler
+        if(!exec_as_function(request_ctx, "on_end")) {
+          event_log_->error("failed to execute request.on_end handler");
           return 1;
         }
       }
@@ -229,7 +228,7 @@ void chatterbox::on_scenario_complete(Json::Value &scenario_out)
 {
   Json::Value &statistics = scenario_out["statistics"];
   statistics["conversation_count"] = scen_conversation_count_;
-  statistics["talk_count"] = scen_talk_count_;
+  statistics["request_count"] = scen_request_count_;
   std::for_each(scen_res_code_categorization_.begin(),
   scen_res_code_categorization_.end(), [&](auto it) {
     Json::Value &res_code_categorization = statistics["res_code_categorization"];
@@ -240,7 +239,7 @@ void chatterbox::on_scenario_complete(Json::Value &scenario_out)
 void chatterbox::on_conversation_complete(Json::Value &conversation_ctx_out)
 {
   Json::Value &statistics = conversation_ctx_out["statistics"];
-  statistics["talk_count"] = conv_talk_count_;
+  statistics["request_count"] = conv_request_count_;
   std::for_each(conv_res_code_categorization_.begin(),
   conv_res_code_categorization_.end(), [&](auto it) {
     Json::Value &res_code_categorization = statistics["res_code_categorization"];
@@ -248,135 +247,128 @@ void chatterbox::on_conversation_complete(Json::Value &conversation_ctx_out)
   });
 }
 
-void chatterbox::dump_talk_response(const Json::Value &talk,
-                                    bool res_body_dump,
-                                    const std::string &res_body_format,
-                                    const RestClient::Response &res,
-                                    Json::Value &conversation_out)
+void chatterbox::dump_response(const std::string &method,
+                               const std::string &auth,
+                               const std::string &uri,
+                               const std::string &query_string,
+                               const std::string &data,
+                               bool res_body_dump,
+                               const std::string &res_body_format,
+                               const RestClient::Response &res,
+                               Json::Value &conversation_out)
 {
   utils::scoped_log_fmt<chatterbox> slf(*this, RAW_EVT_LOG_PATTERN);
-  Json::Value talk_response;
+  Json::Value request_out;
 
-  talk_response["talk"] = talk;
-  talk_response["res_code"] = res.code;
+  request_out["method"] = method;
+  request_out["auth"] = auth;
+  request_out["uri"] = uri;
+  request_out["query_string"] = query_string;
+  request_out["data"] = data;
+  request_out["res_code"] = res.code;
 
   if(res_body_dump) {
     if(res.body.empty()) {
-      talk_response["res_body"] = Json::Value::null;
+      request_out["res_body"] = Json::Value::null;
     } else {
       if(res_body_format == "json") {
         try {
           Json::Value body;
           std::istringstream is(res.body);
           is >> body;
-          talk_response["res_body"] = body;
+          request_out["res_body"] = body;
         } catch(const Json::RuntimeError &) {
-          talk_response["res_body"] = res.body;
+          request_out["res_body"] = res.body;
         }
       } else {
-        talk_response["res_body"] = res.body;
+        request_out["res_body"] = res.body;
       }
     }
   }
 
-  conversation_out.append(talk_response);
+  conversation_out.append(request_out);
 }
 
-Json::Value render_talk_json(const std::string &verb,
-                             const std::string &auth,
-                             const std::string &uri,
-                             const std::string &query_string,
-                             const std::string &data)
+int chatterbox::execute_request(const std::string &method,
+                                const std::string &auth,
+                                const std::string &uri,
+                                const std::string &query_string,
+                                const std::string &data,
+                                bool res_body_dump,
+                                const std::string &res_body_format,
+                                Json::Value &conversation_out)
 {
-  Json::Value talk;
-  talk["verb"] = verb;
-  talk["auth"] = auth;
-  talk["uri"] = uri;
-  talk["query_string"] = query_string;
-  talk["data"] = data;
-  return talk;
-}
-
-int chatterbox::execute_talk(const std::string &verb,
-                             const std::string &auth,
-                             const std::string &uri,
-                             const std::string &query_string,
-                             const std::string &data,
-                             bool res_body_dump,
-                             const std::string &res_body_format,
-                             Json::Value &conversation_out)
-{
-  if(verb == "GET") {
+  if(method == "GET") {
     get(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      return on_talk_response(res,
-                              verb,
-                              auth,
-                              uri,
-                              query_string,
-                              data,
-                              res_body_dump,
-                              res_body_format,
-                              conversation_out); });
-  } else if(verb == "POST") {
+      return on_response(res,
+                         method,
+                         auth,
+                         uri,
+                         query_string,
+                         data,
+                         res_body_dump,
+                         res_body_format,
+                         conversation_out); });
+  } else if(method == "POST") {
     post(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
-      return on_talk_response(res,
-                              verb,
-                              auth,
-                              uri,
-                              query_string,
-                              data,
-                              res_body_dump,
-                              res_body_format,
-                              conversation_out); });
-  } else if(verb == "PUT") {
+      return on_response(res,
+                         method,
+                         auth,
+                         uri,
+                         query_string,
+                         data,
+                         res_body_dump,
+                         res_body_format,
+                         conversation_out); });
+  } else if(method == "PUT") {
     put(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
-      return on_talk_response(res,
-                              verb,
-                              auth,
-                              uri,
-                              query_string,
-                              data,
-                              res_body_dump,
-                              res_body_format,
-                              conversation_out); });
-  } else if(verb == "DELETE") {
+      return on_response(res,
+                         method,
+                         auth,
+                         uri,
+                         query_string,
+                         data,
+                         res_body_dump,
+                         res_body_format,
+                         conversation_out); });
+  } else if(method == "DELETE") {
     del(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      return on_talk_response(res,
-                              verb,
-                              auth,
-                              uri,
-                              query_string,
-                              data,
-                              res_body_dump,
-                              res_body_format,
-                              conversation_out); });
-  } else if(verb == "HEAD") {
+      return on_response(res,
+                         method,
+                         auth,
+                         uri,
+                         query_string,
+                         data,
+                         res_body_dump,
+                         res_body_format,
+                         conversation_out); });
+  } else if(method == "HEAD") {
     head(auth, uri, query_string, [&](RestClient::Response &res) -> int {
-      return on_talk_response(res,
-                              verb,
-                              auth,
-                              uri,
-                              query_string,
-                              data,
-                              res_body_dump,
-                              res_body_format,
-                              conversation_out); });
+      return on_response(res,
+                         method,
+                         auth,
+                         uri,
+                         query_string,
+                         data,
+                         res_body_dump,
+                         res_body_format,
+                         conversation_out); });
   } else {
-    event_log_->error("bad verb:{}", verb);
+    event_log_->error("bad method:{}", method);
     return 1;
   }
   return 0;
 }
 
-int chatterbox::on_talk_response(const RestClient::Response &res,
-                                 const std::string &verb,
-                                 const std::string &auth,
-                                 const std::string &uri,
-                                 const std::string &query_string,
-                                 const std::string &data,
-                                 bool res_body_dump,
-                                 const std::string &res_body_format,
-                                 Json::Value &conversation_out)
+int chatterbox::on_response(const RestClient::Response &res,
+                            const std::string &method,
+                            const std::string &auth,
+                            const std::string &uri,
+                            const std::string &query_string,
+                            const std::string &data,
+                            bool res_body_dump,
+                            const std::string &res_body_format,
+                            Json::Value &conversation_out)
 {
   std::ostringstream os;
   os << res.code;
@@ -384,23 +376,23 @@ int chatterbox::on_talk_response(const RestClient::Response &res,
   // update conv stats
   int32_t value = conv_res_code_categorization_[os.str()];
   conv_res_code_categorization_[os.str()] = ++value;
-  ++conv_talk_count_;
+  ++conv_request_count_;
 
   // update scenario stats
   value = scen_res_code_categorization_[os.str()];
   scen_res_code_categorization_[os.str()] = ++value;
-  ++scen_talk_count_;
+  ++scen_request_count_;
 
   if(res_conv_dump_)
-    dump_talk_response(render_talk_json(verb,
-                                        auth,
-                                        uri,
-                                        query_string,
-                                        data),
-                       res_body_dump,
-                       res_body_format,
-                       res,
-                       conversation_out);
+    dump_response(method,
+                  auth,
+                  uri,
+                  query_string,
+                  data,
+                  res_body_dump,
+                  res_body_format,
+                  res,
+                  conversation_out);
   return 0;
 }
 

@@ -8,13 +8,11 @@
       "conversation": [
         {
           "for": 1,
-          "talk": {
-            "auth": "aws_v2",
-            "verb": "PUT",
-            "uri": "admin/user",
-            "query_string": "format=json&uid=jack&display-name=Jack",
-            "res_body_format": "json"
-          }
+          "auth": "aws_v2",
+          "method": "PUT",
+          "uri": "admin/user",
+          "query_string": "format=json&uid=jack&display-name=Jack",
+          "res_body_format": "json"
         }
       ]
     }

@@ -8,25 +8,21 @@
       "conversation": [
         {
           "for": 1,
-          "talk": {
-            "auth": "aws_v4",
-            "verb": "PUT",
-            "uri": "foo",
-            "query_string": "format=json",
-            "res_body_dump": true,
-            "res_body_format": "json"
-          }
+          "auth": "aws_v4",
+          "method": "PUT",
+          "uri": "foo",
+          "query_string": "format=json",
+          "res_body_dump": true,
+          "res_body_format": "json"
         },
         {
           "for": 1,
-          "talk": {
-            "auth": "aws_v4",
-            "verb": "HEAD",
-            "uri": "foo",
-            "query_string": "format=json",
-            "res_body_dump": true,
-            "res_body_format": "json"
-          }
+          "auth": "aws_v4",
+          "method": "HEAD",
+          "uri": "foo",
+          "query_string": "format=json",
+          "res_body_dump": true,
+          "res_body_format": "json"
         }
       ]
     }

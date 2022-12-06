@@ -32,24 +32,24 @@ struct chatterbox {
     int execute_scenario(const char *fname);
     int execute_scenario(std::istream &is);
 
-    int execute_talk(const std::string &verb,
-                     const std::string &auth,
-                     const std::string &uri,
-                     const std::string &query_string,
-                     const std::string &data,
-                     bool res_body_dump,
-                     const std::string &res_body_format,
-                     Json::Value &conversation_out);
+    int execute_request(const std::string &method,
+                        const std::string &auth,
+                        const std::string &uri,
+                        const std::string &query_string,
+                        const std::string &data,
+                        bool res_body_dump,
+                        const std::string &res_body_format,
+                        Json::Value &conversation_out);
 
-    int on_talk_response(const RestClient::Response &res,
-                         const std::string &verb,
-                         const std::string &auth,
-                         const std::string &uri,
-                         const std::string &query_string,
-                         const std::string &data,
-                         bool res_body_dump,
-                         const std::string &res_body_format,
-                         Json::Value &conversation_out);
+    int on_response(const RestClient::Response &res,
+                    const std::string &method,
+                    const std::string &auth,
+                    const std::string &uri,
+                    const std::string &query_string,
+                    const std::string &data,
+                    bool res_body_dump,
+                    const std::string &res_body_format,
+                    Json::Value &conversation_out);
 
     void on_conversation_complete(Json::Value &conversation_ctx_out);
     void on_scenario_complete(Json::Value &scenario_out);
@@ -120,7 +120,7 @@ struct chatterbox {
 
     std::string build_v2_authorization(const std::string &signature) const;
 
-    void build_v2(const char *verb,
+    void build_v2(const char *method,
                   const std::string &uri,
                   RestClient::HeaderFields &reqHF) const;
 
@@ -138,7 +138,7 @@ struct chatterbox {
     std::string build_v4_string_to_sign(const std::string &canonical_request) const;
     std::string build_v4_authorization(const std::string &signature) const;
 
-    void build_v4(const char *verb,
+    void build_v4(const char *method,
                   const std::string &uri,
                   const std::string &query_string,
                   const std::string &data,
@@ -150,11 +150,15 @@ struct chatterbox {
 
     void dump_hdr(const RestClient::HeaderFields &hdr) const;
 
-    void dump_talk_response(const Json::Value &talk,
-                            bool res_body_dump,
-                            const std::string &res_body_format,
-                            const RestClient::Response &res,
-                            Json::Value &conversation_out);
+    void dump_response(const std::string &method,
+                       const std::string &auth,
+                       const std::string &uri,
+                       const std::string &query_string,
+                       const std::string &data,
+                       bool res_body_dump,
+                       const std::string &res_body_format,
+                       const RestClient::Response &res,
+                       Json::Value &conversation_out);
 
     void move_file(const char *filename);
     void rm_file(const char *filename);
@@ -267,12 +271,12 @@ struct chatterbox {
     bool res_conv_dump_ = true;
 
     //conversation statistics
-    uint32_t conv_talk_count_ = 0;
+    uint32_t conv_request_count_ = 0;
     std::unordered_map<std::string, int32_t> conv_res_code_categorization_;
 
     //scenario statistics
     uint32_t scen_conversation_count_ = 0;
-    uint32_t scen_talk_count_ = 0;
+    uint32_t scen_request_count_ = 0;
     std::unordered_map<std::string, int32_t> scen_res_code_categorization_;
 
     //js environment

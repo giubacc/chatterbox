@@ -93,14 +93,14 @@ std::string chatterbox::build_v2_canonical_string(const std::string &method,
   return os.str();
 }
 
-void chatterbox::build_v2(const char *verb,
+void chatterbox::build_v2(const char *method,
                           const std::string &uri,
                           RestClient::HeaderFields &reqHF) const
 {
   reqHF["x-amz-date"] = x_amz_date_;
 
   auto signature = crypto::base64(crypto::hmac_sha1(access_key_,
-                                                    build_v2_canonical_string(verb,
+                                                    build_v2_canonical_string(method,
                                                                               uri)));
 
   event_log_->trace("v2 signature: {}", signature);
@@ -201,7 +201,7 @@ std::string chatterbox::build_v4_string_to_sign(const std::string &canonical_req
   return os.str();
 }
 
-void chatterbox::build_v4(const char *verb,
+void chatterbox::build_v4(const char *method,
                           const std::string &uri,
                           const std::string &query_string,
                           const std::string &data,
@@ -215,7 +215,7 @@ void chatterbox::build_v4(const char *verb,
 
   auto signature = crypto::hex(crypto::hmac_sha256(build_v4_signing_key(),
                                                    build_v4_string_to_sign(
-                                                     build_v4_canonical_request(verb,
+                                                     build_v4_canonical_request(method,
                                                                                 uri,
                                                                                 query_string,
                                                                                 build_v4_canonical_headers(x_amz_content_sha256),

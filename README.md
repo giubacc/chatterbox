@@ -179,37 +179,33 @@ At the root level, or scenario level, you define an array of `conversations`:
 This means that the tool is able to issue a set of restful calls against
 multiple endpoints.
 
-A `conversation` is defined as an array of `talk`(s):
+A `conversation` is defined as an array of `requests`(s):
 
 ```json
 {
   "conversation": [
     {
       "for" : 1,
-      "talk" : {
-        "auth" : "aws_v4",
-        "verb" : "GET",
-        "uri" : "foo",
-        "query_string" : "param=value",
-      }
+      "auth" : "aws_v4",
+      "method" : "GET",
+      "uri" : "foo",
+      "query_string" : "param=value"
     },
     {
       "for" : 4,
-      "talk" : {
-        "auth" : "aws_v2",
-        "verb" : "HEAD",
-        "uri" : "bar",
-        "query_string" : "param=value",
-      }
+      "auth" : "aws_v2",
+      "method" : "HEAD",
+      "uri" : "bar",
+      "query_string" : "param=value"
     }
   ]
 }
 ```
 
-A `talk` describes a single `HTTP` call.
+A `request` describes a single `HTTP` call.
 
-You can repeat a `talk` for `n` times specifying the `for` attribute
-in the talk's context.
+You can repeat a `request` for `n` times specifying the `for` attribute
+in the request's context.
 
 ## Scripted scenarios
 
@@ -219,18 +215,16 @@ into `V8` engine and it lasts for the whole scenario's lifespan.
 Generally speaking, attributes can be scripted defining JavaScript functions
 that are executed into the scenario's JavaScript context.
 
-For example, the `query_string` attribute of a talk could be defined as this:
+For example, the `query_string` attribute of a request could be defined as this:
 
 ```json
 {
-  "talk" : {
-    "auth" : "aws_v2",
-    "verb" : "HEAD",
-    "uri" : "bar",
-    "query_string" : {
-      "function": "GetQueryString",
-      "args": ["foo", "bar"]
-    },
+  "auth" : "aws_v2",
+  "method" : "HEAD",
+  "uri" : "bar",
+  "query_string" : {
+    "function": "GetQueryString",
+    "args": ["foo", "bar"]
   }
 }
 ```
@@ -270,25 +264,21 @@ checks that the newly created bucket actually exists.
       "conversation": [
         {
           "for" : 1,
-          "talk" : {
-            "auth" : "aws_v4",
-            "verb" : "PUT",
-            "uri" : "foo",
-            "query_string" : "format=json",
-            "res_body_dump" : true,
-            "res_body_format" : "json"
-          }
+          "auth" : "aws_v4",
+          "method" : "PUT",
+          "uri" : "foo",
+          "query_string" : "format=json",
+          "res_body_dump" : true,
+          "res_body_format" : "json"
         },
         {
           "for" : 1,
-          "talk" : {
-            "auth" : "aws_v4",
-            "verb" : "HEAD",
-            "uri" : "foo",
-            "query_string" : "format=json",
-            "res_body_dump" : true,
-            "res_body_format" : "json"
-          }
+          "auth" : "aws_v4",
+          "method" : "HEAD",
+          "uri" : "foo",
+          "query_string" : "format=json",
+          "res_body_dump" : true,
+          "res_body_format" : "json"
         }
       ]
     }
@@ -305,26 +295,22 @@ checks that the newly created bucket actually exists.
          "host":"s3gw.127.0.0.1.omg.howdoi.website:7480",
          "conversation":[
             {
-               "talk":{
-                  "auth":"aws_v4",
-                  "data":"",
-                  "query_string":"format=json",
-                  "uri":"foobar",
-                  "verb":"PUT"
-               },
-               "res_body":null,
-               "res_code":200
+              "auth":"aws_v4",
+              "data":"",
+              "query_string":"format=json",
+              "uri":"foobar",
+              "method":"PUT",
+              "res_body":null,
+              "res_code":200
             },
             {
-               "talk":{
-                  "auth":"aws_v4",
-                  "data":"",
-                  "query_string":"format=json",
-                  "uri":"foobar",
-                  "verb":"HEAD"
-               },
-               "res_body":null,
-               "res_code":200
+              "auth":"aws_v4",
+              "data":"",
+              "query_string":"format=json",
+              "uri":"foobar",
+              "method":"HEAD",
+              "res_body":null,
+              "res_code":200
             }
          ],
          "s3_access_key":"test",

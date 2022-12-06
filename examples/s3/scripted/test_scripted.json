@@ -24,28 +24,26 @@
             "function": "GetFor"
           },
           "on_begin": {
-            "function": "OnTalkBegin"
+            "function": "OnRequestBegin"
           },
           "on_end": {
-            "function": "OnTalkEnd"
+            "function": "OnRequestEnd"
           },
-          "talk": {
-            "auth": "aws_v4",
-            "verb": {
-              "function": "GetVerb"
-            },
-            "uri": "foo",
-            "query_string": "format=json",
-            "res_body_dump": {
-              "function": "GetResDump",
-              "args": [
-                "one1",
-                "two2",
-                "three3"
-              ]
-            },
-            "res_body_format": "json"
-          }
+          "auth": "aws_v4",
+          "method": {
+            "function": "GetMethod"
+          },
+          "uri": "foo",
+          "query_string": "format=json",
+          "res_body_dump": {
+            "function": "GetResDump",
+            "args": [
+              "one1",
+              "two2",
+              "three3"
+            ]
+          },
+          "res_body_format": "json"
         }
       ]
     },
@@ -60,23 +58,21 @@
           "for": {
             "function": "GetFor"
           },
-          "talk": {
-            "auth": "aws_v4",
-            "verb": {
-              "function": "GetVerb"
-            },
-            "uri": "foo",
-            "query_string": "format=json",
-            "res_body_dump": {
-              "function": "GetResDump",
-              "args": [
-                "one1",
-                "two2",
-                "three3"
-              ]
-            },
-            "res_body_format": "json"
-          }
+          "auth": "aws_v4",
+          "method": {
+            "function": "GetMethod"
+          },
+          "uri": "foo",
+          "query_string": "format=json",
+          "res_body_dump": {
+            "function": "GetResDump",
+            "args": [
+              "one1",
+              "two2",
+              "three3"
+            ]
+          },
+          "res_body_format": "json"
         }
       ]
     }

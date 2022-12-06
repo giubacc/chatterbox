@@ -11,7 +11,7 @@ function GetResDump(one, two, three) {
   return true;
 }
 
-function GetVerb() {
+function GetMethod() {
   return "GET";
 }
 
@@ -35,10 +35,10 @@ function OnConversationEnd() {
   log(TLV.INF, "OnConversationEnd", "->");
 }
 
-function OnTalkBegin() {
-  log(TLV.INF, "OnTalkBegin", "<-");
+function OnRequestBegin() {
+  log(TLV.INF, "OnRequestBegin", "<-");
 }
 
-function OnTalkEnd() {
-  log(TLV.INF, "OnTalkEnd", "->");
+function OnRequestEnd() {
+  log(TLV.INF, "OnRequestEnd", "->");
 }

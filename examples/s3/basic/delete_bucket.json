@@ -8,13 +8,11 @@
       "conversation": [
         {
           "for": 1,
-          "talk": {
-            "auth": "aws_v4",
-            "verb": "DELETE",
-            "uri": "foo",
-            "query_string": "format=json",
-            "res_body_format": "json"
-          }
+          "auth": "aws_v4",
+          "method": "DELETE",
+          "uri": "foo",
+          "query_string": "format=json",
+          "res_body_format": "json"
         }
       ]
     }
