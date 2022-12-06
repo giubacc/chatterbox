@@ -19,7 +19,7 @@ int chatterbox::reset_conversation_ctx(const Json::Value &conversation_ctx)
   conv_talk_count_ = 0;
   conv_res_code_categorization_.clear();
 
-  auto raw_host = eval_as_string(conversation_ctx, "host");
+  auto raw_host = eval_as<std::string>(conversation_ctx, "host");
   if(!raw_host) {
     event_log_->error("failed to read 'host' field");
     return 1;
@@ -31,23 +31,23 @@ int chatterbox::reset_conversation_ctx(const Json::Value &conversation_ctx)
   utils::find_and_replace(host_, "https://", "");
   host_ = host_.substr(0, (host_.find(':') == std::string::npos ? host_.length() : host_.find(':')));
 
-  auto service = eval_as_string(conversation_ctx, "service", "");
+  auto service = eval_as<std::string>(conversation_ctx, "service", "");
   service_ = *service;
 
-  // S3 specific
-  auto access_key = eval_as_string(conversation_ctx, "s3_access_key", "");
+  //S3 specific
+  auto access_key = eval_as<std::string>(conversation_ctx, "s3_access_key", "");
   access_key_ = *access_key;
 
-  auto secret_key = eval_as_string(conversation_ctx, "s3_secret_key", "");
+  auto secret_key = eval_as<std::string>(conversation_ctx, "s3_secret_key", "");
   secret_key_ = *secret_key;
 
-  auto signed_headers = eval_as_string(conversation_ctx, "signed_headers", "host;x-amz-content-sha256;x-amz-date");
+  auto signed_headers = eval_as<std::string>(conversation_ctx, "signed_headers", "host;x-amz-content-sha256;x-amz-date");
   signed_headers_ = *signed_headers;
 
-  auto region = eval_as_string(conversation_ctx, "region", "US");
+  auto region = eval_as<std::string>(conversation_ctx, "region", "US");
   region_ = *region;
 
-  auto res_conv_dump = eval_as_bool(conversation_ctx, "res_conversation_dump", true);
+  auto res_conv_dump = eval_as<bool>(conversation_ctx, "res_conversation_dump", true);
   res_conv_dump_ = *res_conv_dump;
 
   // connection reset
@@ -121,7 +121,7 @@ int chatterbox::execute_scenario(std::istream &is)
       Json::Value talk_ctx = conversation[i];
 
       // for
-      auto pfor = eval_as_uint32_t(talk_ctx, "for", 0);
+      auto pfor = eval_as<uint32_t>(talk_ctx, "for", 0);
       if(!pfor) {
         event_log_->error("failed to read 'for' field");
         return 1;
@@ -134,49 +134,49 @@ int chatterbox::execute_scenario(std::istream &is)
       for(uint32_t i = 0; i < pfor; ++i) {
 
         // verb
-        auto verb = eval_as_string(talk, "verb");
+        auto verb = eval_as<std::string>(talk, "verb");
         if(!verb) {
           event_log_->error("failed to read 'verb' field");
           return 1;
         }
 
         // uri
-        auto uri = eval_as_string(talk, "uri", "");
+        auto uri = eval_as<std::string>(talk, "uri", "");
         if(!uri) {
           event_log_->error("failed to read 'uri' field");
           return 1;
         }
 
         // query_string
-        auto query_string = eval_as_string(talk, "query_string", "");
+        auto query_string = eval_as<std::string>(talk, "query_string", "");
         if(!query_string) {
           event_log_->error("failed to read 'query_string' field");
           return 1;
         }
 
-        // data
-        auto data = eval_as_string(talk, "data", "");
+        //data
+        auto data = eval_as<std::string>(talk, "data", "");
         if(!data) {
           event_log_->error("failed to read 'data' field");
           return 1;
         }
 
-        // res_body_dump
-        auto res_body_dump = eval_as_bool(talk, "res_body_dump", true);
+        //res_body_dump
+        auto res_body_dump = eval_as<bool>(talk, "res_body_dump", true);
         if(!res_body_dump) {
           event_log_->error("failed to read 'res_body_dump' field");
           return 1;
         }
 
-        // res_body_format
-        auto res_body_format = eval_as_string(talk, "res_body_format", "");
+        //res_body_format
+        auto res_body_format = eval_as<std::string>(talk, "res_body_format", "");
         if(!res_body_format) {
           event_log_->error("failed to read 'res_body_format' field");
           return 1;
         }
 
-        // optional auth directive
-        auto auth = eval_as_string(talk, "auth", "aws_v4");
+        //optional auth directive
+        auto auth = eval_as<std::string>(talk, "auth", "aws_v4");
         if(!auth) {
           event_log_->error("failed to read 'auth' field");
           return 1;
@@ -402,218 +402,6 @@ int chatterbox::on_talk_response(const RestClient::Response &res,
                        res,
                        conversation_out);
   return 0;
-}
-
-// ------------------
-// --- Evaluators ---
-// ------------------
-
-std::optional<bool> chatterbox::eval_as_bool(const Json::Value &from,
-                                             const char *key,
-                                             const std::optional<bool> default_value)
-{
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
-    if(val.isBool()) {
-      // eval as primitive value
-      return val.asBool();
-    } else {
-      // eval as javascript function
-      Json::Value function = val.get("function", Json::Value::null);
-      if(!function || !function.isString()) {
-        event_log_->error("function name is not string type");
-        return std::nullopt;
-      }
-
-      Json::Value j_args = val.get("args", Json::Value::null);
-      std::vector<std::string> args;
-      if(j_args) {
-        if(!j_args.isArray()) {
-          event_log_->error("function args are not array type");
-          return std::nullopt;
-        }
-        for(uint32_t i = 0; i < j_args.size(); ++i) {
-          Json::Value arg = j_args[i];
-          if(!arg.isString()) {
-            event_log_->error("function arg is not string type");
-            return std::nullopt;
-          }
-          args.emplace_back(arg.asString());
-        }
-      }
-
-      // finally invoke the javascript function
-      bool result = false;
-      std::string error;
-
-      bool js_res = js_env_.invoke_js_function(
-                      function.asCString(),
-                      args,
-      [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool {
-        std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String>
-        { return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked(); });
-
-        return true;
-      },
-      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool {
-        if(!res->IsBoolean())
-        {
-          event_log_->error("function result is not boolean type");
-          return false;
-        }
-        result = res->BooleanValue(isl);
-        return true;
-      },
-      error);
-
-      if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-        return std::nullopt;
-      }
-      return result;
-    }
-  } else {
-    return default_value;
-  }
-}
-
-std::optional<uint32_t> chatterbox::eval_as_uint32_t(const Json::Value &from,
-                                                     const char *key,
-                                                     const std::optional<uint32_t> default_value)
-{
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
-    if(val.isUInt()) {
-      // eval as primitive value
-      return val.asUInt();
-    } else {
-      // eval as javascript function
-      Json::Value function = val.get("function", Json::Value::null);
-      if(!function || !function.isString()) {
-        event_log_->error("function name is not string type");
-        return std::nullopt;
-      }
-
-      Json::Value j_args = val.get("args", Json::Value::null);
-      std::vector<std::string> args;
-      if(j_args) {
-        if(!j_args.isArray()) {
-          event_log_->error("function args are not array type");
-          return std::nullopt;
-        }
-        for(uint32_t i = 0; i < j_args.size(); ++i) {
-          Json::Value arg = j_args[i];
-          if(!arg.isString()) {
-            event_log_->error("function arg is not string type");
-            return std::nullopt;
-          }
-          args.emplace_back(arg.asString());
-        }
-      }
-
-      // finally invoke the javascript function
-      uint32_t result = 0;
-      std::string error;
-
-      bool js_res = js_env_.invoke_js_function(
-                      function.asCString(),
-                      args,
-      [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool {
-        std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String>
-        { return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked(); });
-
-        return true;
-      },
-      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool {
-        if(!res->IsUint32())
-        {
-          event_log_->error("function result is not UInt type");
-          return false;
-        }
-        result = res->Uint32Value(isl->GetCurrentContext()).FromMaybe(0);
-        return true;
-      },
-      error);
-
-      if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-        return std::nullopt;
-      }
-      return result;
-    }
-  } else {
-    return default_value;
-  }
-}
-
-std::optional<std::string> chatterbox::eval_as_string(const Json::Value &from,
-                                                      const char *key,
-                                                      const std::optional<std::string> &default_value)
-{
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
-    if(val.isString()) {
-      // eval as primitive value
-      return val.asString();
-    } else {
-      // eval as javascript function
-      Json::Value function = val.get("function", Json::Value::null);
-      if(!function || !function.isString()) {
-        event_log_->error("function name is not string type");
-        return std::nullopt;
-      }
-
-      Json::Value j_args = val.get("args", Json::Value::null);
-      std::vector<std::string> args;
-      if(j_args) {
-        if(!j_args.isArray()) {
-          event_log_->error("function args are not array type");
-          return std::nullopt;
-        }
-        for(uint32_t i = 0; i < j_args.size(); ++i) {
-          Json::Value arg = j_args[i];
-          if(!arg.isString()) {
-            event_log_->error("function arg is not string type");
-            return std::nullopt;
-          }
-          args.emplace_back(arg.asString());
-        }
-      }
-
-      // finally invoke the javascript function
-      std::string result;
-      std::string error;
-
-      bool js_res = js_env_.invoke_js_function(
-                      function.asCString(),
-                      args,
-      [&](v8::Isolate *isl, const std::vector<std::string> &args, v8::Local<v8::Value> argv[]) -> bool {
-        std::transform(args.begin(), args.end(), argv, [&](const std::string &it) -> v8::Local<v8::String>
-        { return v8::String::NewFromUtf8(isl, it.c_str(), v8::NewStringType::kNormal).ToLocalChecked(); });
-
-        return true;
-      },
-      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool {
-        if(!res->IsString())
-        {
-          event_log_->error("function result is not String type");
-          return false;
-        }
-        v8::String::Utf8Value utf_res(isl, res);
-        result = *utf_res;
-        return true;
-      },
-      error);
-
-      if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-        return std::nullopt;
-      }
-      return result;
-    }
-  } else {
-    return default_value;
-  }
 }
 
 // ----------------
