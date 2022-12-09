@@ -1,4 +1,25 @@
 {
+  "test_bool": true,
+  "test_int_32": -32,
+  "test_uint_32": 32,
+  "test_double": 32.34,
+  "test_string": "lorem-ipsum",
+  "test_array": [
+    "one",
+    "two",
+    "three",
+    4,
+    5,
+    true
+  ],
+  "out": {
+    "dump": {
+      "out": true,
+      "conversations": true,
+      "on_begin": true,
+      "on_end": true
+    }
+  },
   "on_begin": {
     "function": "OnScenarioBegin"
   },
@@ -8,21 +29,25 @@
   "conversations": [
     {
       "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "s3_access_key": "test",
-      "s3_secret_key": "test",
       "service": "s3",
-      "res_conversation_dump": true,
+      "s3": {
+        "access_key": "test",
+        "secret_key": "test"
+      },
+      "out": {
+        "dump": {
+          "requests": true
+        }
+      },
       "on_begin": {
         "function": "OnConversationBegin"
       },
       "on_end": {
         "function": "OnConversationEnd"
       },
-      "conversation": [
+      "requests": [
         {
-          "for": {
-            "function": "GetFor"
-          },
+          "for": 1,
           "on_begin": {
             "function": "OnRequestBegin"
           },
@@ -30,49 +55,45 @@
             "function": "OnRequestEnd"
           },
           "auth": "aws_v4",
-          "method": {
-            "function": "GetMethod"
-          },
+          "method": "GET",
           "uri": "foo",
           "query_string": "format=json",
-          "res_body_dump": {
-            "function": "GetResDump",
-            "args": [
-              "one1",
-              "two2",
-              "three3"
-            ]
-          },
-          "res_body_format": "json"
+          "response": {
+            "out": {
+              "format": {
+                "body": "json"
+              }
+            }
+          }
         }
       ]
     },
     {
       "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "s3_access_key": "test",
-      "s3_secret_key": "test",
       "service": "s3",
-      "res_conversation_dump": false,
-      "conversation": [
+      "s3": {
+        "access_key": "test",
+        "secret_key": "test"
+      },
+      "out": {
+        "dump": {
+          "requests": false
+        }
+      },
+      "requests": [
         {
-          "for": {
-            "function": "GetFor"
-          },
-          "auth": "aws_v4",
-          "method": {
-            "function": "GetMethod"
-          },
-          "uri": "foo",
+          "for": 1,
+          "auth": "aws_v2",
+          "method": "GET",
+          "uri": "admin/info",
           "query_string": "format=json",
-          "res_body_dump": {
-            "function": "GetResDump",
-            "args": [
-              "one1",
-              "two2",
-              "three3"
-            ]
-          },
-          "res_body_format": "json"
+          "response": {
+            "out": {
+              "dump": {
+                "body": false
+              }
+            }
+          }
         }
       ]
     }

@@ -12,7 +12,7 @@
     - [Scripting capabilities](#scripting-capabilities)
   - [Build requirements](#build-requirements)
   - [How to build](#how-to-build)
-    - [Build on host](#build-on-host)
+    - [Build on the host](#build-on-the-host)
     - [Build with a Dockerfile builder image](#build-with-a-dockerfile-builder-image)
   - [Usage](#usage)
   - [Conversation scenario format](#conversation-scenario-format)
@@ -69,7 +69,7 @@ git submodule init
 git submodule update
 ```
 
-### Build on host
+### Build on the host
 
 Build the `chatterbox` binary alongside with all its dependencies:
 
@@ -195,7 +195,7 @@ A `conversation` is defined as an array of `requests`(s):
       "for" : 4,
       "auth" : "aws_v2",
       "method" : "HEAD",
-      "uri" : "bar",
+      "uri" : "foo",
       "query_string" : "param=value"
     }
   ]
@@ -224,23 +224,26 @@ For example, the `query_string` attribute of a request could be defined as this:
   "uri" : "bar",
   "query_string" : {
     "function": "GetQueryString",
-    "args": ["foo", "bar"]
+    "args": ["bar", 41, false]
   }
 }
 ```
 
 When the scenario runs, the `query_string` attribute's value is
 evaluated as a JavaScript function named: `GetQueryString`
-taking 2 string parameters valued respectively with `foo` and `bar`.
+taking 3 parameters.
 
 The `GetQueryString` function must be defined inside a file with
 extension `.js` and placed into the directory checked by `chatterbox`.
 
 ```javascript
 
-function GetQueryString(p1, p2) {
+function GetQueryString(p1, p2, p3) {
+  if(p3){
+    return "foo=default"
+  }
   log("inf", "GetQueryString", "Invoked with: " + p1 + "," + p2);
-  return p1+p2;
+  return "foo=" + p1 + p2;
 }
 
 ```
@@ -257,10 +260,11 @@ checks that the newly created bucket actually exists.
   "conversations": [
     {
       "host" : "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "s3_access_key" : "test",
-      "s3_secret_key" : "test",
-      "service" : "s3",
-
+      "service": "s3",
+      "s3": {
+        "access_key": "test",
+        "secret_key": "test"
+      },
       "conversation": [
         {
           "for" : 1,
@@ -268,17 +272,26 @@ checks that the newly created bucket actually exists.
           "method" : "PUT",
           "uri" : "foo",
           "query_string" : "format=json",
-          "res_body_dump" : true,
-          "res_body_format" : "json"
+          "response": {
+            "out": {
+              "format": {
+                "body": "json"
+              }
+            }
+          }
         },
         {
           "for" : 1,
           "auth" : "aws_v4",
           "method" : "HEAD",
           "uri" : "foo",
-          "query_string" : "format=json",
-          "res_body_dump" : true,
-          "res_body_format" : "json"
+          "response": {
+            "out": {
+              "format": {
+                "body": "json"
+              }
+            }
+          }
         }
       ]
     }
@@ -286,37 +299,39 @@ checks that the newly created bucket actually exists.
 }
 ```
 
-- Output rendered conversation
+- Possible output conversation
 
 ```json
 {
-   "conversations":[
-      {
-         "host":"s3gw.127.0.0.1.omg.howdoi.website:7480",
-         "conversation":[
-            {
-              "auth":"aws_v4",
-              "data":"",
-              "query_string":"format=json",
-              "uri":"foobar",
-              "method":"PUT",
-              "res_body":null,
-              "res_code":200
-            },
-            {
-              "auth":"aws_v4",
-              "data":"",
-              "query_string":"format=json",
-              "uri":"foobar",
-              "method":"HEAD",
-              "res_body":null,
-              "res_code":200
-            }
-         ],
-         "s3_access_key":"test",
-         "s3_secret_key":"test",
-         "service":"s3"
-      }
-   ]
+  "conversations": [
+    {
+      "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
+      "service": "s3",
+      "s3": {
+        "access_key": "test",
+        "secret_key": "test"
+      },
+      "conversation": [
+        {
+          "auth": "aws_v4",
+          "query_string": "format=json",
+          "uri": "foo",
+          "method": "PUT",
+          "response": {
+            "body": {},
+            "code": 200
+          }
+        },
+        {
+          "auth": "aws_v4",
+          "uri": "foo",
+          "method": "HEAD",
+          "response": {
+            "code": 200
+          }
+        }
+      ]
+    }
+  ]
 }
 ```
