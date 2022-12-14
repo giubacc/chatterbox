@@ -2,18 +2,25 @@
   "conversations": [
     {
       "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "s3_access_key": "test",
-      "s3_secret_key": "test",
+      "s3": {
+        "access_key": "test",
+        "secret_key": "test"
+      },
       "service": "s3",
-      "conversation": [
+      "requests": [
         {
           "for": 1,
           "auth": "aws_v4",
           "method": "PUT",
           "uri": "foo",
           "query_string": "format=json",
-          "res_body_dump": true,
-          "res_body_format": "json"
+          "response": {
+            "out": {
+              "format": {
+                "body": "json"
+              }
+            }
+          }
         },
         {
           "for": 1,
@@ -21,8 +28,13 @@
           "method": "HEAD",
           "uri": "foo",
           "query_string": "format=json",
-          "res_body_dump": true,
-          "res_body_format": "json"
+          "response": {
+            "out": {
+              "format": {
+                "body": "json"
+              }
+            }
+          }
         }
       ]
     }

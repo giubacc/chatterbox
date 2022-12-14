@@ -30,8 +30,8 @@ js_env::js_env(rest::chatterbox &chatterbox) : chatterbox_(chatterbox)
 js_env::~js_env()
 {
   if(isolate_) {
-    if(!current_scenario_context_.IsEmpty()) {
-      current_scenario_context_.Empty();
+    if(!scenario_context_.IsEmpty()) {
+      scenario_context_.Empty();
     }
     isolate_->Dispose();
     delete params_.array_buffer_allocator;
@@ -78,7 +78,7 @@ int js_env::renew_scenario_context()
   context->SetAlignedPointerInEmbedderData(1, this);
 
   //reset current_scenario_context_
-  current_scenario_context_.Reset(isolate_, context);
+  scenario_context_.Reset(isolate_, context);
 
   //install scenario objects in the current context
   if(!install_scenario_objects()) {
@@ -123,8 +123,8 @@ bool js_env::install_scenario_objects()
   v8::Local<v8::Object> scenario_in_obj = wrap_json_value(chatterbox_.scenario_in_);
 
   // Set the chatterbox_.scenario_in_ object as a property on the global object.
-  current_scenario_context_.Get(isolate_)->Global()
-  ->Set(current_scenario_context_.Get(isolate_),
+  scenario_context_.Get(isolate_)->Global()
+  ->Set(scenario_context_.Get(isolate_),
         v8::String::NewFromUtf8(isolate_, "inScenario", v8::NewStringType::kNormal)
         .ToLocalChecked(),
         scenario_in_obj)
@@ -133,8 +133,8 @@ bool js_env::install_scenario_objects()
   v8::Local<v8::Object> scenario_out_obj = wrap_json_value(chatterbox_.scenario_out_);
 
   // Set the chatterbox_.scenario_out_ object as a property on the global object.
-  current_scenario_context_.Get(isolate_)->Global()
-  ->Set(current_scenario_context_.Get(isolate_),
+  scenario_context_.Get(isolate_)->Global()
+  ->Set(scenario_context_.Get(isolate_),
         v8::String::NewFromUtf8(isolate_, "outScenario", v8::NewStringType::kNormal)
         .ToLocalChecked(),
         scenario_out_obj)
@@ -161,7 +161,7 @@ v8::Local<v8::Object> js_env::wrap_json_value(Json::Value &obj)
 
   // Create an empty json_value wrapper.
   v8::Local<v8::Object> result =
-    templ->NewInstance(current_scenario_context_.Get(isolate_)).ToLocalChecked();
+    templ->NewInstance(scenario_context_.Get(isolate_)).ToLocalChecked();
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
@@ -221,7 +221,7 @@ bool js_env::json_value_from_js_value(Json::Value &obj_val,
                                       js_env &self)
 {
   v8::HandleScope scope(self.isolate_);
-  v8::Local<v8::Context> ctx = self.current_scenario_context_.Get(self.isolate_);
+  v8::Local<v8::Context> ctx = self.scenario_context_.Get(self.isolate_);
   if(js_obj_val->IsNull()) {
     obj_val = Json::Value::null;
   } else if(js_obj_val->IsInt32()) {
@@ -412,7 +412,7 @@ bool js_env::invoke_js_function(const char *js_function_name,
   }
 
   v8::HandleScope scope(isolate_);
-  v8::Local<v8::Context> context = current_scenario_context_.Get(isolate_);
+  v8::Local<v8::Context> context = scenario_context_.Get(isolate_);
   v8::Context::Scope context_scope(context);
   v8::TryCatch try_catch(isolate_);
 
@@ -613,7 +613,7 @@ bool js_env::compile_script(const v8::Local<v8::String> &script_src,
                             v8::Local<v8::Script> &script,
                             std::string &error)
 {
-  v8::Local<v8::Context> context = current_scenario_context_.Get(isolate_);
+  v8::Local<v8::Context> context = scenario_context_.Get(isolate_);
   v8::Context::Scope context_scope(context);
   v8::TryCatch try_catch(isolate_);
 
@@ -629,11 +629,11 @@ bool js_env::run_script(const v8::Local<v8::Script> &script,
                         v8::Local<v8::Value> &result,
                         std::string &error)
 {
-  v8::Local<v8::Context> context = current_scenario_context_.Get(isolate_);
+  v8::Local<v8::Context> context = scenario_context_.Get(isolate_);
   v8::Context::Scope context_scope(context);
   v8::TryCatch try_catch(isolate_);
 
-  if(!script->Run(current_scenario_context_.Get(isolate_)).ToLocal(&result)) {
+  if(!script->Run(scenario_context_.Get(isolate_)).ToLocal(&result)) {
     v8::String::Utf8Value utf8err(isolate_, try_catch.Exception());
     error = *utf8err;
     return false;

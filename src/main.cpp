@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
       } else {
         file_name = cbox.cfg_.in_scenario_name;
       }
-      res = cbox.execute_scenario(file_name.c_str());
+      res = cbox.process_scenario(file_name.c_str());
     }
   }
 

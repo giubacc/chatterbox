@@ -25,12 +25,27 @@ struct chatterbox {
     ~chatterbox();
 
     int init(int argc, char *argv[]);
-    int reset_scenario_ctx(const Json::Value &scenario_ctx);
-    int reset_conversation_ctx(const Json::Value &conversation_ctx);
+
     void poll();
 
-    int execute_scenario(const char *fname);
-    int execute_scenario(std::istream &is);
+    bool push_out_opts(bool call_dump_val_cb,
+                       const std::function<void(const std::string &key, bool val)> &dump_val_cb,
+                       bool call_format_val_cb,
+                       const std::function<void(const std::string &key, const std::string &val)> &format_val_cb);
+
+    bool pop_process_out_opts();
+
+    int reset_scenario();
+    int process_scenario(const char *fname);
+    int process_scenario(std::istream &is);
+
+    int reset_conversation(const Json::Value &conversation_in);
+
+    int process_conversation(Json::Value &conversation_in,
+                             Json::Value &conversation_out);
+
+    int process_request(Json::Value &request_in,
+                        Json::Value &request_out);
 
     int execute_request(const std::string &method,
                         const std::string &auth,
@@ -39,7 +54,7 @@ struct chatterbox {
                         const std::string &data,
                         bool res_body_dump,
                         const std::string &res_body_format,
-                        Json::Value &conversation_out);
+                        Json::Value &requests_out);
 
     int on_response(const RestClient::Response &res,
                     const std::string &method,
@@ -49,10 +64,10 @@ struct chatterbox {
                     const std::string &data,
                     bool res_body_dump,
                     const std::string &res_body_format,
-                    Json::Value &conversation_out);
+                    Json::Value &requests_out);
 
-    void on_conversation_complete(Json::Value &conversation_ctx_out);
-    void on_scenario_complete(Json::Value &scenario_out);
+    void enrich_stats_conversation(Json::Value &conversation_out);
+    void enrich_stats_scenario(Json::Value &scenario_out);
 
     // ------------
     // --- HTTP ---
@@ -169,17 +184,22 @@ struct chatterbox {
     //current scenario_in and scenario_out
     Json::Value scenario_in_;
     Json::Value scenario_out_;
+
+    //stacks for current json-object
     std::stack<utils::json_value_ref> stack_obj_in_;
     std::stack<utils::json_value_ref> stack_obj_out_;
 
+    //stack for current out-options configuration
+    std::stack<utils::json_value_ref> stack_out_options_;
+
     //conversation statistics
     uint32_t conv_request_count_ = 0;
-    std::unordered_map<std::string, int32_t> conv_res_code_categorization_;
+    std::unordered_map<std::string, int32_t> conv_categorization_;
 
     //scenario statistics
     uint32_t scen_conversation_count_ = 0;
     uint32_t scen_request_count_ = 0;
-    std::unordered_map<std::string, int32_t> scen_res_code_categorization_;
+    std::unordered_map<std::string, int32_t> scen_categorization_;
 
   private:
     //conversation connection

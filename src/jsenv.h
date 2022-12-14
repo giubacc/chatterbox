@@ -290,7 +290,7 @@ struct js_env {
 
   //the context associated with this object,
   //it is disposed and then recreated on every scenario.
-  v8::Global<v8::Context> current_scenario_context_;
+  v8::Global<v8::Context> scenario_context_;
 
   //event logger
   std::string event_log_fmt_;

@@ -248,7 +248,7 @@ void chatterbox::poll()
           if(!utils::ends_with(ent->d_name, ".json")) {
             continue;
           }
-          execute_scenario(ent->d_name);
+          process_scenario(ent->d_name);
         }
       }
     }
@@ -290,7 +290,7 @@ void chatterbox::rm_file(const char *filename)
   }
 }
 
-int chatterbox::execute_scenario(const char *fname)
+int chatterbox::process_scenario(const char *fname)
 {
   int res = 0;
   event_log_->trace("processing scenario file:{}", fname);
@@ -301,7 +301,7 @@ int chatterbox::execute_scenario(const char *fname)
   if((res = utils::read_file(fpath.str().c_str(), ss, event_log_.get()))) {
     event_log_->error("[read_file] {}", fname);
   } else {
-    res = execute_scenario(ss);
+    res = process_scenario(ss);
   }
 
   if(cfg_.monitor) {

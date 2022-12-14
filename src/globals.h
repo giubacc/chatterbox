@@ -111,6 +111,7 @@ int read_file(const char *fname,
 
 struct json_value_ref {
   json_value_ref(Json::Value &ref) : ref_(ref) {}
+  json_value_ref(const Json::Value &ref) : ref_(const_cast<Json::Value &>(ref)) {}
   Json::Value &ref_;
 };
 
