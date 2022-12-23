@@ -88,6 +88,12 @@
           "uri": "admin/info",
           "query_string": "format=json",
           "response": {
+            "on_begin": {
+              "function": "OnResponseBegin"
+            },
+            "on_end": {
+              "function": "OnResponseEnd"
+            },
             "out": {
               "dump": {
                 "body": false

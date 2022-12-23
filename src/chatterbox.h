@@ -21,6 +21,38 @@ struct chatterbox {
       std::string evt_log_level = "inf";
     };
 
+    static const Json::Value &get_default_out_options();
+    static const Json::Value &get_default_scenario_out_options();
+    static const Json::Value &get_default_conversation_out_options();
+    static const Json::Value &get_default_request_out_options();
+    static const Json::Value &get_default_response_out_options();
+
+    struct stack_scope {
+// *INDENT-OFF*
+        stack_scope(chatterbox &cbox,
+                    Json::Value &obj_in,
+                    Json::Value &obj_out,
+                    bool &error,
+                    const Json::Value &default_out_options = get_default_out_options(),
+                    bool call_dump_val_cb = false,
+                    const std::function<void(const std::string &key, bool val)> &dump_val_cb =
+                    [](const std::string &, bool) {},
+                    bool call_format_val_cb = false,
+                    const std::function<void(const std::string &key, const std::string &val)> &format_val_cb =
+                    [](const std::string &, const std::string &) {});
+// *INDENT-ON*
+
+      ~stack_scope();
+
+      void commit() {
+        commit_ = true;
+      }
+
+      chatterbox &cbox_;
+      bool &error_;
+      bool commit_;
+    };
+
     chatterbox();
     ~chatterbox();
 
@@ -28,10 +60,15 @@ struct chatterbox {
 
     void poll();
 
-    bool push_out_opts(bool call_dump_val_cb,
-                       const std::function<void(const std::string &key, bool val)> &dump_val_cb,
-                       bool call_format_val_cb,
-                       const std::function<void(const std::string &key, const std::string &val)> &format_val_cb);
+// *INDENT-OFF*
+    bool push_out_opts(const Json::Value &default_out_options = get_default_out_options(),
+                       bool call_dump_val_cb = false,
+                       const std::function<void(const std::string &key, bool val)> &dump_val_cb =
+                       [](const std::string &, bool) {},
+                       bool call_format_val_cb = false,
+                       const std::function<void(const std::string &key, const std::string &val)> &format_val_cb =
+                       [](const std::string &, const std::string &) {});
+// *INDENT-ON*
 
     bool pop_process_out_opts();
 
@@ -52,19 +89,16 @@ struct chatterbox {
                         const std::string &uri,
                         const std::string &query_string,
                         const std::string &data,
-                        bool res_body_dump,
-                        const std::string &res_body_format,
-                        Json::Value &requests_out);
+                        Json::Value &request_in,
+                        Json::Value &request_out);
 
     int on_response(const RestClient::Response &res,
-                    const std::string &method,
-                    const std::string &auth,
-                    const std::string &uri,
-                    const std::string &query_string,
-                    const std::string &data,
-                    bool res_body_dump,
-                    const std::string &res_body_format,
-                    Json::Value &requests_out);
+                    Json::Value &request_in,
+                    Json::Value &request_out);
+
+    int process_response(const RestClient::Response &res,
+                         Json::Value &response_in,
+                         Json::Value &response_out);
 
     void enrich_stats_conversation(Json::Value &conversation_out);
     void enrich_stats_scenario(Json::Value &scenario_out);
@@ -164,17 +198,6 @@ struct chatterbox {
     // -------------
 
     void dump_hdr(const RestClient::HeaderFields &hdr) const;
-
-    void dump_response(const std::string &method,
-                       const std::string &auth,
-                       const std::string &uri,
-                       const std::string &query_string,
-                       const std::string &data,
-                       bool res_body_dump,
-                       const std::string &res_body_format,
-                       const RestClient::Response &res,
-                       Json::Value &conversation_out);
-
     void move_file(const char *filename);
     void rm_file(const char *filename);
 
@@ -214,7 +237,6 @@ struct chatterbox {
     std::string signed_headers_;
     std::string region_;
     std::string service_;
-    bool res_conv_dump_ = true;
 
     //js environment
     js::js_env js_env_;
