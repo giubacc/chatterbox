@@ -48,3 +48,11 @@ function OnRequestBegin() {
 function OnRequestEnd() {
   log(TLV.INF, "OnRequestEnd", "->");
 }
+
+function OnResponseBegin() {
+  log(TLV.INF, "OnResponseBegin", "<-");
+}
+
+function OnResponseEnd() {
+  log(TLV.INF, "OnResponseEnd", "->");
+}
