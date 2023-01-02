@@ -32,9 +32,11 @@ RUN contrib_init.sh && build.sh build-deps \
 && cp -R --parents /contrib/spdlog/include /tmp \
 && cp -R --parents /contrib/clipp/include /tmp \
 && cp -R --parents /contrib/v8/include /tmp \
+&& cp -R --parents /contrib/googletest/googletest/include /tmp \
 && cp -R --parents /contrib/restclient-cpp/.libs /tmp \
 && cp -R --parents /contrib/jsoncpp-build/lib /tmp \
 && cp -R --parents /contrib/v8/out/x86.release/obj /tmp \
+&& cp -R --parents /contrib/googletest/build/lib /tmp \
 && rm -rf /contrib \
 && mv /tmp/contrib /contrib
 

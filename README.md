@@ -259,9 +259,8 @@ checks that the newly created bucket actually exists.
 {
   "conversations": [
     {
-      "host" : "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "service": "s3",
-      "s3": {
+      "host" : "localhost:7480",
+      "auth": {
         "access_key": "test",
         "secret_key": "test"
       },
@@ -305,9 +304,8 @@ checks that the newly created bucket actually exists.
 {
   "conversations": [
     {
-      "host": "s3gw.127.0.0.1.omg.howdoi.website:7480",
-      "service": "s3",
-      "s3": {
+      "host": "localhost:7480",
+      "auth": {
         "access_key": "test",
         "secret_key": "test"
       },

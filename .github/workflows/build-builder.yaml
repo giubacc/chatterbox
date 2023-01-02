@@ -3,6 +3,7 @@ name: Build Builder
 on:
   schedule:
     - cron: '0 0 * * 0'  # build every sunday night
+  fork:
 
 env:
   IMAGE_NAME_BUILDER: chatterbox-builder
