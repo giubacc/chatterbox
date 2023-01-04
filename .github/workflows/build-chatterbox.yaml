@@ -20,8 +20,60 @@ on:
 env:
   IMAGE_NAME_BUILDER: chatterbox-builder
   IMAGE_NAME_CHATTERBOX: chatterbox
+  IMAGE_NAME_CHATTERBOX_TEST: chatterbox-test
 
 jobs:
+  build-and-run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        id: tag
+        run: |
+          if [ -z "${{ inputs.tag }}" ]; then
+            echo ::set-output name=tag::"latest"
+          else
+            echo ::set-output name=tag::"${{ inputs.tag }}"
+          fi
+
+      - name: Build chatterbox-test binary
+        run: |
+          docker run \
+            -e BASE_DIR=/project \
+            -e NINJA_JOBS=6 \
+            -e CONTRIB_PATH=/contrib \
+            -v $GITHUB_WORKSPACE:/project \
+            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ steps.tag.outputs.tag }} build-test
+
+      - name: Copy scenarios
+        run: |
+          sudo cp -R test/scenarios build/test
+
+      - name: Build chatterbox-test-image
+        uses: docker/build-push-action@v3
+        with:
+          file: 'scripts/Dockerfile.chatterbox-test'
+          context: build/test
+          tags: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
+          labels: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}
+
+      - name: Run tests
+        run: |
+          docker run ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
+
   build-and-push-chatterbox:
     runs-on: ubuntu-latest
     permissions:
@@ -61,7 +113,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           file: 'scripts/Dockerfile.chatterbox'
-          context: build
+          context: build/chatterbox
           push: true
           tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_CHATTERBOX }}:${{ steps.tag.outputs.tag }}
           labels: ${{ env.IMAGE_NAME_CHATTERBOX }}

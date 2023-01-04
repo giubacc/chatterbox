@@ -15,6 +15,7 @@ const std::string key_for = "for";
 const std::string key_format = "format";
 const std::string key_host = "host";
 const std::string key_method = "method";
+const std::string key_mock = "mock";
 const std::string key_on_begin = "on_begin";
 const std::string key_on_end = "on_end";
 const std::string key_out = "out";
@@ -22,7 +23,6 @@ const std::string key_query_string = "query_string";
 const std::string key_region = "region";
 const std::string key_requests = "requests";
 const std::string key_response = "response";
-const std::string key_s3 = "s3";
 const std::string key_secret_key = "secret_key";
 const std::string key_service = "service";
 const std::string key_signed_headers = "signed_headers";
@@ -48,10 +48,16 @@ chatterbox::stack_scope::stack_scope(chatterbox &cbox,
   cbox_.stack_obj_in_.push(utils::json_value_ref(obj_in));
   cbox_.stack_obj_out_.push(utils::json_value_ref(obj_out));
 
-  if(!cbox_.push_out_opts()) {
+  if(!cbox_.push_out_opts(default_out_options,
+                          call_dump_val_cb,
+                          dump_val_cb,
+                          call_format_val_cb,
+                          format_val_cb)) {
     cbox_.event_log_->error("failed to push out-options for the current stack scope");
     error_ = true;
   } else {
+    //set newly pushed stack objects inside the js context
+    cbox_.js_env_.install_current_objects();
     //on_begin handler
     if(!cbox_.js_env_.exec_as_function(obj_in, key_on_begin.c_str())) {
       cbox_.event_log_->error("failed to execute on_begin handler for the current stack scope");
@@ -78,6 +84,11 @@ chatterbox::stack_scope::~stack_scope()
   }
   cbox_.stack_obj_in_.pop();
   cbox_.stack_obj_out_.pop();
+
+  //restore previous stack's top objects inside the js context
+  if(!cbox_.stack_obj_in_.empty()) {
+    cbox_.js_env_.install_current_objects();
+  }
 }
 
 static Json::Value default_out_options;
@@ -115,6 +126,8 @@ const Json::Value &chatterbox::get_default_request_out_options()
 {
   if(default_request_out_options.empty()) {
     default_request_out_options = get_default_out_options();
+    auto &default_out_dumps = default_request_out_options[key_dump];
+    default_out_dumps[key_mock] = false;
   }
   return default_request_out_options;
 }
@@ -173,25 +186,24 @@ int chatterbox::reset_conversation(const Json::Value &conversation_in)
   utils::find_and_replace(host_, "https://", "");
   host_ = host_.substr(0, (host_.find(':') == std::string::npos ? host_.length() : host_.find(':')));
 
-  auto service = js_env_.eval_as<std::string>(conversation_in, key_service.c_str(), "");
-  service_ = *service;
+  //authorization
+  const Json::Value *auth_node = nullptr;
+  if((auth_node = conversation_in.find(key_auth.data(), key_auth.data()+key_auth.length()))) {
+    auto service = js_env_.eval_as<std::string>(conversation_in, key_service.c_str(), "s3");
+    service_ = *service;
 
-  //S3 specific
-
-  const Json::Value *s3_node = nullptr;
-  if((s3_node = conversation_in.find(key_s3.data(), key_s3.data()+key_s3.length()))) {
-    auto access_key = js_env_.eval_as<std::string>(*s3_node, key_access_key.c_str(), "");
+    auto access_key = js_env_.eval_as<std::string>(*auth_node, key_access_key.c_str(), "");
     access_key_ = *access_key;
 
-    auto secret_key = js_env_.eval_as<std::string>(*s3_node, key_secret_key.c_str(), "");
+    auto secret_key = js_env_.eval_as<std::string>(*auth_node, key_secret_key.c_str(), "");
     secret_key_ = *secret_key;
 
-    auto signed_headers = js_env_.eval_as<std::string>(*s3_node,
+    auto signed_headers = js_env_.eval_as<std::string>(*auth_node,
                                                        key_signed_headers.c_str(),
                                                        "host;x-amz-content-sha256;x-amz-date");
     signed_headers_ = *signed_headers;
 
-    auto region = js_env_.eval_as<std::string>(*s3_node, key_region.c_str(), "US");
+    auto region = js_env_.eval_as<std::string>(*auth_node, key_region.c_str(), "US");
     region_ = *region;
   }
 
@@ -199,7 +211,7 @@ int chatterbox::reset_conversation(const Json::Value &conversation_in)
   conv_conn_.reset(new RestClient::Connection(raw_host_));
   if(!conv_conn_) {
     event_log_->error("failed creating resource_conn_ object");
-    return -1;
+    return 1;
   }
   conv_conn_->SetVerifyPeer(false);
   conv_conn_->SetVerifyHost(false);
@@ -446,7 +458,7 @@ int chatterbox::process_request(Json::Value &request_in,
   int res = 0;
 
   // for
-  auto pfor = js_env_.eval_as<uint32_t>(request_in, key_for.c_str(), 0);
+  auto pfor = js_env_.eval_as<uint32_t>(request_in, key_for.c_str(), 1);
   if(!pfor) {
     event_log_->error("failed to read 'for' field");
     return 1;
@@ -485,14 +497,12 @@ int chatterbox::process_request(Json::Value &request_in,
     }
 
     //optional auth directive
-    auto auth = js_env_.eval_as<std::string>(request_in, key_auth.c_str(), "aws_v4");
-    if(!auth) {
-      event_log_->error("failed to read 'auth' field");
-      return 1;
+    auto auth = js_env_.eval_as<std::string>(request_in, key_auth.c_str());
+    if(auth) {
+      request_out[key_auth] = *auth;
     }
 
     request_out[key_method] = *method;
-    request_out[key_auth] = *auth;
     request_out[key_uri] = *uri;
     request_out[key_query_string] = *query_string;
     request_out[key_data] = *data;
@@ -508,8 +518,10 @@ int chatterbox::process_request(Json::Value &request_in,
         return 1;
       }
 
+      response_mock_ = const_cast<Json::Value *>(request_in.find(key_mock.data(), key_mock.data()+key_mock.length()));
+
       if((res = execute_request(*method,
-                                *auth,
+                                auth,
                                 *uri,
                                 *query_string,
                                 *data,
@@ -583,7 +595,7 @@ int chatterbox::process_response(const RestClient::Response &res,
 }
 
 int chatterbox::execute_request(const std::string &method,
-                                const std::string &auth,
+                                const std::optional<std::string> &auth,
                                 const std::string &uri,
                                 const std::string &query_string,
                                 const std::string &data,

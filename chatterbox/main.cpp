@@ -44,13 +44,13 @@ int main(int argc, char *argv[])
     }
 
     //init V8
-    if(!js::js_env::init_V8(argc, argv)) {
+    if(!js::js_env::init_V8(argc, (const char **)argv)) {
       std::cerr << "V8 javascript engine failed to init, exiting..." << std::endl;
-      return -1;
+      return 1;
     }
 
     //init chatterbox
-    if((res = cbox.init(argc, argv))) {
+    if((res = cbox.init(argc, (const char **)argv))) {
       std::cerr << "error init chatterbox, exiting..." << std::endl;
       return res;
     }
@@ -66,15 +66,7 @@ int main(int argc, char *argv[])
         usleep(2*1000*1000);
       }
     } else if(!cbox.cfg_.in_scenario_name.empty()) {
-      std::string file_name;
-      if(cbox.cfg_.in_scenario_path.empty()) {
-        utils::base_name(cbox.cfg_.in_scenario_name,
-                         cbox.cfg_.in_scenario_path,
-                         file_name);
-      } else {
-        file_name = cbox.cfg_.in_scenario_name;
-      }
-      res = cbox.process_scenario(file_name.c_str());
+      res = cbox.process_scenario();
     }
   }
 

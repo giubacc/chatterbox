@@ -12,6 +12,7 @@ usage: $0 CMD
 
 commands
   build                     Build chatterbox binary.
+  build-test                Build chatterbox-test binary.
   clean                     Clean chatterbox build directory.
   build-all                 Build chatterbox binary with all its dependencies.
   clean-all                 Clean all build directories (chatterbox and dependencies).
@@ -21,7 +22,9 @@ commands
   clean-v8                  Clean V8 JavaScript and WebAssembly engine.
   builder-create            Create the chatterbox builder image.
   builder-build             Build chatterbox binary with the chatterbox builder.
+  builder-build-test        Build chatterbox-test binary with the chatterbox builder.
   chatterbox-create         Create the chatterbox image.
+  chatterbox-test-create    Create the chatterbox-test image.
   help                      This message.
 
 env variables
@@ -39,7 +42,7 @@ error() {
 
 create_builder() {
   echo "Creating the chatterbox builder image ..."
-  $container_mng build --no-cache -t chatterbox-builder \
+  $container_mng build -t chatterbox-builder \
     -f Dockerfile.builder . || exit 1
 }
 
@@ -55,15 +58,39 @@ builder_build() {
     ${builder_image} build || exit 1
 }
 
+builder_build_test() {
+  echo "Building chatterbox-test binary with the chatterbox builder ..."
+  volumes="-v $basedir:/project"
+
+  $container_mng run -it \
+    -e BASE_DIR=/project \
+    -e NINJA_JOBS=${ninja_jobs} \
+    -e CONTRIB_PATH=/contrib \
+    ${volumes[@]} \
+    ${builder_image} build-test || exit 1
+}
+
 create_chatterbox() {
   echo "Creating the chatterbox image ..."
   $container_mng build -t chatterbox \
-    -f Dockerfile.chatterbox ${basedir}/build || exit 1
+    -f Dockerfile.chatterbox ${basedir}/build/chatterbox || exit 1
+}
+
+create_chatterbox_test() {
+  echo "Creating the chatterbox-test image ..."
+  cp -R $basedir/test/scenarios $basedir/build/test
+  $container_mng build -t chatterbox-test \
+    -f Dockerfile.chatterbox-test ${basedir}/build/test || exit 1
 }
 
 build() {
   echo "Building chatterbox binary ..."
-  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make
+  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make chatterbox
+}
+
+build_test() {
+  echo "Building chatterbox-test binary ..."
+  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make chatterbox_test
 }
 
 clean() {
@@ -86,6 +113,11 @@ build_jsoncpp() {
   mkdir -p $contrib_path/jsoncpp-build && cd $contrib_path/jsoncpp-build && cmake ../jsoncpp && make
 }
 
+build_googletest() {
+  echo "Building googletest ..."
+  mkdir -p $contrib_path/googletest/build && cd $contrib_path/googletest/build && cmake .. -DBUILD_GMOCK=OFF && make
+}
+
 clean_cryptopp() {
   echo "Cleaning cryptopp ..."
   cd $contrib_path/cryptopp && make -f GNUmakefile clean
@@ -99,6 +131,11 @@ clean_restclient_cpp() {
 clean_jsoncpp() {
   echo "Cleaning jsoncpp-build ..."
   rm -rf $contrib_path/jsoncpp-build
+}
+
+clean_googletest() {
+  echo "Cleaning googletest ..."
+  rm -rf $contrib_path/googletest/build
 }
 
 # see this issue: https://bugs.chromium.org/p/v8/issues/detail?id=13455
@@ -127,7 +164,7 @@ EOF
   patch_v8_code
 
   gn gen out/x86.release --args="${args}"
-  ninja -j$ninja_jobs -C out/x86.release v8_monolith
+  ninja -j$ninja_jobs -C out/x86.release v8_monolith || exit 1
 }
 
 clean_v8() {
@@ -140,6 +177,7 @@ build_deps() {
   build_restclient_cpp
   build_jsoncpp
   build_v8
+  build_googletest
 }
 
 clean_deps() {
@@ -147,11 +185,13 @@ clean_deps() {
   clean_restclient_cpp
   clean_jsoncpp
   clean_v8
+  clean_googletest
 }
 
 build_all() {
   build_deps
   build
+  build_test
 }
 
 clean_all() {
@@ -176,6 +216,9 @@ echo
 case ${cmd} in
   build)
     build || exit 1
+    ;;
+  build-test)
+    build_test || exit 1
     ;;
   clean)
     clean || exit 1
@@ -204,8 +247,14 @@ case ${cmd} in
   builder-build)
     builder_build || exit 1
     ;;
+  builder-build-test)
+    builder_build_test || exit 1
+    ;;
   chatterbox-create)
     create_chatterbox || exit 1
+    ;;
+  chatterbox-test-create)
+    create_chatterbox_test || exit 1
     ;;
   *)
     error "unknown command '${cmd}'"

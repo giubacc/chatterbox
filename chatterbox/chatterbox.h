@@ -5,6 +5,32 @@
 
 namespace rest {
 
+extern const std::string key_access_key;
+extern const std::string key_auth;
+extern const std::string key_body;
+extern const std::string key_categorization;
+extern const std::string key_code;
+extern const std::string key_conversations;
+extern const std::string key_data;
+extern const std::string key_dump;
+extern const std::string key_for;
+extern const std::string key_format;
+extern const std::string key_host;
+extern const std::string key_method;
+extern const std::string key_mock;
+extern const std::string key_on_begin;
+extern const std::string key_on_end;
+extern const std::string key_out;
+extern const std::string key_query_string;
+extern const std::string key_region;
+extern const std::string key_requests;
+extern const std::string key_response;
+extern const std::string key_secret_key;
+extern const std::string key_service;
+extern const std::string key_signed_headers;
+extern const std::string key_statistics;
+extern const std::string key_uri;
+
 struct chatterbox {
 
     // chatterbox configuration
@@ -56,7 +82,7 @@ struct chatterbox {
     chatterbox();
     ~chatterbox();
 
-    int init(int argc, char *argv[]);
+    int init(int argc, const char *argv[]);
 
     void poll();
 
@@ -73,6 +99,8 @@ struct chatterbox {
     bool pop_process_out_opts();
 
     int reset_scenario();
+
+    int process_scenario();
     int process_scenario(const char *fname);
     int process_scenario(std::istream &is);
 
@@ -85,7 +113,7 @@ struct chatterbox {
                         Json::Value &request_out);
 
     int execute_request(const std::string &method,
-                        const std::string &auth,
+                        const std::optional<std::string> &auth,
                         const std::string &uri,
                         const std::string &query_string,
                         const std::string &data,
@@ -111,7 +139,7 @@ struct chatterbox {
      *
      *  HTTP POST
      */
-    int post(const std::string &auth,
+    int post(const std::optional<std::string> &auth,
              const std::string &uri,
              const std::string &query_string,
              const std::string &data,
@@ -121,7 +149,7 @@ struct chatterbox {
      *
      *  HTTP PUT
      */
-    int put(const std::string &auth,
+    int put(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
             const std::string &data,
@@ -131,7 +159,7 @@ struct chatterbox {
      *
      *  HTTP GET
      */
-    int get(const std::string &auth,
+    int get(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
             const std::function <void (RestClient::Response &)> &cb);
@@ -140,7 +168,7 @@ struct chatterbox {
      *
      *  HTTP DELETE
      */
-    int del(const std::string &auth,
+    int del(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
             const std::function <void (RestClient::Response &)> &cb);
@@ -149,7 +177,7 @@ struct chatterbox {
      *
      *  HTTP HEAD
      */
-    int head(const std::string &auth,
+    int head(const std::optional<std::string> &auth,
              const std::string &uri,
              const std::string &query_string,
              const std::function <void (RestClient::Response &)> &cb);
@@ -200,6 +228,7 @@ struct chatterbox {
     void dump_hdr(const RestClient::HeaderFields &hdr) const;
     void move_file(const char *filename);
     void rm_file(const char *filename);
+    int mocked_to_res(RestClient::Response &res);
 
   public:
     cfg cfg_;
@@ -214,6 +243,9 @@ struct chatterbox {
 
     //stack for current out-options configuration
     std::stack<utils::json_value_ref> stack_out_options_;
+
+    //current response mock
+    Json::Value *response_mock_ = nullptr;
 
     //conversation statistics
     uint32_t conv_request_count_ = 0;
@@ -241,10 +273,11 @@ struct chatterbox {
     //js environment
     js::js_env js_env_;
 
+  public:
     //output
     std::shared_ptr<spdlog::logger> output_;
 
-  public:
+    //event log
     std::string event_log_fmt_;
     std::shared_ptr<spdlog::logger> event_log_;
 };

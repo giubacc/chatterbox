@@ -11,7 +11,7 @@ int read_file(const char *fname,
     if(log) {
       log->error("fopen: {}", strerror(errno));
     }
-    return -1;
+    return 1;
   }
 
   if(fseek(file, 0, SEEK_END)) {

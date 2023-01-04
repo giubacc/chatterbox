@@ -38,8 +38,10 @@ inline spdlog::level::level_enum get_spdloglvl(const char *log_level)
     return spdlog::level::level_enum::err;
   } else if(!strcmp("cri", log_level)) {
     return spdlog::level::level_enum::critical;
-  } else {
+  } else if(!strcmp("off", log_level)) {
     return spdlog::level::level_enum::off;
+  } else {
+    return spdlog::level::level_enum::err;
   }
 }
 

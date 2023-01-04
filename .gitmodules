@@ -17,3 +17,6 @@
 [submodule "contrib/depot_tools"]
 	path = contrib/depot_tools
 	url = https://chromium.googlesource.com/chromium/tools/depot_tools.git
+[submodule "contrib/googletest"]
+	path = contrib/googletest
+	url = https://github.com/google/googletest.git

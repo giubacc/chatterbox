@@ -8,7 +8,7 @@ namespace js {
 
 std::unique_ptr<v8::Platform> js_env::platform;
 
-bool js_env::init_V8(int argc, char *argv[])
+bool js_env::init_V8(int argc, const char *argv[])
 {
   // Initialize V8.
   v8::V8::InitializeICUDefaultLocation(argv[0]);
@@ -30,12 +30,16 @@ js_env::js_env(rest::chatterbox &chatterbox) : chatterbox_(chatterbox)
 js_env::~js_env()
 {
   if(isolate_) {
+    if(!json_value_template_.IsEmpty()) {
+      json_value_template_.Empty();
+    }
     if(!scenario_context_.IsEmpty()) {
       scenario_context_.Empty();
     }
     isolate_->Dispose();
     delete params_.array_buffer_allocator;
   }
+  event_log_.reset();
 }
 
 int js_env::init(std::shared_ptr<spdlog::logger> &event_log)
@@ -45,7 +49,7 @@ int js_env::init(std::shared_ptr<spdlog::logger> &event_log)
   //init V8 isolate
   params_.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   if(!(isolate_ = v8::Isolate::New(params_))) {
-    return -1;
+    return 1;
   }
 
   return 0;
@@ -83,7 +87,7 @@ int js_env::renew_scenario_context()
   //install scenario objects in the current context
   if(!install_scenario_objects()) {
     event_log_->error("failed to install scenario's objects");
-    return -1;
+    return 1;
   }
 
   processed_scripts_.clear();
@@ -97,8 +101,6 @@ int js_env::renew_scenario_context()
 // -----------------------
 // --- Context objects ---
 // -----------------------
-
-v8::Global<v8::ObjectTemplate> js_env::json_value_template;
 
 v8::Local<v8::ObjectTemplate> js_env::make_json_value_template()
 {
@@ -143,6 +145,43 @@ bool js_env::install_scenario_objects()
   return true;
 }
 
+bool js_env::install_current_objects()
+{
+  v8::HandleScope handle_scope(isolate_);
+
+  v8::Local<v8::Object> curr_obj_in = wrap_json_value(chatterbox_.stack_obj_in_.top().ref_);
+
+  // Set the chatterbox_.stack_obj_in_.top() object as a property on the global object.
+  scenario_context_.Get(isolate_)->Global()
+  ->Set(scenario_context_.Get(isolate_),
+        v8::String::NewFromUtf8(isolate_, "inObj", v8::NewStringType::kNormal)
+        .ToLocalChecked(),
+        curr_obj_in)
+  .FromJust();
+
+  v8::Local<v8::Object> curr_out_obj = wrap_json_value(chatterbox_.stack_obj_out_.top().ref_);
+
+  // Set the chatterbox_.stack_obj_out_.top() object as a property on the global object.
+  scenario_context_.Get(isolate_)->Global()
+  ->Set(scenario_context_.Get(isolate_),
+        v8::String::NewFromUtf8(isolate_, "outObj", v8::NewStringType::kNormal)
+        .ToLocalChecked(),
+        curr_out_obj)
+  .FromJust();
+
+  v8::Local<v8::Object> curr_out_options = wrap_json_value(chatterbox_.stack_out_options_.top().ref_);
+
+  // Set the chatterbox_.stack_out_options_.top() object as a property on the global object.
+  scenario_context_.Get(isolate_)->Global()
+  ->Set(scenario_context_.Get(isolate_),
+        v8::String::NewFromUtf8(isolate_, "outOptions", v8::NewStringType::kNormal)
+        .ToLocalChecked(),
+        curr_out_options)
+  .FromJust();
+
+  return true;
+}
+
 //Json::Value
 
 v8::Local<v8::Object> js_env::wrap_json_value(Json::Value &obj)
@@ -151,13 +190,13 @@ v8::Local<v8::Object> js_env::wrap_json_value(Json::Value &obj)
 
   // Fetch the template for creating json_value wrappers.
   // It only has to be created once, which we do on demand.
-  if(json_value_template.IsEmpty()) {
+  if(json_value_template_.IsEmpty()) {
     v8::Local<v8::ObjectTemplate> raw_template = make_json_value_template();
-    json_value_template.Reset(isolate_, raw_template);
+    json_value_template_.Reset(isolate_, raw_template);
   }
 
   v8::Local<v8::ObjectTemplate> templ =
-    v8::Local<v8::ObjectTemplate>::New(isolate_, json_value_template);
+    v8::Local<v8::ObjectTemplate>::New(isolate_, json_value_template_);
 
   // Create an empty json_value wrapper.
   v8::Local<v8::Object> result =
@@ -517,6 +556,7 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
     self->event_log_->error("error reading script:{}", *script_path);
     return;
   }
+  self->event_log_->trace("cbk_load:{}", *script_path);
 
   std::string error;
 
@@ -544,9 +584,6 @@ int js_env::load_scripts()
   struct dirent *ent;
 
   if((dir = opendir(chatterbox_.cfg_.in_scenario_path.c_str())) != nullptr) {
-    std::vector<v8::Local<v8::String>> sources;
-    std::vector<v8::Local<v8::Script>> scripts;
-
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
@@ -563,37 +600,31 @@ int js_env::load_scripts()
           if(!utils::ends_with(ent->d_name, ".js")) {
             continue;
           }
-          event_log_->trace("loading script:{}", ent->d_name);
+          event_log_->trace("load_scripts:{}", ent->d_name);
 
           //read the script's source
-          sources.emplace_back();
-          if(!read_script_file(fpath.str().c_str()).ToLocal(&sources.back())) {
+          v8::Local<v8::String> source;
+          if(!read_script_file(fpath.str().c_str()).ToLocal(&source)) {
             event_log_->error("error reading script file:{}", ent->d_name);
-            res = -1;
+            res = 1;
             break;
           }
 
           //compile the script
           std::string error;
-          scripts.emplace_back();
-          if(!compile_script(sources.back(), scripts.back(), error)) {
+          v8::Local<v8::Script> script;
+          if(!compile_script(source, script, error)) {
             event_log_->error("error compiling script file:{} {}", ent->d_name, error);
-            res = -1;
+            res = 1;
             break;
           }
-        }
-      }
-    }
 
-    if(!res) {
-      //run the scripts
-      for(auto &script : scripts) {
-        v8::Local<v8::Value> result;
-        std::string error;
-        if(!run_script(script, result, error)) {
-          event_log_->error("error running script: {}", error);
-          res = -1;
-          break;
+          v8::Local<v8::Value> result;
+          if(!run_script(script, result, error)) {
+            event_log_->error("error running script: {}", error);
+            res = 1;
+            break;
+          }
         }
       }
     }
@@ -603,7 +634,7 @@ int js_env::load_scripts()
     }
   } else {
     event_log_->error("opendir: {}", strerror(errno));
-    res = -1;
+    res = 1;
   }
 
   return res;

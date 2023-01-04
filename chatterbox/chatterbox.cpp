@@ -9,9 +9,11 @@ chatterbox::chatterbox() : js_env_(*this)
 {}
 
 chatterbox::~chatterbox()
-{}
+{
+  event_log_.reset();
+}
 
-int chatterbox::init(int argc, char *argv[])
+int chatterbox::init(int argc, const char *argv[])
 {
   //output init
   std::shared_ptr<spdlog::logger> output;
@@ -290,6 +292,19 @@ void chatterbox::rm_file(const char *filename)
   }
 }
 
+int chatterbox::process_scenario()
+{
+  std::string file_name;
+  if(cfg_.in_scenario_path.empty()) {
+    utils::base_name(cfg_.in_scenario_name,
+                     cfg_.in_scenario_path,
+                     file_name);
+  } else {
+    file_name = cfg_.in_scenario_name;
+  }
+  return process_scenario(file_name.c_str());
+}
+
 int chatterbox::process_scenario(const char *fname)
 {
   int res = 0;
@@ -319,7 +334,7 @@ int chatterbox::process_scenario(const char *fname)
 // --- HTTP METHODS ---
 // --------------------
 
-int chatterbox::post(const std::string &auth,
+int chatterbox::post(const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
                      const std::string &data,
@@ -331,14 +346,12 @@ int chatterbox::post(const std::string &auth,
 
   RestClient::HeaderFields reqHF;
 
-  if(service_ == "s3") {
-    if(auth == "aws_v2") {
-      x_amz_date_ = build_v2_date();
-      build_v2("POST", luri, reqHF);
-    } else if(auth == "aws_v4") {
-      x_amz_date_ = build_v4_date();
-      build_v4("POST", luri, query_string, data, reqHF);
-    }
+  if(auth == "aws_v2") {
+    x_amz_date_ = build_v2_date();
+    build_v2("POST", luri, reqHF);
+  } else if(auth == "aws_v4") {
+    x_amz_date_ = build_v4_date();
+    build_v4("POST", luri, query_string, data, reqHF);
   }
 
   conv_conn_->SetHeaders(reqHF);
@@ -350,13 +363,17 @@ int chatterbox::post(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = conv_conn_->post(luri, data);
+  if(response_mock_) {
+    mocked_to_res(res);
+  } else {
+    res = conv_conn_->post(luri, data);
+  }
 
   cb(res);
   return res.code;
 }
 
-int chatterbox::put(const std::string &auth,
+int chatterbox::put(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::string &data,
@@ -368,14 +385,12 @@ int chatterbox::put(const std::string &auth,
 
   RestClient::HeaderFields reqHF;
 
-  if(service_ == "s3") {
-    if(auth == "aws_v2") {
-      x_amz_date_ = build_v2_date();
-      build_v2("PUT", luri, reqHF);
-    } else if(auth == "aws_v4") {
-      x_amz_date_ = build_v4_date();
-      build_v4("PUT", luri, query_string, data, reqHF);
-    }
+  if(auth == "aws_v2") {
+    x_amz_date_ = build_v2_date();
+    build_v2("PUT", luri, reqHF);
+  } else if(auth == "aws_v4") {
+    x_amz_date_ = build_v4_date();
+    build_v4("PUT", luri, query_string, data, reqHF);
   }
 
   conv_conn_->SetHeaders(reqHF);
@@ -387,13 +402,17 @@ int chatterbox::put(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = conv_conn_->put(luri, data);
+  if(response_mock_) {
+    mocked_to_res(res);
+  } else {
+    res = conv_conn_->put(luri, data);
+  }
 
   cb(res);
   return res.code;
 }
 
-int chatterbox::get(const std::string &auth,
+int chatterbox::get(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::function <void (RestClient::Response &)> &cb)
@@ -404,14 +423,12 @@ int chatterbox::get(const std::string &auth,
 
   RestClient::HeaderFields reqHF;
 
-  if(service_ == "s3") {
-    if(auth == "aws_v2") {
-      x_amz_date_ = build_v2_date();
-      build_v2("GET", luri, reqHF);
-    } else if(auth == "aws_v4") {
-      x_amz_date_ = build_v4_date();
-      build_v4("GET", luri, query_string, "", reqHF);
-    }
+  if(auth == "aws_v2") {
+    x_amz_date_ = build_v2_date();
+    build_v2("GET", luri, reqHF);
+  } else if(auth == "aws_v4") {
+    x_amz_date_ = build_v4_date();
+    build_v4("GET", luri, query_string, "", reqHF);
   }
 
   conv_conn_->SetHeaders(reqHF);
@@ -423,13 +440,17 @@ int chatterbox::get(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = conv_conn_->get(luri);
+  if(response_mock_) {
+    mocked_to_res(res);
+  } else {
+    res = conv_conn_->get(luri);
+  }
 
   cb(res);
   return res.code;
 }
 
-int chatterbox::del(const std::string &auth,
+int chatterbox::del(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::function <void (RestClient::Response &)> &cb)
@@ -440,14 +461,12 @@ int chatterbox::del(const std::string &auth,
 
   RestClient::HeaderFields reqHF;
 
-  if(service_ == "s3") {
-    if(auth == "aws_v2") {
-      x_amz_date_ = build_v2_date();
-      build_v2("DELETE", luri, reqHF);
-    } else if(auth == "aws_v4") {
-      x_amz_date_ = build_v4_date();
-      build_v4("DELETE", luri, query_string, "", reqHF);
-    }
+  if(auth == "aws_v2") {
+    x_amz_date_ = build_v2_date();
+    build_v2("DELETE", luri, reqHF);
+  } else if(auth == "aws_v4") {
+    x_amz_date_ = build_v4_date();
+    build_v4("DELETE", luri, query_string, "", reqHF);
   }
 
   conv_conn_->SetHeaders(reqHF);
@@ -459,13 +478,17 @@ int chatterbox::del(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = conv_conn_->del(luri);
+  if(response_mock_) {
+    mocked_to_res(res);
+  } else {
+    res = conv_conn_->del(luri);
+  }
 
   cb(res);
   return res.code;
 }
 
-int chatterbox::head(const std::string &auth,
+int chatterbox::head(const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
                      const std::function <void (RestClient::Response &)> &cb)
@@ -476,14 +499,12 @@ int chatterbox::head(const std::string &auth,
 
   RestClient::HeaderFields reqHF;
 
-  if(service_ == "s3") {
-    if(auth == "aws_v2") {
-      x_amz_date_ = build_v2_date();
-      build_v2("HEAD", luri, reqHF);
-    } else if(auth == "aws_v4") {
-      x_amz_date_ = build_v4_date();
-      build_v4("HEAD", luri, query_string, "", reqHF);
-    }
+  if(auth == "aws_v2") {
+    x_amz_date_ = build_v2_date();
+    build_v2("HEAD", luri, reqHF);
+  } else if(auth == "aws_v4") {
+    x_amz_date_ = build_v4_date();
+    build_v4("HEAD", luri, query_string, "", reqHF);
   }
 
   conv_conn_->SetHeaders(reqHF);
@@ -495,10 +516,31 @@ int chatterbox::head(const std::string &auth,
   }
 
   RestClient::Response res;
-  res = conv_conn_->head(luri);
+  if(response_mock_) {
+    mocked_to_res(res);
+  } else {
+    res = conv_conn_->head(luri);
+  }
 
   cb(res);
   return res.code;
+}
+
+int chatterbox::mocked_to_res(RestClient::Response &res)
+{
+  //code
+  auto code = js_env_.eval_as<int32_t>(*response_mock_, key_code.c_str());
+  if(code) {
+    res.code = *code;
+  }
+
+  //body
+  auto body = js_env_.eval_as<std::string>(*response_mock_, key_body.c_str());
+  if(body) {
+    res.body = *body;
+  }
+
+  return 0;
 }
 
 }

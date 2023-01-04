@@ -1,0 +1,13 @@
+FROM opensuse/tumbleweed
+LABEL Name=chatterbox-test
+
+RUN zypper -n install --no-recommends curl \
+&& zypper clean --all
+
+RUN mkdir -p /wd/scenarios
+COPY scenarios /wd/scenarios
+
+COPY chatterbox_test /usr/bin/chatterbox_test
+
+WORKDIR /wd
+ENTRYPOINT ["chatterbox_test"]

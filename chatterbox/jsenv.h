@@ -117,10 +117,7 @@ struct js_env {
   //global V8 platform
   static std::unique_ptr<v8::Platform> platform;
 
-  //the global object template for json_value
-  static v8::Global<v8::ObjectTemplate> json_value_template;
-
-  static bool init_V8(int argc, char *argv[]);
+  static bool init_V8(int argc, const char *argv[]);
   static void stop_V8();
 
   js_env(rest::chatterbox &chatterbox);
@@ -135,6 +132,7 @@ struct js_env {
   // -----------------------
 
   bool install_scenario_objects();
+  bool install_current_objects();
 
   //Json::Value
 
@@ -291,6 +289,9 @@ struct js_env {
   //the context associated with this object,
   //it is disposed and then recreated on every scenario.
   v8::Global<v8::Context> scenario_context_;
+
+  //the global object template for json_value
+  v8::Global<v8::ObjectTemplate> json_value_template_;
 
   //event logger
   std::string event_log_fmt_;
