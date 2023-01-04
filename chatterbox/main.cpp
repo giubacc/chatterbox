@@ -9,9 +9,9 @@ int main(int argc, char *argv[])
     rest::chatterbox cbox;
 
     auto cli = (
-                 clipp::option("-i", "--input")
-                 .doc("specify input scenario [filename]")
-                 & clipp::value("input", cbox.cfg_.in_scenario_name),
+                 clipp::option("-f", "--filename")
+                 .doc("specify scenario [filename]")
+                 & clipp::value("filename", cbox.cfg_.in_scenario_name),
 
                  clipp::option("-p", "--path")
                  .doc("specify scenario's path [path]")
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
                  & clipp::value("event log output", cbox.cfg_.evt_log_channel),
 
                  clipp::option("-v", "--verbosity")
-                 .doc("specify event log verbosity [off, dbg, trc, inf, wrn, err]")
+                 .doc("specify event log verbosity [trc, dbg, inf, wrn, err, cri, off]")
                  & clipp::value("event log verbosity", cbox.cfg_.evt_log_level)
                );
 
