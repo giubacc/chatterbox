@@ -50,15 +50,8 @@ be evaluated in the future as the tool evolves.
 
 Currently, `chatterbox` can be solely built under Linux.
 
-If you intend to build the `chatterbox` binary directly on your Linux
-distribution, ensure your system provides:
-
-- `Make`, `AutoGen`
-- `GCC` with `g++`
-- `CMake`
-- `Ninja`
-- `Git`
-- `curl`
+If you wish to build the `chatterbox` binary directly on your Linux
+distribution, ensure your system provides all the required dependencies.
 
 ## How to build
 
@@ -126,20 +119,20 @@ localhost/chatterbox                       latest
 
 ## Usage
 
-You typically want to write your scenarios on files and then submit them to
-`chatterbox`.
+A typical usage scenario is to write your scenarios on files
+and then submit them to `chatterbox`.
 
 Once you have your scenario ready, you can submit it to `chatterbox` with:
 
 ```shell
-chatterbox -i scenario.json
+chatterbox -f scenario.json
 ```
 
 You can specify indifferently a relative or an absolute path.
 If you want, you can also specify a relative path from where files are read.
 
 ```shell
-chatterbox -p /scenarios -i scenario.json
+chatterbox -p /scenarios -f scenario.json
 ```
 
 You can use `chatterbox` to monitor a directory on filesystem.
@@ -305,10 +298,6 @@ checks that the newly created bucket actually exists.
   "conversations": [
     {
       "host": "localhost:7480",
-      "auth": {
-        "access_key": "test",
-        "secret_key": "test"
-      },
       "conversation": [
         {
           "auth": "aws_v4",
