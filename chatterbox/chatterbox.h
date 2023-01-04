@@ -120,11 +120,11 @@ struct chatterbox {
                         Json::Value &request_in,
                         Json::Value &request_out);
 
-    int on_response(const RestClient::Response &res,
+    int on_response(const RestClient::Response &resRC,
                     Json::Value &request_in,
                     Json::Value &request_out);
 
-    int process_response(const RestClient::Response &res,
+    int process_response(const RestClient::Response &resRC,
                          Json::Value &response_in,
                          Json::Value &response_out);
 
@@ -143,7 +143,7 @@ struct chatterbox {
              const std::string &uri,
              const std::string &query_string,
              const std::string &data,
-             const std::function<void(RestClient::Response &)> &cb);
+             const std::function<int(RestClient::Response &)> &cb);
 
     /** put
      *
@@ -153,7 +153,7 @@ struct chatterbox {
             const std::string &uri,
             const std::string &query_string,
             const std::string &data,
-            const std::function <void (RestClient::Response &)> &cb);
+            const std::function <int (RestClient::Response &)> &cb);
 
     /** get
      *
@@ -162,7 +162,7 @@ struct chatterbox {
     int get(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
-            const std::function <void (RestClient::Response &)> &cb);
+            const std::function <int (RestClient::Response &)> &cb);
 
     /** del
      *
@@ -171,7 +171,7 @@ struct chatterbox {
     int del(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
-            const std::function <void (RestClient::Response &)> &cb);
+            const std::function <int (RestClient::Response &)> &cb);
 
     /** head
      *
@@ -180,46 +180,59 @@ struct chatterbox {
     int head(const std::optional<std::string> &auth,
              const std::string &uri,
              const std::string &query_string,
-             const std::function <void (RestClient::Response &)> &cb);
+             const std::function <int (RestClient::Response &)> &cb);
 
   private:
-    // ---------------
-    // --- S3 auth ---
-    // ---------------
 
-    static std::string build_v2_date();
-    static std::string build_v4_date();
+    // ------------
+    // --- HTTP ---
+    // ------------
 
-    // v2
+    int prepare_http_req(const char *method,
+                         const std::optional<std::string> &auth,
+                         const std::string &query_string,
+                         const std::string &data,
+                         std::string &uri_out,
+                         RestClient::HeaderFields &reqHF);
 
-    std::string build_v2_canonical_string(const std::string &method,
-                                          const std::string &canonical_uri) const;
+    // ------------
+    // --- auth ---
+    // ------------
 
-    std::string build_v2_authorization(const std::string &signature) const;
+    // AWS Signature Version 2
 
-    void build_v2(const char *method,
-                  const std::string &uri,
-                  RestClient::HeaderFields &reqHF) const;
+    static std::string aws_sign_v2_build_date();
 
-    // v4
+    std::string aws_sign_v2_build_canonical_string(const std::string &method,
+                                                   const std::string &canonical_uri) const;
 
-    std::string build_v4_signing_key() const;
-    std::string build_v4_canonical_headers(const std::string &x_amz_content_sha256) const;
+    std::string aws_sign_v2_build_authorization(const std::string &signature) const;
 
-    std::string build_v4_canonical_request(const std::string &method,
-                                           const std::string &canonical_uri,
-                                           const std::string &canonical_query_string,
-                                           const std::string &canonical_headers,
-                                           const std::string &payload_hash) const;
+    void aws_sign_v2_build(const char *method,
+                           const std::string &uri,
+                           RestClient::HeaderFields &reqHF) const;
 
-    std::string build_v4_string_to_sign(const std::string &canonical_request) const;
-    std::string build_v4_authorization(const std::string &signature) const;
+    // AWS Signature Version 4
 
-    void build_v4(const char *method,
-                  const std::string &uri,
-                  const std::string &query_string,
-                  const std::string &data,
-                  RestClient::HeaderFields &reqHF) const;
+    static std::string aws_sign_v4_build_date();
+
+    std::string aws_sign_v4_build_signing_key() const;
+    std::string aws_sign_v4_build_canonical_headers(const std::string &x_amz_content_sha256) const;
+
+    std::string aws_sign_v4_build_canonical_request(const std::string &method,
+                                                    const std::string &canonical_uri,
+                                                    const std::string &canonical_query_string,
+                                                    const std::string &canonical_headers,
+                                                    const std::string &payload_hash) const;
+
+    std::string aws_sign_v4_build_string_to_sign(const std::string &canonical_request) const;
+    std::string aws_sign_v4_build_authorization(const std::string &signature) const;
+
+    void aws_sign_v4_build(const char *method,
+                           const std::string &uri,
+                           const std::string &query_string,
+                           const std::string &data,
+                           RestClient::HeaderFields &reqHF) const;
 
     // -------------
     // --- Utils ---
@@ -228,7 +241,7 @@ struct chatterbox {
     void dump_hdr(const RestClient::HeaderFields &hdr) const;
     void move_file(const char *filename);
     void rm_file(const char *filename);
-    int mocked_to_res(RestClient::Response &res);
+    int mocked_to_res(RestClient::Response &resRC);
 
   public:
     cfg cfg_;

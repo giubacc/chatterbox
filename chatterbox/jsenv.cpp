@@ -553,7 +553,6 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
   //read the script's source
   v8::Local<v8::String> source;
   if(!self->read_script_file(fpath.str().c_str()).ToLocal(&source)) {
-    self->event_log_->error("error reading script:{}", *script_path);
     return;
   }
   self->event_log_->trace("cbk_load:{}", *script_path);
@@ -605,7 +604,6 @@ int js_env::load_scripts()
           //read the script's source
           v8::Local<v8::String> source;
           if(!read_script_file(fpath.str().c_str()).ToLocal(&source)) {
-            event_log_->error("error reading script file:{}", ent->d_name);
             res = 1;
             break;
           }
@@ -630,10 +628,10 @@ int js_env::load_scripts()
     }
 
     if(closedir(dir)) {
-      event_log_->error("closedir: {}", strerror(errno));
+      event_log_->error("{}", strerror(errno));
     }
   } else {
-    event_log_->error("opendir: {}", strerror(errno));
+    event_log_->error("{}", strerror(errno));
     res = 1;
   }
 
@@ -677,7 +675,6 @@ v8::MaybeLocal<v8::String> js_env::read_script_file(const std::string &name)
 {
   std::stringstream content;
   if(utils::read_file(name.c_str(), content, event_log_.get())) {
-    event_log_->error("[read_file] {}", name.c_str());
     return v8::MaybeLocal<v8::String>();
   }
 
