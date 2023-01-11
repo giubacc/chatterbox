@@ -2,8 +2,8 @@
 
 ![License](https://img.shields.io/github/license/giubacc/chatterbox)
 ![Lint](https://github.com/giubacc/chatterbox/actions/workflows/lint.yaml/badge.svg)
-![Builder Build](https://github.com/giubacc/chatterbox/actions/workflows/build-builder.yaml/badge.svg)
-![Chatterbox Build](https://github.com/giubacc/chatterbox/actions/workflows/build-chatterbox.yaml/badge.svg)
+![Builder Image](https://github.com/giubacc/chatterbox/actions/workflows/build-builder.yaml/badge.svg)
+![Chatterbox Image](https://github.com/giubacc/chatterbox/actions/workflows/build-chatterbox.yaml/badge.svg)
 
 ## Contents
 
@@ -21,18 +21,11 @@
 
 ## Description
 
-`chatterbox` is a tool to define restful conversations with a
+`chatterbox` is a tool to compose RESTful conversations with a
 generic endpoint.
 
 You can define scenarios with a json formalism describing conversations
 between the client (chatterbox) and the endpoint.
-
-In polling mode, you can drop scenario files into a directory monitored
-by `chatterbox` and see them being consumed by the tool.
-Every time a new scenario is placed within the directory, `chatterbox`
-parses it and then generates the conversation(s) against the endpoint(s).
-Once the scenario has been processed, the file is deleted or optionally
-moved into `${directory}/consumed`.
 
 ### Scripting capabilities
 
@@ -41,7 +34,7 @@ high-performance JavaScript and WebAssembly engine.
 
 This allows the user to define scenarios in a dynamic way.
 For example, the user could choose to compute the value of a certain
-rest-call's property as the result of a user defined JavaScript function.
+input's field as the result of a user defined JavaScript function.
 
 More use cases could benefit from scripting capabilities and these could
 be evaluated in the future as the tool evolves.
@@ -50,15 +43,8 @@ be evaluated in the future as the tool evolves.
 
 Currently, `chatterbox` can be solely built under Linux.
 
-If you intend to build the `chatterbox` binary directly on your Linux
-distribution, ensure your system provides:
-
-- `Make`, `AutoGen`
-- `GCC` with `g++`
-- `CMake`
-- `Ninja`
-- `Git`
-- `curl`
+If you wish to build the `chatterbox` binary directly on your Linux
+distribution, ensure your system provides all the required dependencies.
 
 ## How to build
 
@@ -126,20 +112,20 @@ localhost/chatterbox                       latest
 
 ## Usage
 
-You typically want to write your scenarios on files and then submit them to
-`chatterbox`.
+A typical usage scenario is to write your scenarios on files
+and then submit them to `chatterbox`.
 
 Once you have your scenario ready, you can submit it to `chatterbox` with:
 
 ```shell
-chatterbox -i scenario.json
+chatterbox -f scenario.json
 ```
 
 You can specify indifferently a relative or an absolute path.
 If you want, you can also specify a relative path from where files are read.
 
 ```shell
-chatterbox -p /scenarios -i scenario.json
+chatterbox -p /scenarios -f scenario.json
 ```
 
 You can use `chatterbox` to monitor a directory on filesystem.
@@ -266,31 +252,15 @@ checks that the newly created bucket actually exists.
       },
       "conversation": [
         {
-          "for" : 1,
           "auth" : "aws_v4",
           "method" : "PUT",
           "uri" : "foo",
           "query_string" : "format=json",
-          "response": {
-            "out": {
-              "format": {
-                "body": "json"
-              }
-            }
-          }
         },
         {
-          "for" : 1,
           "auth" : "aws_v4",
           "method" : "HEAD",
           "uri" : "foo",
-          "response": {
-            "out": {
-              "format": {
-                "body": "json"
-              }
-            }
-          }
         }
       ]
     }
@@ -305,10 +275,6 @@ checks that the newly created bucket actually exists.
   "conversations": [
     {
       "host": "localhost:7480",
-      "auth": {
-        "access_key": "test",
-        "secret_key": "test"
-      },
       "conversation": [
         {
           "auth": "aws_v4",
@@ -316,7 +282,6 @@ checks that the newly created bucket actually exists.
           "uri": "foo",
           "method": "PUT",
           "response": {
-            "body": {},
             "code": 200
           }
         },

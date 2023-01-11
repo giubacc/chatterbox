@@ -9,20 +9,20 @@ int read_file(const char *fname,
   FILE *file = fopen(fname, "rb");
   if(file == nullptr) {
     if(log) {
-      log->error("fopen: {}", strerror(errno));
+      log->error("{} - {}", fname, strerror(errno));
     }
     return 1;
   }
 
   if(fseek(file, 0, SEEK_END)) {
     if(log) {
-      log->error("fseek: {}", strerror(errno));
+      log->error("{} - {}", fname, strerror(errno));
     }
   }
   long size = ftell(file);
   if(size<0) {
     if(log) {
-      log->error("ftell: {}", strerror(errno));
+      log->error("{} - {}", fname, strerror(errno));
     }
   }
   rewind(file);
@@ -34,7 +34,7 @@ int read_file(const char *fname,
     int res = 0;
     if((res = ferror(file))) {
       if(log) {
-        log->error("fread: {}", strerror(errno));
+        log->error("{} - {}", fname, strerror(errno));
       }
       fclose(file);
       return res;

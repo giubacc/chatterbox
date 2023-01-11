@@ -11,7 +11,7 @@ env variables
 
 examples
   HOST_PATH=/tmp/test chatterbox.sh -m                    Monitor host's /tmp/test for new scenarios.
-  HOST_PATH=/tmp/test chatterbox.sh -i scenario.json      Process host's /tmp/test/scenario.json
+  HOST_PATH=/tmp/test chatterbox.sh -f scenario.json      Process host's /tmp/test/scenario.json
 EOF
 }
 

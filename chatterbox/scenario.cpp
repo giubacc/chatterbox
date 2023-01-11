@@ -117,6 +117,9 @@ const Json::Value &chatterbox::get_default_conversation_out_options()
 {
   if(default_conversation_out_options.empty()) {
     default_conversation_out_options = get_default_out_options();
+    auto &default_out_dumps = default_conversation_out_options[key_dump];
+    default_out_dumps[key_auth] = false;
+    default_out_dumps[key_statistics] = false;
   }
   return default_conversation_out_options;
 }
@@ -127,6 +130,8 @@ const Json::Value &chatterbox::get_default_request_out_options()
   if(default_request_out_options.empty()) {
     default_request_out_options = get_default_out_options();
     auto &default_out_dumps = default_request_out_options[key_dump];
+    default_out_dumps[key_auth] = false;
+    default_out_dumps[key_for] = false;
     default_out_dumps[key_mock] = false;
   }
   return default_request_out_options;
@@ -137,7 +142,7 @@ const Json::Value &chatterbox::get_default_response_out_options()
 {
   if(default_response_out_options.empty()) {
     default_response_out_options = get_default_out_options();
-    auto &response_out_formats = default_response_out_options[key_format] = Json::Value::null;
+    auto &response_out_formats = default_response_out_options[key_format];
     response_out_formats[key_body] = "json";
   }
   return default_response_out_options;
@@ -551,7 +556,7 @@ void chatterbox::enrich_stats_conversation(Json::Value &conversation_out)
   });
 }
 
-int chatterbox::process_response(const RestClient::Response &res,
+int chatterbox::process_response(const RestClient::Response &resRC,
                                  Json::Value &response_in,
                                  Json::Value &response_out)
 {
@@ -566,22 +571,20 @@ int chatterbox::process_response(const RestClient::Response &res,
       return 1;
     }
 
-    response_out[key_code] = res.code;
+    response_out[key_code] = resRC.code;
 
-    if(res.body.empty()) {
-      response_out[key_body] = Json::Value::null;
-    } else {
+    if(!resRC.body.empty()) {
       if(stack_out_options_.top().ref_[key_format][key_body] == "json") {
         try {
           Json::Value body;
-          std::istringstream is(res.body);
+          std::istringstream is(resRC.body);
           is >> body;
           response_out[key_body] = body;
         } catch(const Json::RuntimeError &) {
-          response_out[key_body] = res.body;
+          response_out[key_body] = resRC.body;
         }
       } else {
-        response_out[key_body] = res.body;
+        response_out[key_body] = resRC.body;
       }
     }
 
@@ -602,44 +605,46 @@ int chatterbox::execute_request(const std::string &method,
                                 Json::Value &request_in,
                                 Json::Value &request_out)
 {
+  int res = 0;
   if(method == "GET") {
-    get(auth, uri, query_string, [&](RestClient::Response &res) -> int {
+    res = get(auth, uri, query_string, [&](RestClient::Response &res) -> int {
       return on_response(res,
                          request_in,
                          request_out); });
   } else if(method == "POST") {
-    post(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
+    res = post(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
       return on_response(res,
                          request_in,
                          request_out); });
   } else if(method == "PUT") {
-    put(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
+    res = put(auth, uri, query_string, data, [&](RestClient::Response &res) -> int {
       return on_response(res,
                          request_in,
                          request_out); });
   } else if(method == "DELETE") {
-    del(auth, uri, query_string, [&](RestClient::Response &res) -> int {
+    res = del(auth, uri, query_string, [&](RestClient::Response &res) -> int {
       return on_response(res,
                          request_in,
                          request_out); });
   } else if(method == "HEAD") {
-    head(auth, uri, query_string, [&](RestClient::Response &res) -> int {
+    res = head(auth, uri, query_string, [&](RestClient::Response &res) -> int {
       return on_response(res,
                          request_in,
                          request_out); });
   } else {
     event_log_->error("bad method:{}", method);
-    return 1;
+    res = 1;
   }
-  return 0;
+  return res;
 }
 
-int chatterbox::on_response(const RestClient::Response &res,
+int chatterbox::on_response(const RestClient::Response &resRC,
                             Json::Value &request_in,
                             Json::Value &request_out)
 {
+  int res = 0;
   std::ostringstream os;
-  os << res.code;
+  os << resRC.code;
 
   // update conv stats
   int32_t value = conv_categorization_[os.str()];
@@ -652,10 +657,10 @@ int chatterbox::on_response(const RestClient::Response &res,
   Json::Value &response_in = request_in[key_response];
   Json::Value &response_out = request_out[key_response];
 
-  process_response(res,
-                   response_in,
-                   response_out);
-  return 0;
+  res = process_response(resRC,
+                         response_in,
+                         response_out);
+  return res;
 }
 
 }

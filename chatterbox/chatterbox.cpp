@@ -53,7 +53,7 @@ int chatterbox::init(int argc, const char *argv[])
   return res;
 }
 
-std::string chatterbox::build_v2_date()
+std::string chatterbox::aws_sign_v2_build_date()
 {
   char buf[256];
   time_t now = time(0);
@@ -62,7 +62,7 @@ std::string chatterbox::build_v2_date()
   return buf;
 }
 
-std::string chatterbox::build_v4_date()
+std::string chatterbox::aws_sign_v4_build_date()
 {
   time_t now;
   time(&now);
@@ -71,7 +71,7 @@ std::string chatterbox::build_v4_date()
   return buf;
 }
 
-std::string chatterbox::build_v2_authorization(const std::string &signature) const
+std::string chatterbox::aws_sign_v2_build_authorization(const std::string &signature) const
 {
   std::ostringstream os;
   os << "AWS "
@@ -80,8 +80,8 @@ std::string chatterbox::build_v2_authorization(const std::string &signature) con
   return os.str();
 }
 
-std::string chatterbox::build_v2_canonical_string(const std::string &method,
-                                                  const std::string &canonical_uri) const
+std::string chatterbox::aws_sign_v2_build_canonical_string(const std::string &method,
+                                                           const std::string &canonical_uri) const
 {
   std::ostringstream os;
   os << method << std::endl
@@ -95,22 +95,22 @@ std::string chatterbox::build_v2_canonical_string(const std::string &method,
   return os.str();
 }
 
-void chatterbox::build_v2(const char *method,
-                          const std::string &uri,
-                          RestClient::HeaderFields &reqHF) const
+void chatterbox::aws_sign_v2_build(const char *method,
+                                   const std::string &uri,
+                                   RestClient::HeaderFields &reqHF) const
 {
   reqHF["x-amz-date"] = x_amz_date_;
 
   auto signature = crypto::base64(crypto::hmac_sha1(access_key_,
-                                                    build_v2_canonical_string(method,
-                                                                              uri)));
+                                                    aws_sign_v2_build_canonical_string(method,
+                                                                                       uri)));
 
   event_log_->trace("v2 signature: {}", signature);
 
-  reqHF["Authorization"] = build_v2_authorization(signature);
+  reqHF["Authorization"] = aws_sign_v2_build_authorization(signature);
 }
 
-std::string chatterbox::build_v4_authorization(const std::string &signature) const
+std::string chatterbox::aws_sign_v4_build_authorization(const std::string &signature) const
 {
   std::ostringstream os;
   os << algorithm << " Credential="
@@ -124,7 +124,7 @@ std::string chatterbox::build_v4_authorization(const std::string &signature) con
   return os.str();
 }
 
-std::string chatterbox::build_v4_signing_key() const
+std::string chatterbox::aws_sign_v4_build_signing_key() const
 {
   /*
     DateKey              = HMAC-SHA256("AWS4"+"<SecretAccessKey>", "<YYYYMMDD>")
@@ -155,7 +155,7 @@ std::string chatterbox::build_v4_signing_key() const
   return signing_key;
 }
 
-std::string chatterbox::build_v4_canonical_headers(const std::string &x_amz_content_sha256) const
+std::string chatterbox::aws_sign_v4_build_canonical_headers(const std::string &x_amz_content_sha256) const
 {
   std::ostringstream os;
   os << "host:" << host_ << std::endl
@@ -164,11 +164,11 @@ std::string chatterbox::build_v4_canonical_headers(const std::string &x_amz_cont
   return os.str();
 }
 
-std::string chatterbox::build_v4_canonical_request(const std::string &method,
-                                                   const std::string &canonical_uri,
-                                                   const std::string &canonical_query_string,
-                                                   const std::string &canonical_headers,
-                                                   const std::string &payload_hash) const
+std::string chatterbox::aws_sign_v4_build_canonical_request(const std::string &method,
+                                                            const std::string &canonical_uri,
+                                                            const std::string &canonical_query_string,
+                                                            const std::string &canonical_headers,
+                                                            const std::string &payload_hash) const
 {
   std::ostringstream os;
   os << method << std::endl
@@ -182,7 +182,7 @@ std::string chatterbox::build_v4_canonical_request(const std::string &method,
   return os.str();
 }
 
-std::string chatterbox::build_v4_string_to_sign(const std::string &canonical_request) const
+std::string chatterbox::aws_sign_v4_build_string_to_sign(const std::string &canonical_request) const
 {
   /*
     AWS4-HMAC-SHA256
@@ -203,11 +203,11 @@ std::string chatterbox::build_v4_string_to_sign(const std::string &canonical_req
   return os.str();
 }
 
-void chatterbox::build_v4(const char *method,
-                          const std::string &uri,
-                          const std::string &query_string,
-                          const std::string &data,
-                          RestClient::HeaderFields &reqHF) const
+void chatterbox::aws_sign_v4_build(const char *method,
+                                   const std::string &uri,
+                                   const std::string &query_string,
+                                   const std::string &data,
+                                   RestClient::HeaderFields &reqHF) const
 {
   std::string x_amz_content_sha256 = crypto::hex(crypto::sha256(data));
 
@@ -215,16 +215,16 @@ void chatterbox::build_v4(const char *method,
   reqHF["x-amz-date"] = x_amz_date_;
   reqHF["x-amz-content-sha256"] = x_amz_content_sha256;
 
-  auto signature = crypto::hex(crypto::hmac_sha256(build_v4_signing_key(),
-                                                   build_v4_string_to_sign(
-                                                     build_v4_canonical_request(method,
-                                                                                uri,
-                                                                                query_string,
-                                                                                build_v4_canonical_headers(x_amz_content_sha256),
-                                                                                x_amz_content_sha256))));
+  auto signature = crypto::hex(crypto::hmac_sha256(aws_sign_v4_build_signing_key(),
+                                                   aws_sign_v4_build_string_to_sign(
+                                                     aws_sign_v4_build_canonical_request(method,
+                                                                                         uri,
+                                                                                         query_string,
+                                                                                         aws_sign_v4_build_canonical_headers(x_amz_content_sha256),
+                                                                                         x_amz_content_sha256))));
   event_log_->trace("v4 signature: {}", signature);
 
-  reqHF["Authorization"] = build_v4_authorization(signature);
+  reqHF["Authorization"] = aws_sign_v4_build_authorization(signature);
 }
 
 void chatterbox::dump_hdr(const RestClient::HeaderFields &hdr) const
@@ -313,9 +313,7 @@ int chatterbox::process_scenario(const char *fname)
   std::stringstream ss;
   std::ostringstream fpath;
   fpath << cfg_.in_scenario_path << "/" << fname;
-  if((res = utils::read_file(fpath.str().c_str(), ss, event_log_.get()))) {
-    event_log_->error("[read_file] {}", fname);
-  } else {
+  if(!(res = utils::read_file(fpath.str().c_str(), ss, event_log_.get()))) {
     res = process_scenario(ss);
   }
 
@@ -334,210 +332,184 @@ int chatterbox::process_scenario(const char *fname)
 // --- HTTP METHODS ---
 // --------------------
 
-int chatterbox::post(const std::optional<std::string> &auth,
-                     const std::string &uri,
-                     const std::string &query_string,
-                     const std::string &data,
-                     const std::function <void (RestClient::Response &)> &cb)
+int chatterbox::prepare_http_req(const char *method,
+                                 const std::optional<std::string> &auth,
+                                 const std::string &query_string,
+                                 const std::string &data,
+                                 std::string &uri_out,
+                                 RestClient::HeaderFields &reqHF)
 {
-
-  std::string luri("/");
-  luri += uri;
-
-  RestClient::HeaderFields reqHF;
-
   if(auth == "aws_v2") {
-    x_amz_date_ = build_v2_date();
-    build_v2("POST", luri, reqHF);
+    x_amz_date_ = aws_sign_v2_build_date();
+    aws_sign_v2_build(method, uri_out, reqHF);
   } else if(auth == "aws_v4") {
-    x_amz_date_ = build_v4_date();
-    build_v4("POST", luri, query_string, data, reqHF);
+    x_amz_date_ = aws_sign_v4_build_date();
+    aws_sign_v4_build(method,
+                      uri_out,
+                      query_string,
+                      data,
+                      reqHF);
   }
-
   conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
   if(query_string != "") {
-    luri += '?';
-    luri += query_string;
+    uri_out += '?';
+    uri_out += query_string;
   }
 
-  RestClient::Response res;
+  return 0;
+}
+
+int chatterbox::post(const std::optional<std::string> &auth,
+                     const std::string &uri,
+                     const std::string &query_string,
+                     const std::string &data,
+                     const std::function <int (RestClient::Response &)> &cb)
+{
+  int res = 0;
+  std::string luri("/");
+  luri += uri;
+
+  RestClient::HeaderFields reqHF;
+  if((res = prepare_http_req("POST", auth, query_string, data, luri, reqHF))) {
+    return res;
+  }
+
+  RestClient::Response resRC;
   if(response_mock_) {
-    mocked_to_res(res);
+    if((res = mocked_to_res(resRC))) {
+      return res;
+    }
   } else {
-    res = conv_conn_->post(luri, data);
+    resRC = conv_conn_->post(luri, data);
   }
 
-  cb(res);
-  return res.code;
+  res = cb(resRC);
+  return res;
 }
 
 int chatterbox::put(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::string &data,
-                    const std::function <void (RestClient::Response &)> &cb)
+                    const std::function <int (RestClient::Response &)> &cb)
 {
-
+  int res = 0;
   std::string luri("/");
   luri += uri;
 
   RestClient::HeaderFields reqHF;
-
-  if(auth == "aws_v2") {
-    x_amz_date_ = build_v2_date();
-    build_v2("PUT", luri, reqHF);
-  } else if(auth == "aws_v4") {
-    x_amz_date_ = build_v4_date();
-    build_v4("PUT", luri, query_string, data, reqHF);
+  if((res = prepare_http_req("PUT", auth, query_string, data, luri, reqHF))) {
+    return res;
   }
 
-  conv_conn_->SetHeaders(reqHF);
-  dump_hdr(reqHF);
-
-  if(query_string != "") {
-    luri += '?';
-    luri += query_string;
-  }
-
-  RestClient::Response res;
+  RestClient::Response resRC;
   if(response_mock_) {
-    mocked_to_res(res);
+    if((res = mocked_to_res(resRC))) {
+      return res;
+    }
   } else {
-    res = conv_conn_->put(luri, data);
+    resRC = conv_conn_->put(luri, data);
   }
 
-  cb(res);
-  return res.code;
+  res = cb(resRC);
+  return res;
 }
 
 int chatterbox::get(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
-                    const std::function <void (RestClient::Response &)> &cb)
+                    const std::function <int (RestClient::Response &)> &cb)
 {
-
+  int res = 0;
   std::string luri("/");
   luri += uri;
 
   RestClient::HeaderFields reqHF;
-
-  if(auth == "aws_v2") {
-    x_amz_date_ = build_v2_date();
-    build_v2("GET", luri, reqHF);
-  } else if(auth == "aws_v4") {
-    x_amz_date_ = build_v4_date();
-    build_v4("GET", luri, query_string, "", reqHF);
+  if((res = prepare_http_req("GET", auth, query_string, "", luri, reqHF))) {
+    return res;
   }
 
-  conv_conn_->SetHeaders(reqHF);
-  dump_hdr(reqHF);
-
-  if(query_string != "") {
-    luri += '?';
-    luri += query_string;
-  }
-
-  RestClient::Response res;
+  RestClient::Response resRC;
   if(response_mock_) {
-    mocked_to_res(res);
+    if((res = mocked_to_res(resRC))) {
+      return res;
+    }
   } else {
-    res = conv_conn_->get(luri);
+    resRC = conv_conn_->get(luri);
   }
 
-  cb(res);
-  return res.code;
+  res = cb(resRC);
+  return res;
 }
 
 int chatterbox::del(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
-                    const std::function <void (RestClient::Response &)> &cb)
+                    const std::function <int (RestClient::Response &)> &cb)
 {
-
+  int res = 0;
   std::string luri("/");
   luri += uri;
 
   RestClient::HeaderFields reqHF;
-
-  if(auth == "aws_v2") {
-    x_amz_date_ = build_v2_date();
-    build_v2("DELETE", luri, reqHF);
-  } else if(auth == "aws_v4") {
-    x_amz_date_ = build_v4_date();
-    build_v4("DELETE", luri, query_string, "", reqHF);
+  if((res = prepare_http_req("DELETE", auth, query_string, "", luri, reqHF))) {
+    return res;
   }
 
-  conv_conn_->SetHeaders(reqHF);
-  dump_hdr(reqHF);
-
-  if(query_string != "") {
-    luri += '?';
-    luri += query_string;
-  }
-
-  RestClient::Response res;
+  RestClient::Response resRC;
   if(response_mock_) {
-    mocked_to_res(res);
+    if((res = mocked_to_res(resRC))) {
+      return res;
+    }
   } else {
-    res = conv_conn_->del(luri);
+    resRC = conv_conn_->del(luri);
   }
 
-  cb(res);
-  return res.code;
+  res = cb(resRC);
+  return res;
 }
 
 int chatterbox::head(const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
-                     const std::function <void (RestClient::Response &)> &cb)
+                     const std::function <int (RestClient::Response &)> &cb)
 {
-
+  int res = 0;
   std::string luri("/");
   luri += uri;
 
   RestClient::HeaderFields reqHF;
-
-  if(auth == "aws_v2") {
-    x_amz_date_ = build_v2_date();
-    build_v2("HEAD", luri, reqHF);
-  } else if(auth == "aws_v4") {
-    x_amz_date_ = build_v4_date();
-    build_v4("HEAD", luri, query_string, "", reqHF);
+  if((res = prepare_http_req("HEAD", auth, query_string, "", luri, reqHF))) {
+    return res;
   }
 
-  conv_conn_->SetHeaders(reqHF);
-  dump_hdr(reqHF);
-
-  if(query_string != "") {
-    luri += '?';
-    luri += query_string;
-  }
-
-  RestClient::Response res;
+  RestClient::Response resRC;
   if(response_mock_) {
-    mocked_to_res(res);
+    if((res = mocked_to_res(resRC))) {
+      return res;
+    }
   } else {
-    res = conv_conn_->head(luri);
+    resRC = conv_conn_->head(luri);
   }
 
-  cb(res);
-  return res.code;
+  res = cb(resRC);
+  return res;
 }
 
-int chatterbox::mocked_to_res(RestClient::Response &res)
+int chatterbox::mocked_to_res(RestClient::Response &resRC)
 {
   //code
   auto code = js_env_.eval_as<int32_t>(*response_mock_, key_code.c_str());
   if(code) {
-    res.code = *code;
+    resRC.code = *code;
   }
 
   //body
   auto body = js_env_.eval_as<std::string>(*response_mock_, key_body.c_str());
   if(body) {
-    res.body = *body;
+    resRC.body = *body;
   }
 
   return 0;
