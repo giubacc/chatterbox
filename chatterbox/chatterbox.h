@@ -5,32 +5,6 @@
 
 namespace rest {
 
-extern const std::string key_access_key;
-extern const std::string key_auth;
-extern const std::string key_body;
-extern const std::string key_categorization;
-extern const std::string key_code;
-extern const std::string key_conversations;
-extern const std::string key_data;
-extern const std::string key_dump;
-extern const std::string key_for;
-extern const std::string key_format;
-extern const std::string key_host;
-extern const std::string key_method;
-extern const std::string key_mock;
-extern const std::string key_on_begin;
-extern const std::string key_on_end;
-extern const std::string key_out;
-extern const std::string key_query_string;
-extern const std::string key_region;
-extern const std::string key_requests;
-extern const std::string key_response;
-extern const std::string key_secret_key;
-extern const std::string key_service;
-extern const std::string key_signed_headers;
-extern const std::string key_statistics;
-extern const std::string key_uri;
-
 struct chatterbox {
 
     // chatterbox configuration
@@ -121,15 +95,17 @@ struct chatterbox {
                         Json::Value &request_out);
 
     int on_response(const RestClient::Response &resRC,
+                    const int64_t rtt,
                     Json::Value &request_in,
                     Json::Value &request_out);
 
     int process_response(const RestClient::Response &resRC,
+                         const int64_t rtt,
                          Json::Value &response_in,
                          Json::Value &response_out);
 
-    void enrich_stats_conversation(Json::Value &conversation_out);
-    void enrich_stats_scenario(Json::Value &scenario_out);
+    void enrich_with_stats_conversation(Json::Value &conversation_out);
+    void enrich_with_stats_scenario(Json::Value &scenario_out);
 
     // ------------
     // --- HTTP ---
@@ -143,7 +119,7 @@ struct chatterbox {
              const std::string &uri,
              const std::string &query_string,
              const std::string &data,
-             const std::function<int(RestClient::Response &)> &cb);
+             const std::function<int(const RestClient::Response &, const int64_t)> &cb);
 
     /** put
      *
@@ -153,7 +129,7 @@ struct chatterbox {
             const std::string &uri,
             const std::string &query_string,
             const std::string &data,
-            const std::function <int (RestClient::Response &)> &cb);
+            const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
     /** get
      *
@@ -162,7 +138,7 @@ struct chatterbox {
     int get(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
-            const std::function <int (RestClient::Response &)> &cb);
+            const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
     /** del
      *
@@ -171,7 +147,7 @@ struct chatterbox {
     int del(const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
-            const std::function <int (RestClient::Response &)> &cb);
+            const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
     /** head
      *
@@ -180,7 +156,7 @@ struct chatterbox {
     int head(const std::optional<std::string> &auth,
              const std::string &uri,
              const std::string &query_string,
-             const std::function <int (RestClient::Response &)> &cb);
+             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
   private:
 

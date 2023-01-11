@@ -365,7 +365,7 @@ int chatterbox::post(const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
                      const std::string &data,
-                     const std::function <int (RestClient::Response &)> &cb)
+                     const std::function <int (const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -377,6 +377,7 @@ int chatterbox::post(const std::optional<std::string> &auth,
   }
 
   RestClient::Response resRC;
+  std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
   if(response_mock_) {
     if((res = mocked_to_res(resRC))) {
       return res;
@@ -384,8 +385,9 @@ int chatterbox::post(const std::optional<std::string> &auth,
   } else {
     resRC = conv_conn_->post(luri, data);
   }
+  std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
-  res = cb(resRC);
+  res = cb(resRC, lrtt.count());
   return res;
 }
 
@@ -393,7 +395,7 @@ int chatterbox::put(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::string &data,
-                    const std::function <int (RestClient::Response &)> &cb)
+                    const std::function <int (const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -405,6 +407,7 @@ int chatterbox::put(const std::optional<std::string> &auth,
   }
 
   RestClient::Response resRC;
+  std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
   if(response_mock_) {
     if((res = mocked_to_res(resRC))) {
       return res;
@@ -412,15 +415,16 @@ int chatterbox::put(const std::optional<std::string> &auth,
   } else {
     resRC = conv_conn_->put(luri, data);
   }
+  std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
-  res = cb(resRC);
+  res = cb(resRC, lrtt.count());
   return res;
 }
 
 int chatterbox::get(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
-                    const std::function <int (RestClient::Response &)> &cb)
+                    const std::function <int (const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -432,6 +436,7 @@ int chatterbox::get(const std::optional<std::string> &auth,
   }
 
   RestClient::Response resRC;
+  std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
   if(response_mock_) {
     if((res = mocked_to_res(resRC))) {
       return res;
@@ -439,15 +444,16 @@ int chatterbox::get(const std::optional<std::string> &auth,
   } else {
     resRC = conv_conn_->get(luri);
   }
+  std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
-  res = cb(resRC);
+  res = cb(resRC, lrtt.count());
   return res;
 }
 
 int chatterbox::del(const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
-                    const std::function <int (RestClient::Response &)> &cb)
+                    const std::function <int (const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -459,6 +465,7 @@ int chatterbox::del(const std::optional<std::string> &auth,
   }
 
   RestClient::Response resRC;
+  std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
   if(response_mock_) {
     if((res = mocked_to_res(resRC))) {
       return res;
@@ -466,15 +473,16 @@ int chatterbox::del(const std::optional<std::string> &auth,
   } else {
     resRC = conv_conn_->del(luri);
   }
+  std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
-  res = cb(resRC);
+  res = cb(resRC, lrtt.count());
   return res;
 }
 
 int chatterbox::head(const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
-                     const std::function <int (RestClient::Response &)> &cb)
+                     const std::function <int (const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -486,6 +494,7 @@ int chatterbox::head(const std::optional<std::string> &auth,
   }
 
   RestClient::Response resRC;
+  std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
   if(response_mock_) {
     if((res = mocked_to_res(resRC))) {
       return res;
@@ -493,8 +502,9 @@ int chatterbox::head(const std::optional<std::string> &auth,
   } else {
     resRC = conv_conn_->head(luri);
   }
+  std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
-  res = cb(resRC);
+  res = cb(resRC, lrtt.count());
   return res;
 }
 
