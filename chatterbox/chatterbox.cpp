@@ -361,7 +361,8 @@ int chatterbox::prepare_http_req(const char *method,
   return 0;
 }
 
-int chatterbox::post(const std::optional<std::string> &auth,
+int chatterbox::post(RestClient::HeaderFields &reqHF,
+                     const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
                      const std::string &data,
@@ -371,7 +372,6 @@ int chatterbox::post(const std::optional<std::string> &auth,
   std::string luri("/");
   luri += uri;
 
-  RestClient::HeaderFields reqHF;
   if((res = prepare_http_req("POST", auth, query_string, data, luri, reqHF))) {
     return res;
   }
@@ -391,7 +391,8 @@ int chatterbox::post(const std::optional<std::string> &auth,
   return res;
 }
 
-int chatterbox::put(const std::optional<std::string> &auth,
+int chatterbox::put(RestClient::HeaderFields &reqHF,
+                    const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::string &data,
@@ -401,7 +402,6 @@ int chatterbox::put(const std::optional<std::string> &auth,
   std::string luri("/");
   luri += uri;
 
-  RestClient::HeaderFields reqHF;
   if((res = prepare_http_req("PUT", auth, query_string, data, luri, reqHF))) {
     return res;
   }
@@ -421,7 +421,8 @@ int chatterbox::put(const std::optional<std::string> &auth,
   return res;
 }
 
-int chatterbox::get(const std::optional<std::string> &auth,
+int chatterbox::get(RestClient::HeaderFields &reqHF,
+                    const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::function <int (const RestClient::Response &, const int64_t)> &cb)
@@ -430,7 +431,6 @@ int chatterbox::get(const std::optional<std::string> &auth,
   std::string luri("/");
   luri += uri;
 
-  RestClient::HeaderFields reqHF;
   if((res = prepare_http_req("GET", auth, query_string, "", luri, reqHF))) {
     return res;
   }
@@ -450,7 +450,8 @@ int chatterbox::get(const std::optional<std::string> &auth,
   return res;
 }
 
-int chatterbox::del(const std::optional<std::string> &auth,
+int chatterbox::del(RestClient::HeaderFields &reqHF,
+                    const std::optional<std::string> &auth,
                     const std::string &uri,
                     const std::string &query_string,
                     const std::function <int (const RestClient::Response &, const int64_t)> &cb)
@@ -459,7 +460,6 @@ int chatterbox::del(const std::optional<std::string> &auth,
   std::string luri("/");
   luri += uri;
 
-  RestClient::HeaderFields reqHF;
   if((res = prepare_http_req("DELETE", auth, query_string, "", luri, reqHF))) {
     return res;
   }
@@ -479,7 +479,8 @@ int chatterbox::del(const std::optional<std::string> &auth,
   return res;
 }
 
-int chatterbox::head(const std::optional<std::string> &auth,
+int chatterbox::head(RestClient::HeaderFields &reqHF,
+                     const std::optional<std::string> &auth,
                      const std::string &uri,
                      const std::string &query_string,
                      const std::function <int (const RestClient::Response &, const int64_t)> &cb)
@@ -488,7 +489,6 @@ int chatterbox::head(const std::optional<std::string> &auth,
   std::string luri("/");
   luri += uri;
 
-  RestClient::HeaderFields reqHF;
   if((res = prepare_http_req("HEAD", auth, query_string, "", luri, reqHF))) {
     return res;
   }

@@ -13,9 +13,11 @@
           "method": "HEAD",
           "uri": "foo",
           "query_string": "format=json",
-          "out": {
-            "dump": {
-              "body": false
+          "response": {
+            "out": {
+              "dump": {
+                "body": false
+              }
             }
           }
         }
