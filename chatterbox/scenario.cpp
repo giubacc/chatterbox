@@ -13,6 +13,7 @@ const std::string key_data = "data";
 const std::string key_dump = "dump";
 const std::string key_for = "for";
 const std::string key_format = "format";
+const std::string key_header = "header";
 const std::string key_host = "host";
 const std::string key_method = "method";
 const std::string key_mock = "mock";
@@ -616,29 +617,48 @@ int chatterbox::execute_request(const std::string &method,
                                 Json::Value &request_out)
 {
   int res = 0;
+  RestClient::HeaderFields reqHF;
 
+  //read user defined http-headers
+  Json::Value *header_node_ptr = nullptr;
+  if((header_node_ptr = const_cast<Json::Value *>(request_in.find(key_header.data(), key_header.data()+key_header.length())))) {
+    Json::Value::Members keys = header_node_ptr->getMemberNames();
+    std::for_each(keys.begin(), keys.end(), [&](const Json::String &it) {
+      auto hdr_val = js_env_.eval_as<std::string>(*header_node_ptr, it.c_str(), "");
+      if(!hdr_val) {
+        res = 1;
+      } else {
+        reqHF[it] = *hdr_val;
+      }
+    });
+  }
+  if(res) {
+    return res;
+  }
+
+  //invoke http-method
   if(method == "GET") {
-    res = get(auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
+    res = get(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out);});
   } else if(method == "POST") {
-    res = post(auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
+    res = post(reqHF, auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out);});
   } else if(method == "PUT") {
-    res = put(auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
+    res = put(reqHF, auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out);});
   } else if(method == "DELETE") {
-    res = del(auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
+    res = del(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out);});
   } else if(method == "HEAD") {
-    res = head(auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
+    res = head(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out);});

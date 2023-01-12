@@ -111,49 +111,49 @@ struct chatterbox {
     // --- HTTP ---
     // ------------
 
-    /** post
-     *
-     *  HTTP POST
+    /**
+     * POST
      */
-    int post(const std::optional<std::string> &auth,
+    int post(RestClient::HeaderFields &reqHF,
+             const std::optional<std::string> &auth,
              const std::string &uri,
              const std::string &query_string,
              const std::string &data,
              const std::function<int(const RestClient::Response &, const int64_t)> &cb);
 
-    /** put
-     *
-     *  HTTP PUT
+    /**
+     * PUT
      */
-    int put(const std::optional<std::string> &auth,
+    int put(RestClient::HeaderFields &reqHF,
+            const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
             const std::string &data,
             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
-    /** get
-     *
-     *  HTTP GET
+    /**
+     * GET
      */
-    int get(const std::optional<std::string> &auth,
+    int get(RestClient::HeaderFields &reqHF,
+            const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
-    /** del
-     *
-     *  HTTP DELETE
+    /**
+     * DELETE
      */
-    int del(const std::optional<std::string> &auth,
+    int del(RestClient::HeaderFields &reqHF,
+            const std::optional<std::string> &auth,
             const std::string &uri,
             const std::string &query_string,
             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
-    /** head
-     *
-     *  HTTP HEAD
+    /**
+     * HEAD
      */
-    int head(const std::optional<std::string> &auth,
+    int head(RestClient::HeaderFields &reqHF,
+             const std::optional<std::string> &auth,
              const std::string &uri,
              const std::string &query_string,
              const std::function <int (const RestClient::Response &, const int64_t)> &cb);
