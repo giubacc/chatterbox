@@ -22,7 +22,77 @@
 #define DEF_EVT_LOG_PATTERN "[%^%l%$]%v"
 #define RAW_EVT_LOG_PATTERN "%v"
 
+namespace rest {
+extern const std::string key_access_key;
+extern const std::string key_auth;
+extern const std::string key_body;
+extern const std::string key_categorization;
+extern const std::string key_code;
+extern const std::string key_conversations;
+extern const std::string key_data;
+extern const std::string key_dump;
+extern const std::string key_for;
+extern const std::string key_format;
+extern const std::string key_host;
+extern const std::string key_method;
+extern const std::string key_mock;
+extern const std::string key_msec;
+extern const std::string key_nsec;
+extern const std::string key_on_begin;
+extern const std::string key_on_end;
+extern const std::string key_out;
+extern const std::string key_query_string;
+extern const std::string key_region;
+extern const std::string key_requests;
+extern const std::string key_response;
+extern const std::string key_rtt;
+extern const std::string key_sec;
+extern const std::string key_secret_key;
+extern const std::string key_service;
+extern const std::string key_signed_headers;
+extern const std::string key_stats;
+extern const std::string key_uri;
+extern const std::string key_usec;
+}
+
 namespace utils {
+
+enum resolution {
+  nanoseconds,
+  microseconds,
+  milliseconds,
+  seconds
+};
+
+inline resolution from_literal(const std::string &str)
+{
+  if(str == rest::key_nsec) {
+    return nanoseconds;
+  } else if(str == rest::key_usec) {
+    return microseconds;
+  } else if(str == rest::key_msec) {
+    return milliseconds;
+  } else if(str == rest::key_sec) {
+    return seconds;
+  }
+  return nanoseconds;
+}
+
+inline int64_t from_nano(int64_t nanoseconds, resolution to)
+{
+  switch(to) {
+    case utils::resolution::nanoseconds:
+      return nanoseconds;
+    case utils::resolution::microseconds:
+      return nanoseconds/(int64_t)1000;
+    case utils::resolution::milliseconds:
+      return nanoseconds/(int64_t)1000000;
+    case utils::resolution::seconds:
+      return nanoseconds/(int64_t)1000000000;
+    default:
+      return -1;
+  }
+}
 
 inline spdlog::level::level_enum get_spdloglvl(const char *log_level)
 {
