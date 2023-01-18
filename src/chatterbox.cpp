@@ -71,6 +71,42 @@ std::string chatterbox::aws_sign_v4_build_date()
   return buf;
 }
 
+std::string chatterbox::aws_sign_v4_get_canonical_query_string(const std::string &query_string)
+{
+  std::ostringstream os;
+  std::map<std::string, std::optional<std::string>> key_vals;
+
+  std::size_t amp_it_start = 0, amp_it_end = 0, eq_it = 0;
+  std::string key_val, key, val;
+  bool end = false;
+  while(!end) {
+    amp_it_start = amp_it_end;
+    if((amp_it_end = query_string.find("&", amp_it_end)) == std::string::npos) {
+      amp_it_end = query_string.length();
+      end = true;
+    }
+
+    key_val = query_string.substr(amp_it_start, (amp_it_end-amp_it_start));
+    std::string key, val;
+    if(((eq_it = key_val.find("=")) != std::string::npos) && (eq_it != key_val.length()-1)) {
+      key_vals[key_val.substr(0, eq_it)] = key_val.substr(eq_it+1);
+    } else if(!key_val.empty()) {
+      key_vals[key_val] = std::nullopt;
+    }
+    ++amp_it_end;
+  }
+
+  auto it = key_vals.begin();
+  do {
+    os << it->first << '=' << (it->second ? *it->second : "");
+    if(++it == key_vals.end()) {
+      break;
+    }
+    os << '&';
+  } while(true);
+  return os.str();
+}
+
 std::string chatterbox::aws_sign_v2_build_authorization(const std::string &signature) const
 {
   std::ostringstream os;
@@ -219,7 +255,7 @@ void chatterbox::aws_sign_v4_build(const char *method,
                                                    aws_sign_v4_build_string_to_sign(
                                                      aws_sign_v4_build_canonical_request(method,
                                                                                          uri,
-                                                                                         query_string,
+                                                                                         aws_sign_v4_get_canonical_query_string(query_string),
                                                                                          aws_sign_v4_build_canonical_headers(x_amz_content_sha256),
                                                                                          x_amz_content_sha256))));
   event_log_->trace("v4 signature: {}", signature);

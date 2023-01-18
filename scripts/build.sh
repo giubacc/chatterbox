@@ -73,7 +73,7 @@ builder_build_test() {
 create_chatterbox() {
   echo "Creating the chatterbox image ..."
   $container_mng build -t chatterbox \
-    -f Dockerfile.chatterbox ${basedir}/build/chatterbox || exit 1
+    -f Dockerfile.chatterbox ${basedir}/build/src || exit 1
 }
 
 create_chatterbox_test() {
