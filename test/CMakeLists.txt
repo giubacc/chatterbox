@@ -8,7 +8,7 @@ endif()
 add_definitions(-DV8_COMPRESS_POINTERS
                 -DV8_ENABLE_SANDBOX)
 
-set(CHATTERBOX_PATH "../chatterbox" CACHE STRING "the path where chatterbox sources are placed")
+set(CHATTERBOX_PATH "../src" CACHE STRING "the path where chatterbox sources are placed")
 set(CONTRIB_PATH "../contrib" CACHE STRING "the path where contrib resources are placed")
 
 include_directories(${CHATTERBOX_PATH}

@@ -191,6 +191,7 @@ struct chatterbox {
     // AWS Signature Version 4
 
     static std::string aws_sign_v4_build_date();
+    static std::string aws_sign_v4_get_canonical_query_string(const std::string &query_string);
 
     std::string aws_sign_v4_build_signing_key() const;
     std::string aws_sign_v4_build_canonical_headers(const std::string &x_amz_content_sha256) const;

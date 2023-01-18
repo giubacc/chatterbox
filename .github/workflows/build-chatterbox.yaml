@@ -113,7 +113,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           file: 'scripts/Dockerfile.chatterbox'
-          context: build/chatterbox
+          context: build/src
           push: true
           tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_CHATTERBOX }}:${{ steps.tag.outputs.tag }}
           labels: ${{ env.IMAGE_NAME_CHATTERBOX }}
