@@ -31,6 +31,7 @@ extern const std::string key_code;
 extern const std::string key_conversations;
 extern const std::string key_data;
 extern const std::string key_dump;
+extern const std::string key_enabled;
 extern const std::string key_for;
 extern const std::string key_format;
 extern const std::string key_header;
