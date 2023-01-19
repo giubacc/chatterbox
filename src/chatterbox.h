@@ -50,7 +50,7 @@ struct chatterbox {
 
       chatterbox &cbox_;
       bool &error_;
-      bool commit_;
+      bool enabled_, commit_;
     };
 
     chatterbox();

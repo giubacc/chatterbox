@@ -11,6 +11,7 @@ const std::string key_code = "code";
 const std::string key_conversations = "conversations";
 const std::string key_data = "data";
 const std::string key_dump = "dump";
+const std::string key_enabled = "enabled";
 const std::string key_for = "for";
 const std::string key_format = "format";
 const std::string key_header = "header";
@@ -49,6 +50,7 @@ chatterbox::stack_scope::stack_scope(chatterbox &cbox,
   :
   cbox_(cbox),
   error_(error),
+  enabled_(false),
   commit_(false)
 {
   cbox_.stack_obj_in_.push(utils::json_value_ref(obj_in));
@@ -69,6 +71,14 @@ chatterbox::stack_scope::stack_scope(chatterbox &cbox,
       cbox_.event_log_->error("failed to execute on_begin handler for the current stack scope");
       error_ = true;
     }
+  }
+
+  auto enabled_opt = cbox_.js_env_.eval_as<bool>(obj_in, key_enabled.c_str(), true);
+  if(!enabled_opt) {
+    cbox_.event_log_->error("failed to read 'enabled' field");
+    error_ = true;
+  } else {
+    enabled_ = *enabled_opt;
   }
 }
 
@@ -105,6 +115,7 @@ const Json::Value &chatterbox::get_default_out_options()
     default_out_dumps[key_out] = false;
     default_out_dumps[key_on_begin] = false;
     default_out_dumps[key_on_end] = false;
+    default_out_dumps[key_enabled] = false;
     auto &default_out_formats = default_out_options[key_format];
     default_out_formats[key_rtt] = key_msec;
   }
@@ -125,8 +136,7 @@ const Json::Value &chatterbox::get_default_conversation_out_options()
 {
   if(default_conversation_out_options.empty()) {
     default_conversation_out_options = get_default_out_options();
-    auto &default_out_dumps = default_conversation_out_options[key_dump];
-    default_out_dumps[key_auth] = false;
+    // auto &default_out_dumps = default_conversation_out_options[key_dump];
   }
   return default_conversation_out_options;
 }
@@ -363,31 +373,36 @@ int chatterbox::process_scenario(std::istream &is)
       return 1;
     }
 
-    //conversations-in
-    Json::Value &conversations_in = scenario_in_[key_conversations];
-    if(!conversations_in.isArray()) {
-      event_log_->error("conversations field is not an array");
-      return 1;
-    }
-
-    Json::Value &conversations_out = scenario_out_[key_conversations];
-
-    // conversations cycle
-    uint32_t conv_it = 0;
-    while(true) {
-      if(!conversations_in.isValidIndex(conv_it)) {
-        break;
+    if(scope.enabled_) {
+      //conversations-in
+      Json::Value &conversations_in = scenario_in_[key_conversations];
+      if(!conversations_in.isArray()) {
+        event_log_->error("conversations field is not an array");
+        return 1;
       }
-      if((res = process_conversation(conversations_in[conv_it],
-                                     conversations_out[conv_it]))) {
-        event_log_->error("failed to process conversation");
-        return res;
-      }
-      ++conv_it;
-    }
 
-    enrich_with_stats_scenario(scenario_out_);
-    scope.commit();
+      Json::Value &conversations_out = scenario_out_[key_conversations];
+
+      // conversations cycle
+      uint32_t conv_it = 0;
+      while(true) {
+        if(!conversations_in.isValidIndex(conv_it)) {
+          break;
+        }
+        if((res = process_conversation(conversations_in[conv_it],
+                                       conversations_out[conv_it]))) {
+          event_log_->error("failed to process conversation");
+          return res;
+        }
+        ++conv_it;
+      }
+
+      enrich_with_stats_scenario(scenario_out_);
+      scope.commit();
+    } else {
+      scenario_out_.clear();
+      scenario_out_[key_enabled] = false;
+    }
   }
   if(error) {
     return 1;
@@ -414,7 +429,6 @@ int chatterbox::process_conversation(Json::Value &conversation_in,
                                      Json::Value &conversation_out)
 {
   int res = 0;
-  ++scen_conversation_count_;
 
   if((res = reset_conversation(conversation_in))) {
     event_log_->error("failed to reset conversation");
@@ -432,30 +446,37 @@ int chatterbox::process_conversation(Json::Value &conversation_in,
       return 1;
     }
 
-    Json::Value &requests_in = conversation_in[key_requests];
-    if(!requests_in.isArray()) {
-      event_log_->error("requests field is not an array");
-      return 1;
-    }
+    if(scope.enabled_) {
+      ++scen_conversation_count_;
 
-    Json::Value &requests_out = conversation_out[key_requests];
-
-    //requests cycle
-    uint32_t req_it = 0;
-    while(true) {
-      if(!requests_in.isValidIndex(req_it)) {
-        break;
+      Json::Value &requests_in = conversation_in[key_requests];
+      if(!requests_in.isArray()) {
+        event_log_->error("requests field is not an array");
+        return 1;
       }
-      if((res = process_request(requests_in[req_it],
-                                requests_out[req_it]))) {
-        event_log_->error("failed to process request");
-        return res;
-      }
-      ++req_it;
-    }
 
-    enrich_with_stats_conversation(conversation_out);
-    scope.commit();
+      Json::Value &requests_out = conversation_out[key_requests];
+
+      //requests cycle
+      uint32_t req_it = 0;
+      while(true) {
+        if(!requests_in.isValidIndex(req_it)) {
+          break;
+        }
+        if((res = process_request(requests_in[req_it],
+                                  requests_out[req_it]))) {
+          event_log_->error("failed to process request");
+          return res;
+        }
+        ++req_it;
+      }
+
+      enrich_with_stats_conversation(conversation_out);
+      scope.commit();
+    } else {
+      conversation_out.clear();
+      conversation_out[key_enabled] = false;
+    }
   }
   if(error) {
     return 1;
@@ -475,50 +496,8 @@ int chatterbox::process_request(Json::Value &request_in,
     event_log_->error("failed to read 'for' field");
     return 1;
   }
-  conv_request_count_ += *pfor;
-  scen_request_count_ += *pfor;
 
   for(uint32_t i = 0; i < pfor; ++i) {
-
-    // method
-    auto method = js_env_.eval_as<std::string>(request_in, key_method.c_str());
-    if(!method) {
-      event_log_->error("failed to read 'method' field");
-      return 1;
-    }
-
-    // uri
-    auto uri = js_env_.eval_as<std::string>(request_in, key_uri.c_str(), "");
-    if(!uri) {
-      event_log_->error("failed to read 'uri' field");
-      return 1;
-    }
-
-    // query_string
-    auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string.c_str(), "");
-    if(!query_string) {
-      event_log_->error("failed to read 'query_string' field");
-      return 1;
-    }
-
-    //data
-    auto data = js_env_.eval_as<std::string>(request_in, key_data.c_str(), "");
-    if(!data) {
-      event_log_->error("failed to read 'data' field");
-      return 1;
-    }
-
-    //optional auth directive
-    auto auth = js_env_.eval_as<std::string>(request_in, key_auth.c_str());
-    if(auth) {
-      request_out[key_auth] = *auth;
-    }
-
-    request_out[key_method] = *method;
-    request_out[key_uri] = *uri;
-    request_out[key_query_string] = *query_string;
-    request_out[key_data] = *data;
-
     bool error = false;
     {
       stack_scope scope(*this,
@@ -530,19 +509,66 @@ int chatterbox::process_request(Json::Value &request_in,
         return 1;
       }
 
-      response_mock_ = const_cast<Json::Value *>(request_in.find(key_mock.data(), key_mock.data()+key_mock.length()));
+      if(scope.enabled_) {
+        ++conv_request_count_;
+        ++scen_request_count_;
 
-      if((res = execute_request(*method,
-                                auth,
-                                *uri,
-                                *query_string,
-                                *data,
-                                request_in,
-                                request_out))) {
-        return res;
+        // method
+        auto method = js_env_.eval_as<std::string>(request_in, key_method.c_str());
+        if(!method) {
+          event_log_->error("failed to read 'method' field");
+          return 1;
+        }
+
+        // uri
+        auto uri = js_env_.eval_as<std::string>(request_in, key_uri.c_str(), "");
+        if(!uri) {
+          event_log_->error("failed to read 'uri' field");
+          return 1;
+        }
+
+        // query_string
+        auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string.c_str(), "");
+        if(!query_string) {
+          event_log_->error("failed to read 'query_string' field");
+          return 1;
+        }
+
+        //data
+        auto data = js_env_.eval_as<std::string>(request_in, key_data.c_str(), "");
+        if(!data) {
+          event_log_->error("failed to read 'data' field");
+          return 1;
+        }
+
+        //optional auth directive
+        auto auth = js_env_.eval_as<std::string>(request_in, key_auth.c_str());
+        if(auth) {
+          request_out[key_auth] = *auth;
+        }
+
+        request_out[key_method] = *method;
+        request_out[key_uri] = *uri;
+        request_out[key_query_string] = *query_string;
+        request_out[key_data] = *data;
+
+        response_mock_ = const_cast<Json::Value *>(request_in.find(key_mock.data(), key_mock.data()+key_mock.length()));
+
+        if((res = execute_request(*method,
+                                  auth,
+                                  *uri,
+                                  *query_string,
+                                  *data,
+                                  request_in,
+                                  request_out))) {
+          return res;
+        }
+        scope.commit();
+      } else {
+        request_out.clear();
+        request_out[key_enabled] = false;
+        break;
       }
-
-      scope.commit();
     }
     if(error) {
       return 1;
