@@ -20,6 +20,7 @@
 #include "spdlog/fmt/bundled/color.h"
 
 #define DEF_EVT_LOG_PATTERN "[%^%l%$]%v"
+#define ASSERT_LOG_PATTERN "[%^ASSERT%$]%v"
 #define RAW_EVT_LOG_PATTERN "%v"
 
 namespace rest {
@@ -188,5 +189,12 @@ struct json_value_ref {
   json_value_ref(const Json::Value &ref) : ref_(const_cast<Json::Value &>(ref)) {}
   Json::Value &ref_;
 };
+
+inline std::string get_formatted_string(const std::string &str,
+                                        fmt::terminal_color color,
+                                        fmt::emphasis emphasis)
+{
+  return fmt::format(fmt::fg(color) | emphasis, "{}", str);
+}
 
 }

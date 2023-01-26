@@ -182,6 +182,7 @@ struct js_env {
 
   static void cbk_log(const v8::FunctionCallbackInfo<v8::Value> &args);
   static void cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args);
+  static void cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args);
 
   // ----------------------------
   // --- Json Field Evaluator ---
