@@ -19,6 +19,8 @@ struct chatterbox {
 
       std::string evt_log_channel = "stderr";
       std::string evt_log_level = "inf";
+
+      bool no_out_ = false;
     };
 
     static const Json::Value &get_default_out_options();
@@ -245,6 +247,9 @@ struct chatterbox {
     uint32_t scen_conversation_count_ = 0;
     uint32_t scen_request_count_ = 0;
     std::unordered_map<std::string, int32_t> scen_categorization_;
+
+    //assert failure
+    bool assert_failure_ = false;
 
   private:
     //conversation connection

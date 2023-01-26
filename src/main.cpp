@@ -9,6 +9,10 @@ int main(int argc, char *argv[])
     rest::chatterbox cbox;
 
     auto cli = (
+                 clipp::option("-n", "--noout")
+                 .set(cbox.cfg_.no_out_, true)
+                 .doc("no output"),
+
                  clipp::option("-f", "--filename")
                  .doc("specify scenario [filename]")
                  & clipp::value("filename", cbox.cfg_.in_scenario_name),

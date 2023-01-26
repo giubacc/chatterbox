@@ -77,6 +77,12 @@ int js_env::renew_scenario_context()
                                       v8::NewStringType::kNormal).ToLocalChecked(),
               v8::FunctionTemplate::New(isolate_, cbk_load));
 
+  //bind cbk_assert.
+  global->Set(v8::String::NewFromUtf8(isolate_,
+                                      "assert",
+                                      v8::NewStringType::kNormal).ToLocalChecked(),
+              v8::FunctionTemplate::New(isolate_, cbk_assert));
+
   //create new context and set this js_env object with it.
   v8::Local<v8::Context> context = v8::Context::New(isolate_, nullptr, global);
   context->SetAlignedPointerInEmbedderData(1, this);
@@ -569,6 +575,46 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
   v8::Local<v8::Value> result;
   if(!self->run_script(script, result, error)) {
     self->event_log_->error("error running script:{} {}", *script_path, error);
+  }
+}
+
+void js_env::cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args)
+{
+  if(args.Length() != 2) {
+    return;
+  }
+
+  v8::Isolate *isolate = args.GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  js_env *self = static_cast<js_env *>(context->GetAlignedPointerFromEmbedderData(1));
+  if(!self) {
+    return;
+  }
+
+  v8::Local<v8::Value> description_arg = args[0];
+  v8::String::Utf8Value description(isolate, description_arg);
+
+  v8::Local<v8::Value> assert_val_arg = args[1];
+  if(!assert_val_arg->IsBoolean()) {
+    self->event_log_->error("assert:{} - expression cannot be evaluated as boolean", *description);
+    return;
+  }
+  bool assert_val = assert_val_arg->BooleanValue(isolate);
+
+  self->event_log_->set_pattern(ASSERT_LOG_PATTERN);
+  self->event_log_->log(assert_val ? spdlog::level::info : spdlog::level::err,
+                        "[{}]{}", utils::get_formatted_string(assert_val ? "OK" : "KO",
+                                                              (assert_val ? fmt::terminal_color::green : fmt::terminal_color::red),
+                                                              fmt::emphasis::bold),
+                        utils::get_formatted_string(*description,
+                                                    (assert_val ? fmt::terminal_color::green : fmt::terminal_color::red),
+                                                    fmt::emphasis::bold));
+  self->event_log_->set_pattern(DEF_EVT_LOG_PATTERN);
+
+  if(!assert_val) {
+    self->chatterbox_.assert_failure_ = true;
   }
 }
 

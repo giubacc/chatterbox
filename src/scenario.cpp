@@ -73,6 +73,11 @@ chatterbox::stack_scope::stack_scope(chatterbox &cbox,
     }
   }
 
+  if(cbox_.assert_failure_) {
+    error_ = true;
+    return;
+  }
+
   auto enabled_opt = cbox_.js_env_.eval_as<bool>(obj_in, key_enabled.c_str(), true);
   if(!enabled_opt) {
     cbox_.event_log_->error("failed to read 'enabled' field");
@@ -104,6 +109,11 @@ chatterbox::stack_scope::~stack_scope()
   //restore previous stack's top objects inside the js context
   if(!cbox_.stack_obj_in_.empty()) {
     cbox_.js_env_.install_current_objects();
+  }
+
+  if(cbox_.assert_failure_) {
+    error_ = true;
+    return;
   }
 }
 
@@ -167,6 +177,8 @@ const Json::Value &chatterbox::get_default_response_out_options()
 
 int chatterbox::reset_scenario()
 {
+  assert_failure_ = false;
+
   // reset stats
   scen_conversation_count_ = scen_request_count_ = 0;
   scen_categorization_.clear();
@@ -370,7 +382,7 @@ int chatterbox::process_scenario(std::istream &is)
                       error,
                       get_default_scenario_out_options());
     if(error) {
-      return 1;
+      goto fend;
     }
 
     if(scope.enabled_) {
@@ -378,7 +390,7 @@ int chatterbox::process_scenario(std::istream &is)
       Json::Value &conversations_in = scenario_in_[key_conversations];
       if(!conversations_in.isArray()) {
         event_log_->error("conversations field is not an array");
-        return 1;
+        goto fend;
       }
 
       Json::Value &conversations_out = scenario_out_[key_conversations];
@@ -391,8 +403,7 @@ int chatterbox::process_scenario(std::istream &is)
         }
         if((res = process_conversation(conversations_in[conv_it],
                                        conversations_out[conv_it]))) {
-          event_log_->error("failed to process conversation");
-          return res;
+          goto fend;
         }
         ++conv_it;
       }
@@ -404,12 +415,12 @@ int chatterbox::process_scenario(std::istream &is)
       scenario_out_[key_enabled] = false;
     }
   }
-  if(error) {
-    return 1;
-  }
 
+fend:
   // finally write scenario_out on the output
-  output_->info("{}", scenario_out_.toStyledString());
+  if(!cfg_.no_out_) {
+    output_->info("{}", scenario_out_.toStyledString());
+  }
   return res;
 }
 
@@ -465,7 +476,6 @@ int chatterbox::process_conversation(Json::Value &conversation_in,
         }
         if((res = process_request(requests_in[req_it],
                                   requests_out[req_it]))) {
-          event_log_->error("failed to process request");
           return res;
         }
         ++req_it;
