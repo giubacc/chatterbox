@@ -512,8 +512,10 @@ void js_env::cbk_log(const v8::FunctionCallbackInfo<v8::Value> &args)
   v8::Isolate *isolate = args.GetIsolate();
   v8::HandleScope scope(isolate);
 
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
   v8::Local<v8::Value> log_level_arg = args[0];
-  v8::String::Utf8Value log_level(isolate, log_level_arg);
+  uint32_t log_level = log_level_arg->Uint32Value(context).FromMaybe(spdlog::level::level_enum::off);
 
   v8::Local<v8::Value> marker_arg = args[1];
   v8::String::Utf8Value marker(isolate, marker_arg);
@@ -521,13 +523,12 @@ void js_env::cbk_log(const v8::FunctionCallbackInfo<v8::Value> &args)
   v8::Local<v8::Value> message_arg = args[2];
   v8::String::Utf8Value message(isolate, message_arg);
 
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   js_env *self = static_cast<js_env *>(context->GetAlignedPointerFromEmbedderData(1));
   if(!self) {
     return;
   }
 
-  self->event_log_->log(utils::get_spdloglvl(*log_level), "[{}]{}", *marker, *message);
+  self->event_log_->log(utils::get_spdloglvl(log_level), "[{}] {}", *marker, *message);
 }
 
 void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
@@ -605,9 +606,9 @@ void js_env::cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args)
 
   self->event_log_->set_pattern(ASSERT_LOG_PATTERN);
   self->event_log_->log(assert_val ? spdlog::level::info : spdlog::level::err,
-                        "[{}]{}", utils::get_formatted_string(assert_val ? "OK" : "KO",
-                                                              (assert_val ? fmt::terminal_color::green : fmt::terminal_color::red),
-                                                              fmt::emphasis::bold),
+                        "[{}] {}", utils::get_formatted_string(assert_val ? "OK" : "KO",
+                                                               (assert_val ? fmt::terminal_color::green : fmt::terminal_color::red),
+                                                               fmt::emphasis::bold),
                         utils::get_formatted_string(*description,
                                                     (assert_val ? fmt::terminal_color::green : fmt::terminal_color::red),
                                                     fmt::emphasis::bold));

@@ -118,6 +118,14 @@ inline spdlog::level::level_enum get_spdloglvl(const char *log_level)
   }
 }
 
+inline spdlog::level::level_enum get_spdloglvl(uint32_t log_level)
+{
+  if(log_level >= spdlog::level::level_enum::off) {
+    return spdlog::level::level_enum::off;
+  }
+  return (spdlog::level::level_enum)log_level;
+}
+
 template<typename T>
 struct scoped_log_fmt {
   T &p_;
