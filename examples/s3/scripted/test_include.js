@@ -3,10 +3,11 @@ function DeclareVersion() {
 }
 
 let TLV = {
-  TRC: "trc",
-  DBG: "dgb",
-  INF: "inf",
-  WRN: "wrn",
-  ERR: "err",
-  CRI: "cri",
+  TRC: 0,
+  DBG: 1,
+  INF: 2,
+  WRN: 3,
+  ERR: 4,
+  CRI: 5,
+  OFF: 6,
 }
