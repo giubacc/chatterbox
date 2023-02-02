@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <algorithm>
 #include <chrono>
 #include <optional>
 #include <ctime>
@@ -23,7 +24,7 @@
 #define ASSERT_LOG_PATTERN "[%^ASSERT%$]%v"
 #define RAW_EVT_LOG_PATTERN "%v"
 
-namespace rest {
+namespace cbox {
 extern const std::string key_access_key;
 extern const std::string key_auth;
 extern const std::string key_body;
@@ -69,13 +70,13 @@ enum resolution {
 
 inline resolution from_literal(const std::string &str)
 {
-  if(str == rest::key_nsec) {
+  if(str == cbox::key_nsec) {
     return nanoseconds;
-  } else if(str == rest::key_usec) {
+  } else if(str == cbox::key_usec) {
     return microseconds;
-  } else if(str == rest::key_msec) {
+  } else if(str == cbox::key_msec) {
     return milliseconds;
-  } else if(str == rest::key_sec) {
+  } else if(str == cbox::key_sec) {
     return seconds;
   }
   return nanoseconds;
@@ -204,5 +205,65 @@ inline std::string get_formatted_string(const std::string &str,
 {
   return fmt::format(fmt::fg(color) | emphasis, "{}", str);
 }
+
+struct aws_auth {
+
+    int init(std::shared_ptr<spdlog::logger> &event_log);
+
+    void reset(const std::string &host,
+               const std::string &access_key,
+               const std::string &secret_key,
+               const std::string &service,
+               const std::string &signed_headers,
+               const std::string &region);
+
+    // AWS Signature Version 2
+
+    static std::string aws_sign_v2_build_date();
+
+    std::string aws_sign_v2_build_canonical_string(const std::string &method,
+                                                   const std::string &canonical_uri) const;
+
+    std::string aws_sign_v2_build_authorization(const std::string &signature) const;
+
+    void aws_sign_v2_build(const char *method,
+                           const std::string &uri,
+                           RestClient::HeaderFields &reqHF) const;
+
+    // AWS Signature Version 4
+
+    static std::string aws_sign_v4_build_date();
+    static std::string aws_sign_v4_get_canonical_query_string(const std::string &query_string);
+
+    std::string aws_sign_v4_build_signing_key() const;
+    std::string aws_sign_v4_build_canonical_headers(const std::string &x_amz_content_sha256) const;
+
+    std::string aws_sign_v4_build_canonical_request(const std::string &method,
+                                                    const std::string &canonical_uri,
+                                                    const std::string &canonical_query_string,
+                                                    const std::string &canonical_headers,
+                                                    const std::string &payload_hash) const;
+
+    std::string aws_sign_v4_build_string_to_sign(const std::string &canonical_request) const;
+    std::string aws_sign_v4_build_authorization(const std::string &signature) const;
+
+    void aws_sign_v4_build(const char *method,
+                           const std::string &uri,
+                           const std::string &query_string,
+                           const std::string &data,
+                           RestClient::HeaderFields &reqHF) const;
+
+    std::string host_;
+    std::string access_key_;
+    std::string secret_key_;
+    std::string service_;
+    std::string x_amz_date_;
+    std::string signed_headers_;
+    std::string region_;
+
+  public:
+    //event logger
+    std::shared_ptr<spdlog::logger> event_log_;
+};
 
 }
