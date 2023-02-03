@@ -1,0 +1,63 @@
+{
+  "customTag": "example-1",
+  "on_begin": {
+    "function": "OnScenarioBegin",
+    "args": ["one", 2, "three"]
+  },
+  "on_end": {
+    "function": "OnScenarioEnd",
+    "args": [1, "two", 3]
+  },
+  "conversations": [
+    {
+      "host": "localhost:7480",
+      "requests": [
+        {
+          "method": "GET",
+          "uri": "user/info",
+          "query_string": "uid=julius",
+          "mock": {
+            "body": "{\"user\":\"julius\", \"status\":\"notFound\"}",
+            "code": 404
+          },
+          "response": {
+            "on_end": {
+              "function": "OnGETUserInfoResponse_AssertNotFound",
+              "args": ["tag-1"]
+            }
+          }
+        },
+        {
+          "method": "PUT",
+          "uri": "user",
+          "query_string": "uid=julius",
+          "mock": {
+            "body": "{\"user\":\"julius\", \"status\":\"created\"}",
+            "code": 200
+          },
+          "response": {
+            "on_end": {
+              "function": "OnPUTUserResponse_AssertCreated",
+              "args": ["tag-2"]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "uri": "user/info",
+          "query_string": "uid=julius",
+          "mock": {
+            "body": "{\"user\":\"julius\", \"status\":\"found\"}",
+            "code": 200
+          },
+          "response": {
+            "on_end": {
+              "function": "OnGETUserInfoResponse_AssertFound",
+              "args": ["tag-3"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

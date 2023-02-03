@@ -32,7 +32,8 @@ add_executable(chatterbox_test
                ${CHATTERBOX_PATH}/utils.cpp
                ${CHATTERBOX_PATH}/crypto.cpp
                ${CHATTERBOX_PATH}/jsenv.cpp
-               ${CHATTERBOX_PATH}/chatterbox.cpp
+               ${CHATTERBOX_PATH}/request.cpp
+               ${CHATTERBOX_PATH}/conversation.cpp
                ${CHATTERBOX_PATH}/scenario.cpp)
 
 target_link_libraries(chatterbox_test

@@ -4,8 +4,8 @@
 #include "v8.h"
 #include "globals.h"
 
-namespace rest {
-struct chatterbox;
+namespace cbox {
+struct scenario;
 }
 
 namespace utils {
@@ -120,7 +120,7 @@ struct js_env {
   static bool init_V8(int argc, const char *argv[]);
   static void stop_V8();
 
-  js_env(rest::chatterbox &chatterbox);
+  js_env(cbox::scenario &parent);
   ~js_env();
 
   int init(std::shared_ptr<spdlog::logger> &event_log);
@@ -132,7 +132,6 @@ struct js_env {
   // -----------------------
 
   bool install_scenario_objects();
-  bool install_current_objects();
 
   //Json::Value
 
@@ -167,7 +166,8 @@ struct js_env {
   // --- C++ -> Javascript ---
   // -------------------------
 
-  bool invoke_js_function(const char *js_function_name,
+  bool invoke_js_function(Json::Value *ctx_json,
+                          const char *js_function_name,
                           Json::Value &js_args,
                           const std::function <bool (v8::Isolate *,
                                                      Json::Value &,
@@ -217,7 +217,8 @@ struct js_env {
         T result;
         std::string error;
 
-        bool js_res = invoke_js_function(function.asCString(),
+        bool js_res = invoke_js_function(nullptr,
+                                         function.asCString(),
                                          js_args,
         [&](v8::Isolate *isl, Json::Value &js_args, v8::Local<v8::Value> argv[]) -> bool{
           for(uint32_t i = 0; i < js_args.size(); ++i) {
@@ -265,7 +266,7 @@ struct js_env {
                   v8::Local<v8::Value> &result,
                   std::string &error);
 
-  bool exec_as_function(const Json::Value &from,
+  bool exec_as_function(Json::Value &from,
                         const char *key,
                         bool optional = true);
 
@@ -275,8 +276,8 @@ struct js_env {
   // --- rep ---
   // -----------
 
-  //chatterbox
-  rest::chatterbox &chatterbox_;
+  //parent
+  cbox::scenario &parent_;
 
   //processed scripts
   std::unordered_set<std::string> processed_scripts_;

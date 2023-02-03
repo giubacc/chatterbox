@@ -29,7 +29,8 @@ add_executable(chatterbox
                utils.cpp
                crypto.cpp
                jsenv.cpp
-               chatterbox.cpp
+               request.cpp
+               conversation.cpp
                scenario.cpp)
 
 target_link_libraries(chatterbox

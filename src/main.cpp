@@ -1,4 +1,4 @@
-#include "chatterbox.h"
+#include "scenario.h"
 #include "clipp.h"
 
 int main(int argc, char *argv[])
@@ -6,40 +6,40 @@ int main(int argc, char *argv[])
   int res = 0;
 
   {
-    rest::chatterbox cbox;
+    cbox::scenario scenario;
 
     auto cli = (
                  clipp::option("-n", "--noout")
-                 .set(cbox.cfg_.no_out_, true)
+                 .set(scenario.cfg_.no_out_, true)
                  .doc("no output"),
 
                  clipp::option("-f", "--filename")
                  .doc("specify scenario [filename]")
-                 & clipp::value("filename", cbox.cfg_.in_scenario_name),
+                 & clipp::value("filename", scenario.cfg_.in_scenario_name),
 
                  clipp::option("-p", "--path")
                  .doc("specify scenario's path [path]")
-                 & clipp::value("path", cbox.cfg_.in_scenario_path),
+                 & clipp::value("path", scenario.cfg_.in_scenario_path),
 
                  clipp::option("-o", "--output")
                  .doc("specify output channel [stdout, stderr, filename]")
-                 & clipp::value("output", cbox.cfg_.out_channel),
+                 & clipp::value("output", scenario.cfg_.out_channel),
 
                  clipp::option("-m", "--monitor")
-                 .set(cbox.cfg_.monitor, true)
+                 .set(scenario.cfg_.monitor, true)
                  .doc("monitor filesystem for new scenarios"),
 
                  clipp::option("-d", "--delete")
-                 .set(cbox.cfg_.move_scenario, true)
+                 .set(scenario.cfg_.move_scenario, true)
                  .doc("delete scenario files once consumed"),
 
                  clipp::option("-l", "--log")
                  .doc("specify event log output channel [stderr, stdout, filename]")
-                 & clipp::value("event log output", cbox.cfg_.evt_log_channel),
+                 & clipp::value("event log output", scenario.cfg_.evt_log_channel),
 
                  clipp::option("-v", "--verbosity")
                  .doc("specify event log verbosity [trc, dbg, inf, wrn, err, cri, off]")
-                 & clipp::value("event log verbosity", cbox.cfg_.evt_log_level)
+                 & clipp::value("event log verbosity", scenario.cfg_.evt_log_level)
                );
 
     if(!clipp::parse(argc, argv, cli)) {
@@ -54,23 +54,23 @@ int main(int argc, char *argv[])
     }
 
     //init chatterbox
-    if((res = cbox.init(argc, (const char **)argv))) {
+    if((res = scenario.init(argc, (const char **)argv))) {
       std::cerr << "error init chatterbox, exiting..." << std::endl;
       return res;
     }
 
-    if(cbox.cfg_.monitor) {
-      cbox.event_log_->set_pattern(RAW_EVT_LOG_PATTERN);
-      cbox.event_log_->info("{}", fmt::format(fmt::fg(fmt::terminal_color::magenta) |
-                                              fmt::emphasis::bold,
-                                              ">>MONITORING MODE<<\n"));
-      cbox.event_log_->set_pattern(cbox.event_log_fmt_);
+    if(scenario.cfg_.monitor) {
+      scenario.event_log_->set_pattern(RAW_EVT_LOG_PATTERN);
+      scenario.event_log_->info("{}", fmt::format(fmt::fg(fmt::terminal_color::magenta) |
+                                                  fmt::emphasis::bold,
+                                                  ">>MONITORING MODE<<\n"));
+      scenario.event_log_->set_pattern(scenario.event_log_fmt_);
       while(true) {
-        cbox.poll();
+        scenario.poll();
         usleep(2*1000*1000);
       }
-    } else if(!cbox.cfg_.in_scenario_name.empty()) {
-      res = cbox.process_scenario();
+    } else if(!scenario.cfg_.in_scenario_name.empty()) {
+      res = scenario.process();
     }
   }
 

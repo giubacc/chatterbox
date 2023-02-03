@@ -1,4 +1,4 @@
-#include "chatterbox.h"
+#include "scenario.h"
 
 namespace js {
 
@@ -24,7 +24,7 @@ void js_env::stop_V8()
   v8::V8::Dispose();
 }
 
-js_env::js_env(rest::chatterbox &chatterbox) : chatterbox_(chatterbox)
+js_env::js_env(cbox::scenario &parent) : parent_(parent)
 {}
 
 js_env::~js_env()
@@ -128,61 +128,14 @@ bool js_env::install_scenario_objects()
 {
   v8::HandleScope handle_scope(isolate_);
 
-  v8::Local<v8::Object> scenario_in_obj = wrap_json_value(chatterbox_.scenario_in_);
-
-  // Set the chatterbox_.scenario_in_ object as a property on the global object.
-  scenario_context_.Get(isolate_)->Global()
-  ->Set(scenario_context_.Get(isolate_),
-        v8::String::NewFromUtf8(isolate_, "inScenario", v8::NewStringType::kNormal)
-        .ToLocalChecked(),
-        scenario_in_obj)
-  .FromJust();
-
-  v8::Local<v8::Object> scenario_out_obj = wrap_json_value(chatterbox_.scenario_out_);
+  v8::Local<v8::Object> scenario_out_obj = wrap_json_value(parent_.scenario_out_);
 
   // Set the chatterbox_.scenario_out_ object as a property on the global object.
   scenario_context_.Get(isolate_)->Global()
   ->Set(scenario_context_.Get(isolate_),
-        v8::String::NewFromUtf8(isolate_, "outScenario", v8::NewStringType::kNormal)
+        v8::String::NewFromUtf8(isolate_, "outJson", v8::NewStringType::kNormal)
         .ToLocalChecked(),
         scenario_out_obj)
-  .FromJust();
-
-  return true;
-}
-
-bool js_env::install_current_objects()
-{
-  v8::HandleScope handle_scope(isolate_);
-
-  v8::Local<v8::Object> curr_obj_in = wrap_json_value(chatterbox_.stack_obj_in_.top().ref_);
-
-  // Set the chatterbox_.stack_obj_in_.top() object as a property on the global object.
-  scenario_context_.Get(isolate_)->Global()
-  ->Set(scenario_context_.Get(isolate_),
-        v8::String::NewFromUtf8(isolate_, "inObj", v8::NewStringType::kNormal)
-        .ToLocalChecked(),
-        curr_obj_in)
-  .FromJust();
-
-  v8::Local<v8::Object> curr_out_obj = wrap_json_value(chatterbox_.stack_obj_out_.top().ref_);
-
-  // Set the chatterbox_.stack_obj_out_.top() object as a property on the global object.
-  scenario_context_.Get(isolate_)->Global()
-  ->Set(scenario_context_.Get(isolate_),
-        v8::String::NewFromUtf8(isolate_, "outObj", v8::NewStringType::kNormal)
-        .ToLocalChecked(),
-        curr_out_obj)
-  .FromJust();
-
-  v8::Local<v8::Object> curr_out_options = wrap_json_value(chatterbox_.stack_out_options_.top().ref_);
-
-  // Set the chatterbox_.stack_out_options_.top() object as a property on the global object.
-  scenario_context_.Get(isolate_)->Global()
-  ->Set(scenario_context_.Get(isolate_),
-        v8::String::NewFromUtf8(isolate_, "outOptions", v8::NewStringType::kNormal)
-        .ToLocalChecked(),
-        curr_out_options)
   .FromJust();
 
   return true;
@@ -442,13 +395,14 @@ void js_env::json_value_set_by_idx(uint32_t index,
 // --- C++ -> Javascript ---
 // -------------------------
 
-bool js_env::invoke_js_function(const char *js_function_name,
+bool js_env::invoke_js_function(Json::Value *ctx_json,
+                                const char *js_function_name,
                                 Json::Value &js_args,
-                                const std::function <bool (v8::Isolate *,
-                                                           Json::Value &,
-                                                           v8::Local<v8::Value> [])> &prepare_argv,
-                                const std::function <bool (v8::Isolate *,
-                                                           const v8::Local<v8::Value>&)> &process_result,
+                                const std::function <bool (v8::Isolate *isolate,
+                                                           Json::Value &js_args,
+                                                           v8::Local<v8::Value> argv[])> &prepare_argv,
+                                const std::function <bool (v8::Isolate *isolate,
+                                                           const v8::Local<v8::Value>& result)> &process_result,
                                 std::string &error)
 {
   if(!js_function_name || !js_function_name[0]) {
@@ -479,10 +433,14 @@ bool js_env::invoke_js_function(const char *js_function_name,
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(function_val);
 
   // Prepare arguments
-  const int argc = js_args.size();
+  const int argc = js_args.size() + (ctx_json ? 1 : 0);
   v8::Local<v8::Value> argv[argc];
 
-  if(!prepare_argv(isolate_, js_args, argv)) {
+  if(ctx_json) {
+    argv[0] = wrap_json_value(*ctx_json);
+  }
+
+  if(!prepare_argv(isolate_, js_args, &argv[ctx_json ? 1 : 0])) {
     error = "failed to prepare argv";
     return false;
   }
@@ -550,7 +508,7 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
   }
 
   std::ostringstream fpath;
-  fpath << self->chatterbox_.cfg_.in_scenario_path << "/" << *script_path;
+  fpath << self->parent_.cfg_.in_scenario_path << "/" << *script_path;
   if(self->processed_scripts_.find(fpath.str()) == self->processed_scripts_.end()) {
     self->processed_scripts_.insert(fpath.str());
   } else {
@@ -615,7 +573,7 @@ void js_env::cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args)
   self->event_log_->set_pattern(DEF_EVT_LOG_PATTERN);
 
   if(!assert_val) {
-    self->chatterbox_.assert_failure_ = true;
+    self->parent_.set_assert_failure();
   }
 }
 
@@ -629,12 +587,12 @@ int js_env::load_scripts()
   DIR *dir;
   struct dirent *ent;
 
-  if((dir = opendir(chatterbox_.cfg_.in_scenario_path.c_str())) != nullptr) {
+  if((dir = opendir(parent_.cfg_.in_scenario_path.c_str())) != nullptr) {
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
         std::ostringstream fpath;
-        fpath << chatterbox_.cfg_.in_scenario_path << "/" << ent->d_name;
+        fpath << parent_.cfg_.in_scenario_path << "/" << ent->d_name;
         if(processed_scripts_.find(fpath.str()) == processed_scripts_.end()) {
           processed_scripts_.insert(fpath.str());
         } else {
@@ -733,7 +691,7 @@ v8::MaybeLocal<v8::String> js_env::read_script_file(const std::string &name)
   return result;
 }
 
-bool js_env::exec_as_function(const Json::Value &from,
+bool js_env::exec_as_function(Json::Value &from,
                               const char *key,
                               bool optional)
 {
@@ -758,7 +716,8 @@ bool js_env::exec_as_function(const Json::Value &from,
     std::string result;
     std::string error;
 
-    bool js_res = invoke_js_function(function.asCString(),
+    bool js_res = invoke_js_function(&from,
+                                     function.asCString(),
                                      js_args,
     [&](v8::Isolate *isl, Json::Value &js_args, v8::Local<v8::Value> argv[]) -> bool {
       for(uint32_t i = 0; i < js_args.size(); ++i)
