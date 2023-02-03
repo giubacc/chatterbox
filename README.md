@@ -8,16 +8,31 @@
 ## Contents
 
 - [chatterbox](#chatterbox)
+  - [Contents](#contents)
   - [Description](#description)
     - [Scripting capabilities](#scripting-capabilities)
   - [Build requirements](#build-requirements)
   - [How to build](#how-to-build)
-    - [Build on the host](#build-on-the-host)
-    - [Build with a Dockerfile builder image](#build-with-a-dockerfile-builder-image)
+    - [Build](#build)
+    - [Build using a Dockerfile builder image](#build-using-a-dockerfile-builder-image)
   - [Usage](#usage)
-  - [Conversation scenario format](#conversation-scenario-format)
-  - [Scripted scenarios](#scripted-scenarios)
-  - [Examples](#examples)
+    - [Optional monitoring mode](#optional-monitoring-mode)
+  - [Input/Output concepts](#inputoutput-concepts)
+    - [Input/Output example](#inputoutput-example)
+      - [Input](#input)
+      - [Possible rendered output](#possible-rendered-output)
+  - [chatterbox scenario format](#chatterbox-scenario-format)
+    - [Scenario context](#scenario-context)
+    - [Conversation context](#conversation-context)
+    - [Request context](#request-context)
+    - [Response context](#response-context)
+    - [Dumps and Formats](#dumps-and-formats)
+  - [Scripting](#scripting)
+    - [Field's value](#fields-value)
+    - [Context handlers](#context-handlers)
+    - [Global objects](#global-objects)
+      - [Example](#example)
+    - [Global functions](#global-functions)
 
 ## Description
 
@@ -26,6 +41,13 @@ generic endpoint.
 
 You can define scenarios with a json formalism describing conversations
 between the client (chatterbox) and the endpoint.
+
+`chatterbox` could be useful to you when you have to:
+
+- Prototype a RESTful protocol
+- Investigate and/or probe a RESTful endpoint
+- Develop a RESTful endpoint with a test-driven methodology
+- Develop system tests for a RESTful endpoint
 
 ### Scripting capabilities
 
@@ -55,7 +77,7 @@ git submodule init
 git submodule update
 ```
 
-### Build on the host
+### Build
 
 Build the `chatterbox` binary alongside with all its dependencies:
 
@@ -64,7 +86,7 @@ cd scripts
 ./build.sh build-all
 ```
 
-### Build with a Dockerfile builder image
+### Build using a Dockerfile builder image
 
 It is possible to use a Dockerfile builder image to compile the binary
 of `chatterbox`.
@@ -128,6 +150,8 @@ If you want, you can also specify a relative path from where files are read.
 chatterbox -p /scenarios -f scenario.json
 ```
 
+### Optional monitoring mode
+
 You can use `chatterbox` to monitor a directory on filesystem.
 On this mode, `chatterbox` will constantly check the monitored directory
 for new scenarios.
@@ -140,68 +164,179 @@ $ chatterbox -p /scenarios -m
 By default, files are moved into `${directory}/consumed` once they have
 been consumed. If you prefer them to be deleted you can specify the `-d` flag.
 
-## Conversation scenario format
+## Input/Output concepts
 
-The conversation scenario format is pretty straightforward:
-it is a json defining properties for the conversations you want to realize.
+`chatterbox` works with this fundamental concept: the input provided by
+the user is also the skeleton used to render the output. The output object
+keeps the same format of the input, eventually enriched.
 
-At the root level, or scenario level, you define an array of `conversations`:
+Conceptually, the input object is unwound by the `chatterbox`'s engine
+to produce the final rendered output object.
+
+Each response for every request defined in the input is inserted in the output
+object at the proper place.
+
+All the modifications operated by some JavaScript function are inserted
+in the output object as well.
+
+### Input/Output example
+
+#### Input
 
 ```json
 {
-  "conversations": [
+  "conversations" : [
     {
-      "host" : "http://service1.host1.domain1",
-      "conversation": []
-    },
+      "host" : "localhost:8080",
+      "requests" : [
+        {
+          "method" : "DELETE",
+          "uri" : "foo/bar"
+        }
+      ]
+    }
+  ]
+}
+
+```
+
+#### Possible rendered output
+
+```json
+{
+  "conversations" : [
     {
-      "host" : "https://service2.host2.domain2",
-      "conversation": []
+      "host" : "localhost:8080",
+      "requests" : [
+        {
+          "method" : "DELETE",
+          "uri" : "foo/bar",
+          "response" : {
+            "code" : 200,
+            "body" : {
+              "deleteResult" : "OK"
+            }
+          }
+        }
+      ]
     }
   ]
 }
 ```
 
-This means that the tool is able to issue a set of restful calls against
-multiple endpoints.
+## chatterbox scenario format
+
+The chatterbox scenario format is pretty straightforward:
+it is a json defining properties for the scenarios you want to realize.
+
+### Scenario context
+
+At the root context, or `scenario` context, you define an array of `conversations`:
+
+```json
+{
+  "conversations" : [
+    {
+      "host" : "http://service1.host1.domain1",
+      "requests" : []
+    },
+    {
+      "host" : "https://service2.host2.domain2",
+      "requests" : []
+    }
+  ]
+}
+```
+
+This means that the tool can issue requests against multiple endpoints.
+
+### Conversation context
 
 A `conversation` is defined as an array of `requests`(s):
 
 ```json
 {
-  "conversation": [
-    {
-      "for" : 1,
-      "auth" : "aws_v4",
-      "method" : "GET",
-      "uri" : "foo",
-      "query_string" : "param=value"
-    },
-    {
-      "for" : 4,
-      "auth" : "aws_v2",
-      "method" : "HEAD",
-      "uri" : "foo",
-      "query_string" : "param=value"
-    }
+  "requests" : [
+    {},
+    {}
   ]
 }
 ```
 
-A `request` describes a single `HTTP` call.
+### Request context
+
+A `request` describes a single `HTTP` request.
+
+```json
+{
+  "for" : 1,
+  "auth" : "aws_v2",
+  "method" : "HEAD",
+  "uri" : "foo",
+  "query_string" : "param=value",
+  "response" : {}
+}
+```
 
 You can repeat a `request` for `n` times specifying the `for` attribute
 in the request's context.
 
-## Scripted scenarios
+### Response context
+
+A `response` contains the response for a single `request`.
+
+```json
+{
+  "code" : 200,
+  "body" : {
+    "opResult" : "OK"
+  }
+}
+```
+
+### Dumps and Formats
+
+At every context in the input object is always possible to define
+an `out` node describing what should be rendered in the output object.
+
+Valid contexts are:
+
+- `scenario`
+- `conversation`
+- `request`
+- `response`
+
+Suppose that this fragment is inserted inside a `response` context in the
+input object:
+
+```json
+{
+  "out": {
+    "dump" : {
+      "body" : true
+    },
+    "format" : {
+      "body" : "json"
+    }
+  }
+}
+```
+
+This means that in the corresponding output context, the `body` field
+should be rendered and the output format should be rendered as `json`.
+
+## Scripting
 
 Every time a scenario runs, a brand new JavaScript context is spawned
-into `V8` engine and it lasts for the whole scenario's lifespan.
+into `V8` engine and it lasts for the whole scenario's life.
 
-Generally speaking, attributes can be scripted defining JavaScript functions
-that are executed into the scenario's JavaScript context.
+### Field's value
 
-For example, the `query_string` attribute of a request could be defined as this:
+Generally speaking, all the fields in the input object can be scripted
+defining JavaScript functions that are executed to obtain a value.
+
+For example, the `query_string` attribute of a `request` could be defined
+as this:
 
 ```json
 {
@@ -220,81 +355,146 @@ evaluated as a JavaScript function named: `GetQueryString`
 taking 3 parameters.
 
 The `GetQueryString` function must be defined inside a file with
-extension `.js` and placed into the directory checked by `chatterbox`.
+extension `.js` and placed into the directory where `chatterbox` reads
+its inputs.
 
 ```javascript
-
 function GetQueryString(p1, p2, p3) {
   if(p3){
     return "foo=default"
   }
-  log("inf", "GetQueryString", "Invoked with: " + p1 + "," + p2);
+  log(TLV.INF, "GetQueryString", "Invoked with: " + p1 + "," + p2);
   return "foo=" + p1 + p2;
 }
-
 ```
 
-## Examples
+### Context handlers
 
-A simple S3 conversation where the client creates a bucket: `foobar` and then
-checks that the newly created bucket actually exists.
+At every context activation, `chatterbox` calls, if defined, the corresponding
+`on_begin` and `on_end` handlers.
 
-- Input conversation
+Valid contexts, where this mechanism works, are:
+
+- `scenario`
+- `conversation`
+- `request`
+- `response`
+
+Suppose that you want to define these handlers for the scenario context:
 
 ```json
 {
-  "conversations": [
-    {
-      "host" : "localhost:7480",
-      "auth": {
-        "access_key": "test",
-        "secret_key": "test"
-      },
-      "conversation": [
-        {
-          "auth" : "aws_v4",
-          "method" : "PUT",
-          "uri" : "foo",
-          "query_string" : "format=json",
-        },
-        {
-          "auth" : "aws_v4",
-          "method" : "HEAD",
-          "uri" : "foo",
-        }
-      ]
-    }
-  ]
+  "on_begin": {
+    "function": "OnScenarioBegin",
+    "args": ["one", 2, "three"]
+  },
+  "on_end": {
+    "function": "OnScenarioEnd",
+    "args": [1, "two", 3]
+  },
+  "conversations" : []
 }
 ```
 
-- Possible output conversation
+You would also define the corresponding functions in the JavaScript:
 
-```json
+```Javascript
+function OnScenarioBegin(outCtxJson, p1, p2, p3) {
+  log(TLV.INF, "begin", "parameter-1: " + p1);
+  log(TLV.INF, "begin", "parameter-2: " + p2);
+  log(TLV.INF, "begin", "parameter-3: " + p3);
+
+  //set an optional tag in the contextual json passed as first argument
+  outCtxJson.optionalTag = "my-custom-tag";
+}
+
+function OnScenarioEnd(outCtxJson, p1, p2, p3) {
+  log(TLV.INF, "end", "parameter-1: " + p1);
+  log(TLV.INF, "end", "parameter-2: " + p2);
+  log(TLV.INF, "end", "parameter-3: " + p3);
+
+  //read the optional tag we set before
+  log(TLV.INF, "end", "optionalTag: " + outCtxJson.optionalTag);
+}
+```
+
+Note that these handlers are called by `chatterbox` with the first argument:
+`outCtxJson` always set to the contextual json node of the output object.
+
+### Global objects
+
+In the JavaScript environment you can access and manipulate a series of
+objects automatically set by `chatterbox`.
+
+Currently, you can access and manipulate the following objects:
+
+- `outJson`.
+
+This object represents the current state of the output object. You can access
+any of its properties and also modify or add entries.
+
+#### Example
+
+Suppose that during the execution of your scenario the control reaches
+a JavaScript function: `someFunction`; inside that, you could:
+
+```javascript
+function someFunction() {
+  outJson.someTag1 = "myTag1";
+  outJson.someTag2 = 2;
+
+  log(TLV.INF, "someFunction", "outJson.someTag1: " + outJson.someTag1);
+  log(TLV.INF, "someFunction", "outJson.someTag2: " + outJson.someTag2);
+}
+```
+
+This would have the effect to produce an output object enriched with:
+
+```javascript
 {
-  "conversations": [
-    {
-      "host": "localhost:7480",
-      "conversation": [
-        {
-          "auth": "aws_v4",
-          "query_string": "format=json",
-          "uri": "foo",
-          "method": "PUT",
-          "response": {
-            "code": 200
-          }
-        },
-        {
-          "auth": "aws_v4",
-          "uri": "foo",
-          "method": "HEAD",
-          "response": {
-            "code": 200
-          }
-        }
-      ]
-    }
-  ]
+  "conversations" : [
+    {}
+  ],
+  "someTag1" : "myTag1",
+  "someTag2" : 2
+}
+```
+
+### Global functions
+
+In the JavaScript environment you can invoke a series of
+functions automatically set by `chatterbox`.
+
+Currently, you can invoke the following functions:
+
+- `log`
+
+```javascript
+let TLV = {
+  TRC: 0,
+  DBG: 1,
+  INF: 2,
+  WRN: 3,
+  ERR: 4,
+  CRI: 5,
+  OFF: 6,
+}
+
+function someFunction() {
+  log(TLV.INF, "someFunction", "lorem ipsum");
+}
+```
+
+- `load`
+
+```javascript
+load("include.js")
+```
+
+- `assert`
+
+```javascript
+function someFunction(outCtxJson) {
+  assert("someFunction [code]", outCtxJson.code == 200);
 }
 ```
