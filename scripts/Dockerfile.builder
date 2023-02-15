@@ -18,6 +18,7 @@ RUN zypper -n install --no-recommends \
     && zypper clean --all
 
 COPY contrib_init.sh /usr/bin/contrib_init.sh
+COPY rapidyaml-build /contrib/rapidyaml-build
 COPY build.sh /usr/bin/build.sh
 
 ENV CONTRIB_PATH /contrib
@@ -25,8 +26,10 @@ ENV TAR_OPTIONS --no-same-owner
 
 RUN contrib_init.sh && build.sh build-deps \
 && find /contrib -name "*.o" -type f -delete \
+&& find /contrib -name "*.so" -type f -delete \
 && find /contrib -name "*.exe" -type f -delete \
 && cp -R --parents /contrib/jsoncpp/include /tmp \
+&& cp -R --parents /contrib/rapidyaml-build /tmp \
 && cp -R --parents /contrib/restclient-cpp/include /tmp \
 && cp -R --parents /contrib/cryptopp /tmp \
 && cp -R --parents /contrib/spdlog/include /tmp \

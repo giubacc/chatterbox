@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.12)
 project(chatterbox_binary VERSION 0.0.0)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -12,6 +12,7 @@ set(CONTRIB_PATH "../contrib" CACHE STRING "the path where contrib resources are
 
 include_directories(${CONTRIB_PATH}
                     ${CONTRIB_PATH}/jsoncpp/include
+                    ${CONTRIB_PATH}/rapidyaml-build
                     ${CONTRIB_PATH}/restclient-cpp/include
                     ${CONTRIB_PATH}/cryptopp
                     ${CONTRIB_PATH}/spdlog/include
@@ -20,9 +21,9 @@ include_directories(${CONTRIB_PATH}
 
 link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
                  ${CONTRIB_PATH}/jsoncpp-build/lib
+                 ${CONTRIB_PATH}/rapidyaml-build/lib
                  ${CONTRIB_PATH}/cryptopp
-                 ${CONTRIB_PATH}/v8/out/x86.release/obj
-                 )
+                 ${CONTRIB_PATH}/v8/out/x86.release/obj)
 
 add_executable(chatterbox
                main.cpp
@@ -36,6 +37,7 @@ add_executable(chatterbox
 target_link_libraries(chatterbox
                       "librestclient-cpp.a"
                       "libjsoncpp.a"
+                      ryml
                       cryptopp
                       v8_monolith
                       curl

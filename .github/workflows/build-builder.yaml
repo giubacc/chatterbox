@@ -3,7 +3,8 @@ name: Build Builder
 on:
   schedule:
     - cron: '0 0 * * 0'  # build every sunday night
-  fork:
+
+  workflow_dispatch:  # Allow this workflow to be triggered manually
 
 env:
   IMAGE_NAME_BUILDER: chatterbox-builder

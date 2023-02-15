@@ -20,3 +20,6 @@
 [submodule "contrib/googletest"]
 	path = contrib/googletest
 	url = https://github.com/google/googletest.git
+[submodule "contrib/rapidyaml"]
+	path = contrib/rapidyaml
+	url = https://github.com/biojppm/rapidyaml.git

@@ -10,6 +10,8 @@ on:
     branches:
       - main
 
+  workflow_dispatch:  # Allow this workflow to be triggered manually
+
   workflow_call:
     inputs:
       tag:
@@ -60,13 +62,13 @@ jobs:
 
       - name: Copy scenarios
         run: |
-          sudo cp -R test/scenarios build/test
+          sudo cp -R test/scenarios build/cboxtest
 
       - name: Build chatterbox-test-image
         uses: docker/build-push-action@v3
         with:
           file: 'scripts/Dockerfile.chatterbox-test'
-          context: build/test
+          context: build/cboxtest
           tags: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
           labels: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}
 
@@ -113,7 +115,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           file: 'scripts/Dockerfile.chatterbox'
-          context: build/src
+          context: build/cbox
           push: true
           tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_CHATTERBOX }}:${{ steps.tag.outputs.tag }}
           labels: ${{ env.IMAGE_NAME_CHATTERBOX }}
