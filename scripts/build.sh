@@ -29,7 +29,7 @@ commands
 
 env variables
   CNT_MNG             Specify the container manager.
-  BASE_DIR            Specify the directory containing src (default: ../).
+  BASE_DIR            Specify the directory containing src and test directories (default: ../).
   NINJA_JOBS          Specify the number of parallel ninja jobs.
   BUILDER_IMAGE       Specify the builder's image to use.
   CONTRIB_PATH        Specify the path where contrib resources are placed.
@@ -73,7 +73,7 @@ builder_build_test() {
 create_chatterbox() {
   echo "Creating the chatterbox image ..."
   $container_mng build -t chatterbox \
-    -f Dockerfile.chatterbox ${basedir}/build/src || exit 1
+    -f Dockerfile.chatterbox ${basedir}/build/cbox || exit 1
 }
 
 create_chatterbox_test() {
@@ -109,8 +109,14 @@ build_restclient_cpp() {
 }
 
 build_jsoncpp() {
-  echo "Building jsoncpp-build ..."
+  echo "Building jsoncpp ..."
   mkdir -p $contrib_path/jsoncpp-build && cd $contrib_path/jsoncpp-build && cmake ../jsoncpp && make
+}
+
+build_rapidyaml() {
+  echo "Building rapidyaml ..."
+  python3 $contrib_path/rapidyaml/tools/amalgamate.py > $contrib_path/rapidyaml-build/ryml.hpp
+  cd $contrib_path/rapidyaml-build/lib && cmake .. && make
 }
 
 build_googletest() {
@@ -129,8 +135,13 @@ clean_restclient_cpp() {
 }
 
 clean_jsoncpp() {
-  echo "Cleaning jsoncpp-build ..."
+  echo "Cleaning jsoncpp ..."
   rm -rf $contrib_path/jsoncpp-build
+}
+
+clean_rapidyaml() {
+  echo "Cleaning rapidyaml ..."
+  rm -rf $contrib_path/rapidyaml-build
 }
 
 clean_googletest() {
@@ -173,9 +184,11 @@ clean_v8() {
 }
 
 build_deps() {
+  [ -d "$contrib_path/rapidyaml-build" ] || cp -R rapidyaml-build $contrib_path
   build_cryptopp
   build_restclient_cpp
   build_jsoncpp
+  build_rapidyaml
   build_v8
   build_googletest
 }
@@ -184,6 +197,7 @@ clean_deps() {
   clean_cryptopp
   clean_restclient_cpp
   clean_jsoncpp
+  clean_rapidyaml
   clean_v8
   clean_googletest
 }

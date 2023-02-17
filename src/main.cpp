@@ -1,5 +1,6 @@
 #include "scenario.h"
 #include "clipp.h"
+#include "ryml.hpp"
 
 int main(int argc, char *argv[])
 {
