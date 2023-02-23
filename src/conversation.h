@@ -30,16 +30,16 @@ struct conversation {
 
     int init(std::shared_ptr<spdlog::logger> &event_log);
 
-    int reset(const Json::Value &conversation_in);
+    int reset(ryml::NodeRef conversation_in);
 
-    int process(Json::Value &conversation_in,
-                Json::Value &conversation_out);
+    int process(ryml::NodeRef conversation_in,
+                ryml::NodeRef conversation_out);
 
     // -------------
     // --- UTILS ---
     // -------------
 
-    void enrich_with_stats(Json::Value &conversation_out);
+    void enrich_with_stats(ryml::NodeRef conversation_out);
 
     // -----------
     // --- REP ---
@@ -48,6 +48,9 @@ struct conversation {
   public:
     //parent
     scenario &parent_;
+
+    //ryml conversation modify support buffer
+    std::vector<char> ryml_modify_buf_;
 
     //js environment
     js::js_env &js_env_;

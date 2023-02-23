@@ -9,29 +9,29 @@ struct request {
     request(conversation &parent);
 
     int reset(const std::string &raw_host,
-              const Json::Value &request_in);
+              ryml::NodeRef request_in);
 
     int process(const std::string &raw_host,
-                Json::Value &request_in,
-                Json::Value &requests_out);
+                ryml::NodeRef request_in,
+                ryml::NodeRef requests_out);
 
     int execute(const std::string &method,
                 const std::optional<std::string> &auth,
                 const std::string &uri,
                 const std::string &query_string,
                 const std::string &data,
-                Json::Value &request_in,
-                Json::Value &request_out);
+                ryml::NodeRef request_in,
+                ryml::NodeRef request_out);
 
     int on_response(const RestClient::Response &resRC,
                     const int64_t rtt,
-                    Json::Value &request_in,
-                    Json::Value &request_out);
+                    ryml::NodeRef request_in,
+                    ryml::NodeRef request_out);
 
     int process_response(const RestClient::Response &resRC,
                          const int64_t rtt,
-                         Json::Value &response_in,
-                         Json::Value &response_out);
+                         ryml::NodeRef response_in,
+                         ryml::NodeRef response_out);
 
     // ------------
     // --- HTTP ---
@@ -107,6 +107,9 @@ struct request {
     //parent
     conversation &parent_;
 
+    //ryml request modify support buffer
+    std::vector<char> ryml_modify_buf_;
+
     //js environment
     js::js_env &js_env_;
 
@@ -114,7 +117,7 @@ struct request {
     std::shared_ptr<spdlog::logger> event_log_;
 
     //current response mock
-    Json::Value *response_mock_ = nullptr;
+    ryml::NodeRef response_mock_;
 
     //request connection
     std::unique_ptr<RestClient::Connection> conv_conn_;

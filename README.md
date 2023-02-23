@@ -16,7 +16,6 @@
     - [Build](#build)
     - [Build using a Dockerfile builder image](#build-using-a-dockerfile-builder-image)
   - [Usage](#usage)
-    - [Optional monitoring mode](#optional-monitoring-mode)
   - [Input/Output concepts](#inputoutput-concepts)
     - [Input/Output example](#inputoutput-example)
       - [Input](#input)
@@ -29,7 +28,7 @@
     - [Dumps and Formats](#dumps-and-formats)
   - [Scripting](#scripting)
     - [Field's value](#fields-value)
-    - [Context handlers](#context-handlers)
+    - [Context lifecycle handlers](#context-lifecycle-handlers)
     - [Global objects](#global-objects)
       - [Example](#example)
     - [Global functions](#global-functions)
@@ -39,7 +38,7 @@
 `chatterbox` is a tool to compose RESTful conversations with a
 generic endpoint.
 
-You can define scenarios with a json formalism describing conversations
+You can define scenarios with a yaml formalism describing conversations
 between the client (chatterbox) and the endpoint.
 
 `chatterbox` could be useful to you when you have to:
@@ -55,7 +54,7 @@ between the client (chatterbox) and the endpoint.
 high-performance JavaScript and WebAssembly engine.
 
 This allows the user to define scenarios in a dynamic way.
-For example, the user could choose to compute the value of a certain
+For example, you could choose to compute the value of a certain
 input's field as the result of a user defined JavaScript function.
 
 More use cases could benefit from scripting capabilities and these could
@@ -140,112 +139,81 @@ and then submit them to `chatterbox`.
 Once you have your scenario ready, you can submit it to `chatterbox` with:
 
 ```shell
-chatterbox -f scenario.json
+chatterbox -f scenario.yaml
 ```
 
 You can specify indifferently a relative or an absolute path.
 If you want, you can also specify a relative path from where files are read.
 
 ```shell
-chatterbox -p /scenarios -f scenario.json
+chatterbox -p /scenarios -f scenario.yaml
 ```
-
-### Optional monitoring mode
-
-You can use `chatterbox` to monitor a directory on filesystem.
-On this mode, `chatterbox` will constantly check the monitored directory
-for new scenarios.
-
-```shell
-$ chatterbox -p /scenarios -m
->>MONITORING MODE<<
-```
-
-By default, files are moved into `${directory}/consumed` once they have
-been consumed. If you prefer them to be deleted you can specify the `-d` flag.
 
 ## Input/Output concepts
 
 `chatterbox` works with this fundamental concept: the input provided by
-the user is also the skeleton used to render the output. The output object
+the user is also the skeleton used to render the output. The output
 keeps the same format of the input, eventually enriched.
 
-Conceptually, the input object is unwound by the `chatterbox`'s engine
-to produce the final rendered output object.
+Conceptually, the input is unwound by the `chatterbox`'s engine
+to produce the final rendered output.
 
 Each response for every request defined in the input is inserted in the output
-object at the proper place.
+at the proper place.
 
 All the modifications operated by some JavaScript function are inserted
-in the output object as well.
+in the output as well.
 
 ### Input/Output example
 
 #### Input
 
-```json
-{
-  "conversations" : [
-    {
-      "host" : "localhost:8080",
-      "requests" : [
-        {
-          "method" : "DELETE",
-          "uri" : "foo/bar"
-        }
-      ]
-    }
-  ]
-}
-
+```yaml
+conversations:
+  - host: localhost:8080
+    requests:
+      - method: DELETE
+        uri: foo/bar
 ```
 
 #### Possible rendered output
 
-```json
-{
-  "conversations" : [
-    {
-      "host" : "localhost:8080",
-      "requests" : [
-        {
-          "method" : "DELETE",
-          "uri" : "foo/bar",
-          "response" : {
-            "code" : 200,
-            "body" : {
-              "deleteResult" : "OK"
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
+```yaml
+conversations:
+  - host: 'localhost:8080'
+    requests:
+      - method: DELETE
+        uri: foo/bar
+        response:
+          code: 401
+          rtt: 0
+          body: 'unauthorized'
+    stats:
+      requests: 1
+      categorization:
+        401: 1
+stats:
+  conversations: 1
+  requests: 1
+  categorization:
+    401: 1
 ```
 
 ## chatterbox scenario format
 
 The chatterbox scenario format is pretty straightforward:
-it is a json defining properties for the scenarios you want to realize.
+it is a yaml defining properties for the scenarios you want to realize.
 
 ### Scenario context
 
 At the root context, or `scenario` context, you define an array of `conversations`:
 
-```json
-{
-  "conversations" : [
-    {
-      "host" : "http://service1.host1.domain1",
-      "requests" : []
-    },
-    {
-      "host" : "https://service2.host2.domain2",
-      "requests" : []
-    }
-  ]
-}
+```yaml
+conversations:
+  - host: 'http://service1.host1.domain1'
+    requests:
+  - host: 'https://service2.host2.domain2'
+    requests:
 ```
 
 This means that the tool can issue requests against multiple endpoints.
@@ -254,28 +222,27 @@ This means that the tool can issue requests against multiple endpoints.
 
 A `conversation` is defined as an array of `requests`(s):
 
-```json
-{
-  "requests" : [
-    {},
-    {}
-  ]
-}
+```yaml
+requests:
+  - method: HEAD
+  - method: GET
+  - method: PUT
+  - method: POST
+  - method: DELETE
 ```
 
 ### Request context
 
 A `request` describes a single `HTTP` request.
 
-```json
-{
-  "for" : 1,
-  "auth" : "aws_v2",
-  "method" : "HEAD",
-  "uri" : "foo",
-  "query_string" : "param=value",
-  "response" : {}
-}
+```yaml
+ for : 1
+ auth : aws_v2
+ method : PUT
+ uri : foo
+ queryString: param=value
+ data: something
+ response : {}
 ```
 
 You can repeat a `request` for `n` times specifying the `for` attribute
@@ -283,21 +250,17 @@ in the request's context.
 
 ### Response context
 
-A `response` contains the response for a single `request`.
+A rendered `response` contains the response for a single `request`.
 
-```json
-{
-  "code" : 200,
-  "body" : {
-    "opResult" : "OK"
-  }
-}
+```yaml
+code: 200
+body: OK
 ```
 
 ### Dumps and Formats
 
-At every context in the input object is always possible to define
-an `out` node describing what should be rendered in the output object.
+At every context in the input is always possible to define
+an `out` node describing what should be rendered in the output.
 
 Valid contexts are:
 
@@ -307,23 +270,18 @@ Valid contexts are:
 - `response`
 
 Suppose that this fragment is inserted inside a `response` context in the
-input object:
+input:
 
-```json
-{
-  "out": {
-    "dump" : {
-      "body" : true
-    },
-    "format" : {
-      "body" : "json"
-    }
-  }
-}
+```yaml
+out:
+  dump:
+    body: true
+  format:
+    body: json
 ```
 
 This means that in the corresponding output context, the `body` field
-should be rendered and the output format should be rendered as `json`.
+should be rendered and it should be rendered as `json`.
 
 ## Scripting
 
@@ -335,43 +293,40 @@ into `V8` engine and it lasts for the whole scenario's life.
 Generally speaking, all the fields in the input object can be scripted
 defining JavaScript functions that are executed to obtain a value.
 
-For example, the `query_string` attribute of a `request` could be defined
+For example, the `queryString` attribute of a `request` could be defined
 as this:
 
-```json
-{
-  "auth" : "aws_v2",
-  "method" : "HEAD",
-  "uri" : "bar",
-  "query_string" : {
-    "function": "GetQueryString",
-    "args": ["bar", 41, false]
-  }
-}
+```yaml
+auth: aws_v2
+method: HEAD
+uri: bar
+queryString:
+  function: getQueryString
+  args: [bar, 41, false]
 ```
 
-When the scenario runs, the `query_string` attribute's value is
-evaluated as a JavaScript function named: `GetQueryString`
+When the scenario runs, the `queryString` attribute's value is
+evaluated as a JavaScript function named: `getQueryString`
 taking 3 parameters.
 
-The `GetQueryString` function must be defined inside a file with
+The `getQueryString` function must be defined inside a file with
 extension `.js` and placed into the directory where `chatterbox` reads
 its inputs.
 
 ```javascript
-function GetQueryString(p1, p2, p3) {
+function getQueryString(p1, p2, p3) {
   if(p3){
     return "foo=default"
   }
-  log(TLV.INF, "GetQueryString", "Invoked with: " + p1 + "," + p2);
+  log(TLV.INF, "getQueryString", "Invoked with: " + p1 + "," + p2);
   return "foo=" + p1 + p2;
 }
 ```
 
-### Context handlers
+### Context lifecycle handlers
 
-At every context activation, `chatterbox` calls, if defined, the corresponding
-`on_begin` and `on_end` handlers.
+At every context activation, `chatterbox` can invoke, if defined, the corresponding
+`will` and `did` handlers.
 
 Valid contexts, where this mechanism works, are:
 
@@ -380,84 +335,77 @@ Valid contexts, where this mechanism works, are:
 - `request`
 - `response`
 
-Suppose that you want to define these handlers for the scenario context:
+For example, to define these handlers in the scenario context:
 
-```json
-{
-  "on_begin": {
-    "function": "OnScenarioBegin",
-    "args": ["one", 2, "three"]
-  },
-  "on_end": {
-    "function": "OnScenarioEnd",
-    "args": [1, "two", 3]
-  },
-  "conversations" : []
-}
+```yaml
+will:
+  function: "onScenarioWill",
+  args: ["one", 2, "three"]
+did:
+  "function": "onScenarioDid",
+  "args": [1, "two", 3]
+conversations: []
 ```
 
 You would also define the corresponding functions in the JavaScript:
 
 ```Javascript
-function OnScenarioBegin(outCtxJson, p1, p2, p3) {
-  log(TLV.INF, "begin", "parameter-1: " + p1);
-  log(TLV.INF, "begin", "parameter-2: " + p2);
-  log(TLV.INF, "begin", "parameter-3: " + p3);
+function onScenarioWill(outCtx, p1, p2, p3) {
+  log(TLV.INF, "onScenarioWill", "parameter-1: " + p1);
+  log(TLV.INF, "onScenarioWill", "parameter-2: " + p2);
+  log(TLV.INF, "onScenarioWill", "parameter-3: " + p3);
 
-  //set an optional tag in the contextual json passed as first argument
-  outCtxJson.optionalTag = "my-custom-tag";
+  //set an optional tag in the contextual object passed as first argument
+  outCtx.optionalTag = "my-custom-tag";
 }
 
-function OnScenarioEnd(outCtxJson, p1, p2, p3) {
-  log(TLV.INF, "end", "parameter-1: " + p1);
-  log(TLV.INF, "end", "parameter-2: " + p2);
-  log(TLV.INF, "end", "parameter-3: " + p3);
+function onScenarioDid(outCtx, p1, p2, p3) {
+  log(TLV.INF, "onScenarioDid", "parameter-1: " + p1);
+  log(TLV.INF, "onScenarioDid", "parameter-2: " + p2);
+  log(TLV.INF, "onScenarioDid", "parameter-3: " + p3);
 
   //read the optional tag we set before
-  log(TLV.INF, "end", "optionalTag: " + outCtxJson.optionalTag);
+  log(TLV.INF, "onScenarioDid", "optionalTag: " + outCtx.optionalTag);
 }
 ```
 
-Note that these handlers are called by `chatterbox` with the first argument:
-`outCtxJson` always set to the contextual json node of the output object.
+Note these handlers are called by `chatterbox` with the first argument:
+`outCtx` always set to the contextual yaml node where the handler is defined.
 
 ### Global objects
 
 In the JavaScript environment you can access and manipulate a series of
-objects automatically set by `chatterbox`.
+global objects automatically set by `chatterbox`.
 
 Currently, you can access and manipulate the following objects:
 
-- `outJson`.
+- `out`.
 
-This object represents the current state of the output object. You can access
+This object represents the current state of the output. You can access
 any of its properties and also modify or add entries.
 
 #### Example
 
-Suppose that during the execution of your scenario the control reaches
-a JavaScript function: `someFunction`; inside that, you could:
+If during the execution of a scenario the control reaches
+a JavaScript function: `someFunction`; inside that, you can
+manipulate the `out` global object:
 
 ```javascript
 function someFunction() {
-  outJson.someTag1 = "myTag1";
-  outJson.someTag2 = 2;
+  out.someTag1 = "myTag1";
+  out.someTag2 = 2;
 
-  log(TLV.INF, "someFunction", "outJson.someTag1: " + outJson.someTag1);
-  log(TLV.INF, "someFunction", "outJson.someTag2: " + outJson.someTag2);
+  log(TLV.INF, "someFunction", "out.someTag1: " + out.someTag1);
+  log(TLV.INF, "someFunction", "out.someTag2: " + out.someTag2);
 }
 ```
 
 This would have the effect to produce an output object enriched with:
 
-```javascript
-{
-  "conversations" : [
-    {}
-  ],
-  "someTag1" : "myTag1",
-  "someTag2" : 2
-}
+```yaml
+conversations: []
+someTag1: myTag1
+someTag2: 2
 ```
 
 ### Global functions
@@ -494,7 +442,7 @@ load("include.js")
 - `assert`
 
 ```javascript
-function someFunction(outCtxJson) {
-  assert("someFunction [code]", outCtxJson.code == 200);
+function someFunction(outCtx) {
+  assert("someFunction [code]", outCtx.code == 200);
 }
 ```

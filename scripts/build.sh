@@ -18,6 +18,8 @@ commands
   clean-all                 Clean all build directories (chatterbox and dependencies).
   build-deps                Build chatterbox's dependencies.
   clean-deps                Clean chatterbox's dependencies.
+  build-deps-no-v8          Build chatterbox's dependencies except V8.
+  clean-deps-no-v8          Clean chatterbox's dependencies except V8.
   build-v8                  Build V8 JavaScript and WebAssembly engine.
   clean-v8                  Clean V8 JavaScript and WebAssembly engine.
   builder-create            Create the chatterbox builder image.
@@ -108,11 +110,6 @@ build_restclient_cpp() {
   cd $contrib_path/restclient-cpp && ./autogen.sh && ./configure && make
 }
 
-build_jsoncpp() {
-  echo "Building jsoncpp ..."
-  mkdir -p $contrib_path/jsoncpp-build && cd $contrib_path/jsoncpp-build && cmake ../jsoncpp && make
-}
-
 build_rapidyaml() {
   echo "Building rapidyaml ..."
   python3 $contrib_path/rapidyaml/tools/amalgamate.py > $contrib_path/rapidyaml-build/ryml.hpp
@@ -132,11 +129,6 @@ clean_cryptopp() {
 clean_restclient_cpp() {
   echo "Cleaning restclient-cpp ..."
   cd $contrib_path/restclient-cpp && make clean
-}
-
-clean_jsoncpp() {
-  echo "Cleaning jsoncpp ..."
-  rm -rf $contrib_path/jsoncpp-build
 }
 
 clean_rapidyaml() {
@@ -187,7 +179,6 @@ build_deps() {
   [ -d "$contrib_path/rapidyaml-build" ] || cp -R rapidyaml-build $contrib_path
   build_cryptopp
   build_restclient_cpp
-  build_jsoncpp
   build_rapidyaml
   build_v8
   build_googletest
@@ -196,9 +187,23 @@ build_deps() {
 clean_deps() {
   clean_cryptopp
   clean_restclient_cpp
-  clean_jsoncpp
   clean_rapidyaml
   clean_v8
+  clean_googletest
+}
+
+build_deps_no_v8() {
+  [ -d "$contrib_path/rapidyaml-build" ] || cp -R rapidyaml-build $contrib_path
+  build_cryptopp
+  build_restclient_cpp
+  build_rapidyaml
+  build_googletest
+}
+
+clean_deps_no_v8() {
+  clean_cryptopp
+  clean_restclient_cpp
+  clean_rapidyaml
   clean_googletest
 }
 
@@ -248,6 +253,12 @@ case ${cmd} in
     ;;
   clean-deps)
     clean_deps || exit 1
+    ;;
+  build-deps-no-v8)
+    build_deps_no_v8 || exit 1
+    ;;
+  clean-deps-no-v8)
+    clean_deps_no_v8 || exit 1
     ;;
   build-v8)
     build_v8 || exit 1

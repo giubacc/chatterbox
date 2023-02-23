@@ -1,11 +1,11 @@
 {
   "customTag": "example-1",
-  "on_begin": {
-    "function": "OnScenarioBegin",
+  "will": {
+    "function": "onScenarioWill",
     "args": ["one", 2, "three"]
   },
-  "on_end": {
-    "function": "OnScenarioEnd",
+  "did": {
+    "function": "onScenarioDid",
     "args": [1, "two", 3]
   },
   "conversations": [
@@ -15,14 +15,14 @@
         {
           "method": "GET",
           "uri": "user/info",
-          "query_string": "uid=julius",
+          "queryString": "uid=julius",
           "mock": {
             "body": "{\"user\":\"julius\", \"status\":\"notFound\"}",
             "code": 404
           },
           "response": {
-            "on_end": {
-              "function": "OnGETUserInfoResponse_AssertNotFound",
+            "did": {
+              "function": "onGETUserInfoResponse_AssertNotFound",
               "args": ["tag-1"]
             }
           }
@@ -30,14 +30,14 @@
         {
           "method": "PUT",
           "uri": "user",
-          "query_string": "uid=julius",
+          "queryString": "uid=julius",
           "mock": {
             "body": "{\"user\":\"julius\", \"status\":\"created\"}",
             "code": 200
           },
           "response": {
-            "on_end": {
-              "function": "OnPUTUserResponse_AssertCreated",
+            "did": {
+              "function": "onPUTUserResponse_AssertCreated",
               "args": ["tag-2"]
             }
           }
@@ -45,14 +45,14 @@
         {
           "method": "GET",
           "uri": "user/info",
-          "query_string": "uid=julius",
+          "queryString": "uid=julius",
           "mock": {
             "body": "{\"user\":\"julius\", \"status\":\"found\"}",
             "code": 200
           },
           "response": {
-            "on_end": {
-              "function": "OnGETUserInfoResponse_AssertFound",
+            "did": {
+              "function": "onGETUserInfoResponse_AssertFound",
               "args": ["tag-3"]
             }
           }

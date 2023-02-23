@@ -28,7 +28,6 @@ RUN contrib_init.sh && build.sh build-deps \
 && find /contrib -name "*.o" -type f -delete \
 && find /contrib -name "*.so" -type f -delete \
 && find /contrib -name "*.exe" -type f -delete \
-&& cp -R --parents /contrib/jsoncpp/include /tmp \
 && cp -R --parents /contrib/rapidyaml-build /tmp \
 && cp -R --parents /contrib/restclient-cpp/include /tmp \
 && cp -R --parents /contrib/cryptopp /tmp \
@@ -37,7 +36,6 @@ RUN contrib_init.sh && build.sh build-deps \
 && cp -R --parents /contrib/v8/include /tmp \
 && cp -R --parents /contrib/googletest/googletest/include /tmp \
 && cp -R --parents /contrib/restclient-cpp/.libs /tmp \
-&& cp -R --parents /contrib/jsoncpp-build/lib /tmp \
 && cp -R --parents /contrib/v8/out/x86.release/obj /tmp \
 && cp -R --parents /contrib/googletest/build/lib /tmp \
 && rm -rf /contrib \

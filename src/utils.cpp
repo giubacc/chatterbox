@@ -4,48 +4,49 @@
 const std::string algorithm = "AWS4-HMAC-SHA256";
 namespace utils {
 
-int read_file(const char *fname,
-              std::stringstream &out,
-              spdlog::logger *log)
+size_t file_get_contents(const char *filename,
+                         std::vector<char> &v,
+                         spdlog::logger *log)
 {
-  FILE *file = fopen(fname, "rb");
-  if(file == nullptr) {
+  ::FILE *fp = ::fopen(filename, "rb");
+  if(fp == nullptr) {
     if(log) {
-      log->error("{} - {}", fname, strerror(errno));
+      log->error("{}:{}", filename, strerror(errno));
     }
-    return 1;
+    return 0;
   }
+  ::fseek(fp, 0, SEEK_END);
+  long sz = ::ftell(fp);
+  v.resize(sz);
+  if(sz) {
+    ::rewind(fp);
+    ::fread(&(v)[0], 1, v.size(), fp);
+  }
+  ::fclose(fp);
+  return v.size();
+}
 
-  if(fseek(file, 0, SEEK_END)) {
-    if(log) {
-      log->error("{} - {}", fname, strerror(errno));
-    }
-  }
-  long size = ftell(file);
-  if(size<0) {
-    if(log) {
-      log->error("{} - {}", fname, strerror(errno));
-    }
-  }
-  rewind(file);
+// ------------------
+// --- RYML UTILS ---
+// ------------------
 
-  std::unique_ptr<char> chars(new char[size + 1]);
-  chars.get()[size] = '\0';
-  for(size_t i = 0; i < (size_t)size;) {
-    i += fread(&chars.get()[i], 1, size - i, file);
-    int res = 0;
-    if((res = ferror(file))) {
-      if(log) {
-        log->error("{} - {}", fname, strerror(errno));
-      }
-      fclose(file);
-      return res;
-    }
-  }
-  fclose(file);
+void log_tree_node(ryml::ConstNodeRef node,
+                   spdlog::logger &logger)
+{
+  std::stringstream ss;
+  ss << node;
+  logger.info("\n{}", ss.str());
+}
 
-  out << chars.get();
-  return 0;
+void set_tree_node(ryml::Tree src_t,
+                   ryml::ConstNodeRef src_n,
+                   ryml::NodeRef to_n,
+                   std::vector<char> &buf)
+{
+  ryml::csubstr n_ser = ryml::emit_yaml(src_t, src_n.id(), ryml::substr{}, false);
+  buf.resize(n_ser.len);
+  n_ser = ryml::emit_yaml(src_t, src_n.id(), ryml::to_substr(buf), true);
+  ryml::parse_in_arena(n_ser, to_n);
 }
 
 // ------------

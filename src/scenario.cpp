@@ -2,95 +2,72 @@
 
 namespace cbox {
 
-const std::string key_access_key = "access_key";
-const std::string key_auth = "auth";
-const std::string key_body = "body";
-const std::string key_categorization = "categorization";
-const std::string key_code = "code";
-const std::string key_conversations = "conversations";
-const std::string key_data = "data";
-const std::string key_dump = "dump";
-const std::string key_enabled = "enabled";
-const std::string key_for = "for";
-const std::string key_format = "format";
-const std::string key_headers = "headers";
-const std::string key_host = "host";
-const std::string key_method = "method";
-const std::string key_mock = "mock";
-const std::string key_msec = "msec";
-const std::string key_nsec = "nsec";
-const std::string key_on_begin = "on_begin";
-const std::string key_on_end = "on_end";
-const std::string key_out = "out";
-const std::string key_query_string = "query_string";
-const std::string key_region = "region";
-const std::string key_requests = "requests";
-const std::string key_response = "response";
-const std::string key_rtt = "rtt";
-const std::string key_sec = "sec";
-const std::string key_secret_key = "secret_key";
-const std::string key_service = "service";
-const std::string key_signed_headers = "signed_headers";
-const std::string key_stats = "stats";
-const std::string key_uri = "uri";
-const std::string key_usec = "usec";
-
-static Json::Value default_out_options;
-const Json::Value &scenario::get_default_out_options()
+static std::unique_ptr<ryml::Tree> default_out_options;
+const ryml::Tree &scenario::get_default_out_options()
 {
-  if(default_out_options.empty()) {
-    auto &default_out_dumps = default_out_options[key_dump];
-    default_out_dumps[key_out] = false;
-    default_out_dumps[key_on_begin] = false;
-    default_out_dumps[key_on_end] = false;
-    default_out_dumps[key_enabled] = false;
-    auto &default_out_formats = default_out_options[key_format];
-    default_out_formats[key_rtt] = key_msec;
+  if(!default_out_options) {
+    default_out_options.reset(new ryml::Tree);
+    ryml::NodeRef root = default_out_options->rootref();
+    root |= ryml::MAP;
+    ryml::NodeRef default_out_dumps = root[key_dump];
+    default_out_dumps |= ryml::MAP;
+    default_out_dumps[key_out] << STR_FALSE;
+    default_out_dumps[key_will] << STR_FALSE;
+    default_out_dumps[key_did] << STR_FALSE;
+    default_out_dumps[key_enabled] << STR_FALSE;
+    ryml::NodeRef default_out_formats = root[key_format];
+    default_out_formats |= ryml::MAP;
+    default_out_formats[key_rtt] << key_msec;
   }
-  return default_out_options;
+  return *default_out_options;
 }
 
-static Json::Value default_scenario_out_options;
-const Json::Value &scenario::get_default_scenario_out_options()
+static std::unique_ptr<ryml::Tree> default_scenario_out_options;
+const ryml::Tree &scenario::get_default_scenario_out_options()
 {
-  if(default_scenario_out_options.empty()) {
-    default_scenario_out_options = get_default_out_options();
+  if(!default_scenario_out_options) {
+    default_scenario_out_options.reset(new ryml::Tree);
+    *default_scenario_out_options = get_default_out_options();
   }
-  return default_scenario_out_options;
+  return *default_scenario_out_options;
 }
 
-static Json::Value default_conversation_out_options;
-const Json::Value &scenario::get_default_conversation_out_options()
+static std::unique_ptr<ryml::Tree> default_conversation_out_options;
+const ryml::Tree &scenario::get_default_conversation_out_options()
 {
-  if(default_conversation_out_options.empty()) {
-    default_conversation_out_options = get_default_out_options();
-    // auto &default_out_dumps = default_conversation_out_options[key_dump];
+  if(!default_conversation_out_options) {
+    default_conversation_out_options.reset(new ryml::Tree);
+    *default_conversation_out_options = get_default_out_options();
   }
-  return default_conversation_out_options;
+  return *default_conversation_out_options;
 }
 
-static Json::Value default_request_out_options;
-const Json::Value &scenario::get_default_request_out_options()
+static std::unique_ptr<ryml::Tree> default_request_out_options;
+const ryml::Tree &scenario::get_default_request_out_options()
 {
-  if(default_request_out_options.empty()) {
-    default_request_out_options = get_default_out_options();
-    auto &default_out_dumps = default_request_out_options[key_dump];
-    default_out_dumps[key_auth] = false;
-    default_out_dumps[key_for] = false;
-    default_out_dumps[key_mock] = false;
+  if(!default_request_out_options) {
+    default_request_out_options.reset(new ryml::Tree);
+    *default_request_out_options = get_default_out_options();
+    ryml::NodeRef root = default_request_out_options->rootref();
+    ryml::NodeRef request_out_dumps = root[key_dump];
+    request_out_dumps[key_auth] << STR_FALSE;
+    request_out_dumps[key_for] << STR_FALSE;
+    request_out_dumps[key_mock] << STR_FALSE;
   }
-  return default_request_out_options;
+  return *default_request_out_options;
 }
 
-static Json::Value default_response_out_options;
-const Json::Value &scenario::get_default_response_out_options()
+static std::unique_ptr<ryml::Tree> default_response_out_options;
+const ryml::Tree &scenario::get_default_response_out_options()
 {
-  if(default_response_out_options.empty()) {
-    default_response_out_options = get_default_out_options();
-    auto &response_out_formats = default_response_out_options[key_format];
-    response_out_formats[key_body] = "json";
+  if(!default_response_out_options) {
+    default_response_out_options.reset(new ryml::Tree);
+    *default_response_out_options = get_default_out_options();
+    ryml::NodeRef root = default_response_out_options->rootref();
+    ryml::NodeRef response_out_formats = root[key_format];
+    response_out_formats[key_body] << STR_JSON;
   }
-  return default_response_out_options;
+  return *default_response_out_options;
 }
 
 // -------------------
@@ -99,20 +76,19 @@ const Json::Value &scenario::get_default_response_out_options()
 
 // *INDENT-OFF*
 scenario::stack_scope::stack_scope(scenario &parent,
-                                     Json::Value &obj_in,
-                                     Json::Value &obj_out,
-                                     bool &error,
-                                     const Json::Value &default_out_options,
-                                     bool call_dump_val_cb,
-                                     const std::function<void(const std::string &key, bool val)> &dump_val_cb,
-                                     bool call_format_val_cb,
-                                     const std::function<void(const std::string &key, const std::string &val)> &format_val_cb)
+                                   ryml::NodeRef obj_in,
+                                   ryml::NodeRef obj_out,
+                                   bool &error,
+                                   const ryml::Tree &default_out_options,
+                                   bool call_dump_val_cb,
+                                   const std::function<void(const std::string &key, bool val)> &dump_val_cb,
+                                   bool call_format_val_cb,
+                                   const std::function<void(const std::string &key, const std::string &val)> &format_val_cb)
 // *INDENT-ON*
   :
   parent_(parent),
   obj_in_(obj_in),
   obj_out_(obj_out),
-  default_out_options_(default_out_options),
   error_(error),
   enabled_(false),
   commit_(false)
@@ -122,12 +98,11 @@ scenario::stack_scope::stack_scope(scenario &parent,
                     dump_val_cb,
                     call_format_val_cb,
                     format_val_cb)) {
-    parent_.event_log_->error("failed to push out-options for the current stack scope");
+    parent_.event_log_->error("failed to push out-options for the current scope");
     error_ = true;
   } else {
-    //on_begin handler
-    if(!parent_.js_env_.exec_as_function(obj_out_, key_on_begin.c_str())) {
-      parent_.event_log_->error("failed to execute on_begin handler for the current stack scope");
+    if(!parent_.js_env_.exec_as_function(obj_out_, key_will)) {
+      parent_.event_log_->error("failed to execute will-handler for the current scope");
       error_ = true;
     }
   }
@@ -137,12 +112,14 @@ scenario::stack_scope::stack_scope(scenario &parent,
     return;
   }
 
-  auto enabled_opt = parent_.js_env_.eval_as<bool>(obj_in, key_enabled.c_str(), true);
-  if(!enabled_opt) {
-    parent_.event_log_->error("failed to read 'enabled' field");
-    error_ = true;
-  } else {
-    enabled_ = *enabled_opt;
+  if(obj_in_.valid()) {
+    auto enabled_opt = parent_.js_env_.eval_as<bool>(obj_in_, key_enabled, true);
+    if(!enabled_opt) {
+      parent_.event_log_->error("failed to read 'enabled'");
+      error_ = true;
+    } else {
+      enabled_ = *enabled_opt;
+    }
   }
 }
 
@@ -150,12 +127,12 @@ scenario::stack_scope::~stack_scope()
 {
   if(commit_) {
     //on_end handler
-    if(!parent_.js_env_.exec_as_function(obj_out_, key_on_end.c_str())) {
-      parent_.event_log_->error("failed to execute on_end handler for the current stack scope");
+    if(!parent_.js_env_.exec_as_function(obj_out_, key_did)) {
+      parent_.event_log_->error("failed to execute did-handler for the current scope");
       error_ = true;
     } else {
       if(!pop_process_out_opts()) {
-        parent_.event_log_->error("failed to pop-process out-options for the current stack scope");
+        parent_.event_log_->error("failed to pop-process out-options for the current scope");
         error_ = true;
       }
     }
@@ -166,7 +143,7 @@ scenario::stack_scope::~stack_scope()
   }
 }
 
-bool scenario::stack_scope::push_out_opts(const Json::Value &default_out_options,
+bool scenario::stack_scope::push_out_opts(const ryml::Tree &default_out_options,
                                           bool call_dump_val_cb,
                                           const std::function<void(const std::string &key, bool val)> &dump_val_cb,
                                           bool call_format_val_cb,
@@ -174,74 +151,96 @@ bool scenario::stack_scope::push_out_opts(const Json::Value &default_out_options
 {
   bool res = true;
 
-  Json::Value *out_node_ptr = nullptr;
-  if((out_node_ptr = const_cast<Json::Value *>(obj_out_.find(key_out.data(), key_out.data()+key_out.length())))) {
-    Json::Value out_options = default_out_options;
-    {
-      Json::Value *dump_node = nullptr;
-      if((dump_node = const_cast<Json::Value *>(out_node_ptr->find(key_dump.data(), key_dump.data()+key_dump.length())))) {
-        Json::Value::Members dn_keys = dump_node->getMemberNames();
-        std::for_each(dn_keys.begin(), dn_keys.end(), [&](const Json::String &it) {
-          const Json::Value &val = (*dump_node)[it];
-          if(!val.isBool()) {
-            res = false;
-          }
-          auto &default_out_dumps = out_options[key_dump];
-          if(default_out_dumps.find(it.data(), it.data()+it.length())) {
-            default_out_dumps.removeMember(it);
-          }
-        });
-        auto &default_out_dumps = out_options[key_dump];
-        Json::Value::Members ddn_keys = default_out_dumps.getMemberNames();
-        std::for_each(ddn_keys.begin(), ddn_keys.end(), [&](const Json::String &it) {
-          (*dump_node)[it] = default_out_dumps[it];
-        });
-      } else {
-        (*out_node_ptr)[key_dump] = out_options[key_dump];
+  out_opts_ = default_out_options;
+  ryml::NodeRef out_opts_root = out_opts_.rootref();
+  ryml::NodeRef out_node;
+
+  if(obj_out_.has_child(key_out)) {
+    out_node = obj_out_[key_out];
+
+    if(out_node.has_child(key_dump)) {
+      ryml::NodeRef out_opts_dump_node = out_opts_root[key_dump];
+      ryml::NodeRef dump_node = out_node[key_dump];
+      for(ryml::ConstNodeRef const &dn_c : dump_node.children()) {
+        if(out_opts_dump_node.has_child(dn_c.key())) {
+          out_opts_dump_node.remove_child(dn_c.key());
+        }
       }
+      for(ryml::ConstNodeRef const &dn_c : out_opts_dump_node.children()) {
+        if(out_opts_dump_node.has_child(dn_c.key())) {
+          dump_node[dn_c.key()] << dn_c.val();
+        }
+      }
+    } else {
+      ryml::NodeRef dump_node = out_node[key_dump];
+      utils::set_tree_node(out_opts_,
+                           out_opts_root[key_dump],
+                           dump_node,
+                           parent_.ryml_modify_buf_);
     }
 
-    {
-      Json::Value *format_node = nullptr;
-      if((format_node = const_cast<Json::Value *>(out_node_ptr->find(key_format.data(), key_format.data()+key_format.length())))) {
-        Json::Value::Members fn_keys = format_node->getMemberNames();
-        std::for_each(fn_keys.begin(), fn_keys.end(), [&](const Json::String &it) {
-          const Json::Value &val = (*format_node)[it];
-          if(!val.isString()) {
-            res = false;
-          }
-          auto &default_out_formats = out_options[key_format];
-          if(default_out_formats.find(it.data(), it.data()+it.length())) {
-            default_out_formats.removeMember(it);
-          }
-        });
-        auto &default_out_formats = out_options[key_format];
-        Json::Value::Members dfn_keys = default_out_formats.getMemberNames();
-        std::for_each(dfn_keys.begin(), dfn_keys.end(), [&](const Json::String &it) {
-          (*format_node)[it] = default_out_formats[it];
-        });
-      } else {
-        (*out_node_ptr)[key_format] = out_options[key_format];
+    if(out_node.has_child(key_format)) {
+      ryml::NodeRef out_opts_format_node = out_opts_root[key_format];
+      ryml::NodeRef format_node = out_node[key_format];
+      for(ryml::ConstNodeRef const &dn_c : format_node.children()) {
+        if(out_opts_format_node.has_child(dn_c.key())) {
+          out_opts_format_node.remove_child(dn_c.key());
+        }
       }
+      for(ryml::ConstNodeRef const &dn_c : out_opts_format_node.children()) {
+        if(out_opts_format_node.has_child(dn_c.key())) {
+          format_node[dn_c.key()] << dn_c.val();
+        }
+      }
+    } else {
+      ryml::NodeRef format_node = out_node[key_format];
+      utils::set_tree_node(out_opts_,
+                           out_opts_root[key_format],
+                           format_node,
+                           parent_.ryml_modify_buf_);
     }
-    out_options_ = *out_node_ptr;
+
   } else {
-    out_options_ = default_out_options;
+    out_node = obj_out_[key_out];
+    out_node |= ryml::MAP;
+    utils::set_tree_node(out_opts_,
+                         out_opts_root,
+                         out_node,
+                         parent_.ryml_modify_buf_);
   }
+
+  out_opts_root.clear();
+  out_opts_root |= ryml::MAP;
+
+  utils::set_tree_node(*out_node.tree(),
+                       out_node[key_dump],
+                       out_opts_root,
+                       parent_.ryml_modify_buf_);
+
+  utils::set_tree_node(*out_node.tree(),
+                       out_node[key_format],
+                       out_opts_root,
+                       parent_.ryml_modify_buf_);
 
   if(call_dump_val_cb) {
-    Json::Value &dump_node = out_options_[key_dump];
-    Json::Value::Members dn_keys = dump_node.getMemberNames();
-    std::for_each(dn_keys.begin(), dn_keys.end(), [&](const Json::String &it) {
-      dump_val_cb(it, dump_node[it].asBool());
-    });
+    ryml::NodeRef dump_node = out_node[key_dump];
+    for(ryml::ConstNodeRef const &dn_c : dump_node.children()) {
+      std::ostringstream os;
+      os << dn_c.key();
+      std::string val;
+      dn_c >> val;
+      dump_val_cb(os.str(), (val == STR_TRUE));
+    }
   }
   if(call_format_val_cb) {
-    Json::Value &format_node = out_options_[key_format];
-    Json::Value::Members fn_keys = format_node.getMemberNames();
-    std::for_each(fn_keys.begin(), fn_keys.end(), [&](const Json::String &it) {
-      format_val_cb(it, format_node[it].asString());
-    });
+    ryml::NodeRef format_node = out_node[key_format];
+    for(ryml::ConstNodeRef const &dn_c : format_node.children()) {
+      std::ostringstream os;
+      os << dn_c.key();
+      std::string val;
+      dn_c >> val;
+      format_val_cb(os.str(), val);
+    }
   }
 
   return res;
@@ -250,16 +249,17 @@ bool scenario::stack_scope::push_out_opts(const Json::Value &default_out_options
 bool scenario::stack_scope::pop_process_out_opts()
 {
   bool res = true;
-  const Json::Value *dump_node = nullptr;
-  if((dump_node = out_options_.find(key_dump.data(), key_dump.data()+key_dump.length()))) {
-    Json::Value::Members keys = dump_node->getMemberNames();
-    if(!keys.empty()) {
-      std::for_each(keys.begin(), keys.end(), [&](const Json::String &it) {
-        const Json::Value &val = (*dump_node)[it];
-        if(!val.asBool()) {
-          obj_out_.removeMember(it);
+  ryml::NodeRef out_opts_root = out_opts_.rootref();
+  if(out_opts_root.has_child(key_dump)) {
+    ryml::NodeRef out_opts_dump_node = out_opts_root[key_dump];
+    std::string val;
+    for(ryml::ConstNodeRef const &dn_c : out_opts_dump_node.children()) {
+      dn_c >> val;
+      if(val == STR_FALSE) {
+        if(obj_out_.has_child(dn_c.key())) {
+          obj_out_.remove_child(dn_c.key());
         }
-      });
+      }
     }
   }
   return res;
@@ -347,65 +347,21 @@ int scenario::init(int argc, const char *argv[])
   return res;
 }
 
-void scenario::poll()
+int scenario::reset()
 {
-  DIR *dir;
-  struct dirent *ent;
+  assert_failure_ = false;
 
-  if((dir = opendir(cfg_.in_scenario_path.c_str())) != nullptr) {
-    while((ent = readdir(dir)) != nullptr) {
-      if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
-        struct stat info;
-        std::ostringstream fpath;
-        fpath << cfg_.in_scenario_path << "/" << ent->d_name;
-        stat(fpath.str().c_str(), &info);
-        if(!S_ISDIR(info.st_mode)) {
-          if(!utils::ends_with(ent->d_name, ".json")) {
-            continue;
-          }
-          process(ent->d_name);
-        }
-      }
-    }
-    if(closedir(dir)) {
-      event_log_->error("closedir: {}", strerror(errno));
-    }
-  } else {
-    event_log_->critical("opendir: {}", strerror(errno));
-  }
+  // reset stats
+  stats_.reset();
+
+  //initialize scenario-out
+  scenario_out_ = scenario_in_;
+
+  int res = js_env_.reset();
+  return res;
 }
 
-void scenario::move_file(const char *filename)
-{
-  std::ostringstream os_src, os_to;
-  os_src << cfg_.in_scenario_path;
-  mkdir((os_src.str() + "/consumed").c_str(), 0777);
-
-  os_src << "/" << filename;
-  os_to << cfg_.in_scenario_path << "/consumed/" << filename;
-
-  std::string to_fname_base(os_to.str());
-  std::string to_fname(to_fname_base);
-
-  int ntry = 0;
-  while(rename(os_src.str().c_str(), to_fname.c_str()) && ntry++ < 10) {
-    event_log_->error("moving to file_path: {}", to_fname_base.c_str());
-    std::ostringstream os_to_retry;
-    os_to_retry << to_fname_base << ".try" << ntry;
-    to_fname = os_to_retry.str();
-  }
-}
-
-void scenario::rm_file(const char *filename)
-{
-  std::ostringstream fpath;
-  fpath << cfg_.in_scenario_path << "/" << filename;
-  if(unlink(fpath.str().c_str())) {
-    event_log_->error("unlink: {}", strerror(errno));
-  }
-}
-
-int scenario::process()
+int scenario::load_source_process()
 {
   std::string file_name;
   if(cfg_.in_scenario_path.empty()) {
@@ -415,57 +371,41 @@ int scenario::process()
   } else {
     file_name = cfg_.in_scenario_name;
   }
-  return process(file_name.c_str());
+  return load_source_process(file_name.c_str());
 }
 
-int scenario::process(const char *fname)
+int scenario::load_source_process(const char *fname)
 {
   int res = 0;
   event_log_->trace("processing scenario file:{}", fname);
 
-  std::stringstream ss;
   std::ostringstream fpath;
   fpath << cfg_.in_scenario_path << "/" << fname;
-  if(!(res = utils::read_file(fpath.str().c_str(), ss, event_log_.get()))) {
-    res = process(ss);
+
+  size_t sz;
+  if((sz = utils::file_get_contents(fpath.str().c_str(), ryml_load_buf_, event_log_.get()))) {
+    ryml::set_callbacks(reh_.callbacks());
+    reh_.check_error_occurs([&] {
+      scenario_in_ = ryml::parse_in_place(ryml::to_substr(ryml_load_buf_));
+    }, [&](std::runtime_error const &e) {
+      event_log_->error("malformed scenario\n{}", e.what());
+      res = 1;
+    });
+    ryml::set_callbacks(reh_.defaults);
+  } else {
+    res = 1;
   }
 
-  if(cfg_.monitor) {
-    if(cfg_.move_scenario) {
-      move_file(fname);
-    } else {
-      rm_file(fname);
-    }
+  if(!res) {
+    res = process();
   }
-
   return res;
 }
 
-int scenario::reset()
-{
-  assert_failure_ = false;
-
-  // reset stats
-  stats_.reset();
-
-  int res = js_env_.renew_scenario_context();
-
-  //initialize scenario-out
-  scenario_out_ = scenario_in_;
-
-  return res;
-}
-
-int scenario::process(std::istream &is)
+int scenario::process()
 {
   int res = 0;
 
-  try {
-    is >> scenario_in_;
-  } catch(Json::RuntimeError &e) {
-    event_log_->error("malformed scenario:\n{}", e.what());
-    return 1;
-  }
   if((res = reset())) {
     event_log_->error("failed to reset scenario");
     return res;
@@ -473,9 +413,12 @@ int scenario::process(std::istream &is)
 
   bool error = false;
   {
+    ryml::NodeRef scenario_in_root = scenario_in_.rootref();
+    ryml::NodeRef scenario_out_root = scenario_out_.rootref();
+
     stack_scope scope(*this,
-                      scenario_in_,
-                      scenario_out_,
+                      scenario_in_root,
+                      scenario_out_root,
                       error,
                       get_default_scenario_out_options());
     if(error) {
@@ -483,57 +426,63 @@ int scenario::process(std::istream &is)
     }
 
     if(scope.enabled_) {
-      //conversations-in
-      Json::Value &conversations_in = scenario_in_[key_conversations];
-      if(!conversations_in.isArray()) {
-        event_log_->error("conversations field is not an array");
+      if(!scenario_in_root.has_child(key_conversations)) {
+        goto fend;
+      }
+      ryml::NodeRef conversations_in = scenario_in_root[key_conversations];
+      if(!conversations_in.is_seq()) {
+        event_log_->error("'conversations' is not a sequence");
         goto fend;
       }
 
-      Json::Value &conversations_out = scenario_out_[key_conversations];
+      ryml::NodeRef conversations_out = scenario_out_root[key_conversations];
 
-      // conversations cycle
       uint32_t conv_it = 0;
-      while(true) {
-        if(!conversations_in.isValidIndex(conv_it)) {
-          break;
-        }
+      for(ryml::NodeRef const &conversation_in : conversations_in.children()) {
 
         /*TODO parallel handling*/
         conversation conv(*this);
 
-        if((res = conv.process(conversations_in[conv_it],
+        if((res = conv.process(conversation_in,
                                conversations_out[conv_it]))) {
           goto fend;
         }
         ++conv_it;
       }
 
-      enrich_with_stats(scenario_out_);
+      enrich_with_stats(scenario_out_root);
       scope.commit();
     } else {
-      scenario_out_.clear();
-      scenario_out_[key_enabled] = false;
+      scenario_out_root.clear_children();
+      scenario_out_root[key_enabled] << STR_FALSE;
     }
   }
 
 fend:
   // finally write scenario_out on the output
   if(!cfg_.no_out_) {
-    output_->info("{}", scenario_out_.toStyledString());
+    std::stringstream ss;
+    if(cfg_.out_format == STR_YAML) {
+      ss << scenario_out_;
+    } else if(cfg_.out_format == STR_JSON) {
+      ss << ryml::as_json(scenario_out_);
+    }
+    output_->info("{}", ss.str());
   }
   return res;
 }
 
-void scenario::enrich_with_stats(Json::Value &scenario_out)
+void scenario::enrich_with_stats(ryml::NodeRef scenario_out)
 {
-  Json::Value &statistics = scenario_out[key_stats];
-  statistics[key_conversations] = stats_.conversation_count_;
-  statistics[key_requests] = stats_.request_count_;
-  std::for_each(stats_.categorization_.begin(),
-  stats_.categorization_.end(), [&](auto it) {
-    Json::Value &res_code_categorization = statistics[key_categorization];
-    res_code_categorization[it.first] = it.second;
+  ryml::NodeRef statistics = scenario_out[key_stats];
+  statistics |= ryml::MAP;
+  statistics[key_conversations] << stats_.conversation_count_;
+  statistics[key_requests] << stats_.request_count_;
+  ryml::NodeRef res_code_categorization = statistics[key_categorization];
+  res_code_categorization |= ryml::MAP;
+  std::for_each(stats_.categorization_.begin(), stats_.categorization_.end(), [&](const auto &it) {
+    ryml::csubstr code = res_code_categorization.to_arena(it.first);
+    res_code_categorization[code] << it.second;
   });
 }
 

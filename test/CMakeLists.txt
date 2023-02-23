@@ -13,7 +13,6 @@ set(CONTRIB_PATH "../contrib" CACHE STRING "the path where contrib resources are
 
 include_directories(${CHATTERBOX_PATH}
                     ${CONTRIB_PATH}
-                    ${CONTRIB_PATH}/jsoncpp/include
                     ${CONTRIB_PATH}/rapidyaml-build
                     ${CONTRIB_PATH}/restclient-cpp/include
                     ${CONTRIB_PATH}/cryptopp
@@ -23,7 +22,6 @@ include_directories(${CHATTERBOX_PATH}
                     ${CONTRIB_PATH}/googletest/googletest/include)
 
 link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
-                 ${CONTRIB_PATH}/jsoncpp-build/lib
                  ${CONTRIB_PATH}/rapidyaml-build/lib
                  ${CONTRIB_PATH}/cryptopp
                  ${CONTRIB_PATH}/v8/out/x86.release/obj
@@ -40,7 +38,6 @@ add_executable(chatterbox_test
 
 target_link_libraries(chatterbox_test
                       "librestclient-cpp.a"
-                      "libjsoncpp.a"
                       ryml
                       cryptopp
                       v8_monolith

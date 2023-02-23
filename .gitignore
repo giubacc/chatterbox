@@ -1,7 +1,6 @@
 .vscode
 .devcontainer
 build
-jsoncpp-build
 wd
 contrib/v8
 contrib/.cipd
