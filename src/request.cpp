@@ -149,6 +149,11 @@ int request::process_response(const RestClient::Response &resRC,
     response_out[key_code] = resRC.code;
     response_out[key_rtt] = utils::from_nano(rtt, utils::from_literal(fopts[key_rtt].asString()));
 
+    Json::Value &headers = response_out[key_headers];
+    for(auto &it : resRC.headers) {
+      headers[it.first] = it.second;
+    }
+
     if(!resRC.body.empty()) {
       if(fopts[key_body] == "json") {
         try {
@@ -186,7 +191,7 @@ int request::execute(const std::string &method,
 
   //read user defined http-headers
   Json::Value *header_node_ptr = nullptr;
-  if((header_node_ptr = const_cast<Json::Value *>(request_in.find(key_header.data(), key_header.data()+key_header.length())))) {
+  if((header_node_ptr = const_cast<Json::Value *>(request_in.find(key_headers.data(), key_headers.data()+key_headers.length())))) {
     Json::Value::Members keys = header_node_ptr->getMemberNames();
     std::for_each(keys.begin(), keys.end(), [&](const Json::String &it) {
       auto hdr_val = js_env_.eval_as<std::string>(*header_node_ptr, it.c_str(), "");

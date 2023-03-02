@@ -36,7 +36,7 @@ extern const std::string key_dump;
 extern const std::string key_enabled;
 extern const std::string key_for;
 extern const std::string key_format;
-extern const std::string key_header;
+extern const std::string key_headers;
 extern const std::string key_host;
 extern const std::string key_method;
 extern const std::string key_mock;
