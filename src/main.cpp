@@ -1,6 +1,5 @@
 #include "scenario.h"
 #include "clipp.h"
-#include "ryml.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -22,17 +21,13 @@ int main(int argc, char *argv[])
                  .doc("specify scenario's path [path]")
                  & clipp::value("path", scenario.cfg_.in_scenario_path),
 
-                 clipp::option("-o", "--output")
+                 clipp::option("-o", "--output-format")
+                 .doc("specify output format [yaml, json]")
+                 & clipp::value("output format", scenario.cfg_.out_format),
+
+                 clipp::option("-oc", "--output-channel")
                  .doc("specify output channel [stdout, stderr, filename]")
-                 & clipp::value("output", scenario.cfg_.out_channel),
-
-                 clipp::option("-m", "--monitor")
-                 .set(scenario.cfg_.monitor, true)
-                 .doc("monitor filesystem for new scenarios"),
-
-                 clipp::option("-d", "--delete")
-                 .set(scenario.cfg_.move_scenario, true)
-                 .doc("delete scenario files once consumed"),
+                 & clipp::value("output channel", scenario.cfg_.out_channel),
 
                  clipp::option("-l", "--log")
                  .doc("specify event log output channel [stderr, stdout, filename]")
@@ -60,19 +55,7 @@ int main(int argc, char *argv[])
       return res;
     }
 
-    if(scenario.cfg_.monitor) {
-      scenario.event_log_->set_pattern(RAW_EVT_LOG_PATTERN);
-      scenario.event_log_->info("{}", fmt::format(fmt::fg(fmt::terminal_color::magenta) |
-                                                  fmt::emphasis::bold,
-                                                  ">>MONITORING MODE<<\n"));
-      scenario.event_log_->set_pattern(scenario.event_log_fmt_);
-      while(true) {
-        scenario.poll();
-        usleep(2*1000*1000);
-      }
-    } else if(!scenario.cfg_.in_scenario_name.empty()) {
-      res = scenario.process();
-    }
+    res = scenario.load_source_process();
   }
 
   js::js_env::stop_V8();

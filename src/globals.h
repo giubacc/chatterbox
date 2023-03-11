@@ -2,8 +2,9 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <algorithm>
 #include <chrono>
@@ -14,50 +15,53 @@
 
 #include "restclient-cpp/connection.h"
 #include "restclient-cpp/restclient.h"
-#include "json/json.h"
+#include "ryml.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/fmt/bundled/color.h"
 
 #define DEF_EVT_LOG_PATTERN "[%^%l%$]%v"
-#define ASSERT_LOG_PATTERN "[%^ASSERT%$]%v"
+#define ASSERT_LOG_PATTERN  "[%^ASSERT%$]%v"
 #define RAW_EVT_LOG_PATTERN "%v"
 
-namespace cbox {
-extern const std::string key_access_key;
-extern const std::string key_auth;
-extern const std::string key_body;
-extern const std::string key_categorization;
-extern const std::string key_code;
-extern const std::string key_conversations;
-extern const std::string key_data;
-extern const std::string key_dump;
-extern const std::string key_enabled;
-extern const std::string key_for;
-extern const std::string key_format;
-extern const std::string key_headers;
-extern const std::string key_host;
-extern const std::string key_method;
-extern const std::string key_mock;
-extern const std::string key_msec;
-extern const std::string key_nsec;
-extern const std::string key_on_begin;
-extern const std::string key_on_end;
-extern const std::string key_out;
-extern const std::string key_query_string;
-extern const std::string key_region;
-extern const std::string key_requests;
-extern const std::string key_response;
-extern const std::string key_rtt;
-extern const std::string key_sec;
-extern const std::string key_secret_key;
-extern const std::string key_service;
-extern const std::string key_signed_headers;
-extern const std::string key_stats;
-extern const std::string key_uri;
-extern const std::string key_usec;
-}
+#define key_access_key      "accessKey"
+#define key_auth            "auth"
+#define key_body            "body"
+#define key_categorization  "categorization"
+#define key_code            "code"
+#define key_conversations   "conversations"
+#define key_data            "data"
+#define key_dump            "dump"
+#define key_enabled         "enabled"
+#define key_for             "for"
+#define key_format          "format"
+#define key_headers         "headers"
+#define key_host            "host"
+#define key_method          "method"
+#define key_mock            "mock"
+#define key_msec            "msec"
+#define key_nsec            "nsec"
+#define key_will            "will"
+#define key_did             "did"
+#define key_out             "out"
+#define key_query_string    "queryString"
+#define key_region          "region"
+#define key_requests        "requests"
+#define key_response        "response"
+#define key_rtt             "rtt"
+#define key_sec             "sec"
+#define key_secret_key      "secretKey"
+#define key_service         "service"
+#define key_signed_headers  "signedHeaders"
+#define key_stats           "stats"
+#define key_uri             "uri"
+#define key_usec            "usec"
+
+#define STR_TRUE            "true"
+#define STR_FALSE           "false"
+#define STR_JSON            "json"
+#define STR_YAML            "yaml"
 
 namespace utils {
 
@@ -70,13 +74,13 @@ enum resolution {
 
 inline resolution from_literal(const std::string &str)
 {
-  if(str == cbox::key_nsec) {
+  if(str == key_nsec) {
     return nanoseconds;
-  } else if(str == cbox::key_usec) {
+  } else if(str == key_usec) {
     return microseconds;
-  } else if(str == cbox::key_msec) {
+  } else if(str == key_msec) {
     return milliseconds;
-  } else if(str == cbox::key_sec) {
+  } else if(str == key_sec) {
     return seconds;
   }
   return nanoseconds;
@@ -189,15 +193,9 @@ inline void base_name(const std::string &input,
   }
 }
 
-int read_file(const char *fname,
-              std::stringstream &out,
-              spdlog::logger *log);
-
-struct json_value_ref {
-  json_value_ref(Json::Value &ref) : ref_(ref) {}
-  json_value_ref(const Json::Value &ref) : ref_(const_cast<Json::Value &>(ref)) {}
-  Json::Value &ref_;
-};
+size_t file_get_contents(const char *filename,
+                         std::vector<char> &v,
+                         spdlog::logger *log);
 
 inline std::string get_formatted_string(const std::string &str,
                                         fmt::terminal_color color,
@@ -205,6 +203,61 @@ inline std::string get_formatted_string(const std::string &str,
 {
   return fmt::format(fmt::fg(color) | emphasis, "{}", str);
 }
+
+// ------------------
+// --- RYML UTILS ---
+// ------------------
+
+struct RymlErrorHandler {
+  // this will be called on error
+  void on_error(const char *msg,
+                size_t len,
+                ryml::Location loc) {
+    throw std::runtime_error(ryml::formatrs<std::string>("{}:{}:{} ({}B) {}",
+                                                         loc.name,
+                                                         loc.line,
+                                                         loc.col,
+                                                         loc.offset,
+                                                         ryml::csubstr(msg, len)));
+  }
+
+  // bridge
+  ryml::Callbacks callbacks() {
+    return ryml::Callbacks(this, nullptr, nullptr, RymlErrorHandler::s_error);
+  }
+
+  static void s_error(const char *msg,
+                      size_t len,
+                      ryml::Location loc,
+                      void *this_) {
+    return ((RymlErrorHandler *)this_)->on_error(msg, len, loc);
+  }
+
+  // checking
+  template<typename Fn, typename Err>
+  void check_error_occurs(Fn &&fn, Err &&err) const {
+    try {
+      fn();
+    } catch(std::runtime_error const &e) {
+      err(e);
+    }
+  }
+
+  RymlErrorHandler() : defaults(ryml::get_callbacks()) {}
+  ryml::Callbacks defaults;
+};
+
+void log_tree_node(ryml::ConstNodeRef node,
+                   spdlog::logger &logger);
+
+void set_tree_node(ryml::Tree src_t,
+                   ryml::ConstNodeRef src_n,
+                   ryml::NodeRef to_n,
+                   std::vector<char> &buf);
+
+// ------------
+// --- AUTH ---
+// ------------
 
 struct aws_auth {
 

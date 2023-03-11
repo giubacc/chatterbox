@@ -1,6 +1,3 @@
-[submodule "contrib/jsoncpp"]
-	path = contrib/jsoncpp
-	url = https://github.com/open-source-parsers/jsoncpp.git
 [submodule "contrib/cryptopp"]
 	path = contrib/cryptopp
 	url = https://github.com/weidai11/cryptopp.git

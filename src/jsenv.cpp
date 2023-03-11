@@ -30,8 +30,8 @@ js_env::js_env(cbox::scenario &parent) : parent_(parent)
 js_env::~js_env()
 {
   if(isolate_) {
-    if(!json_value_template_.IsEmpty()) {
-      json_value_template_.Empty();
+    if(!ryml_noderef_template_.IsEmpty()) {
+      ryml_noderef_template_.Empty();
     }
     if(!scenario_context_.IsEmpty()) {
       scenario_context_.Empty();
@@ -55,7 +55,7 @@ int js_env::init(std::shared_ptr<spdlog::logger> &event_log)
   return 0;
 }
 
-int js_env::renew_scenario_context()
+int js_env::reset()
 {
   // Create a handle scope to hold the temporary references.
   v8::HandleScope renew_scenario_context_scope(isolate_);
@@ -87,16 +87,15 @@ int js_env::renew_scenario_context()
   v8::Local<v8::Context> context = v8::Context::New(isolate_, nullptr, global);
   context->SetAlignedPointerInEmbedderData(1, this);
 
-  //reset current_scenario_context_
   scenario_context_.Reset(isolate_, context);
+  nodes_holder_.clear();
+  processed_scripts_.clear();
 
   //install scenario objects in the current context
   if(!install_scenario_objects()) {
     event_log_->error("failed to install scenario's objects");
     return 1;
   }
-
-  processed_scripts_.clear();
 
   //load, compile, run scripts
   int res = load_scripts();
@@ -108,17 +107,17 @@ int js_env::renew_scenario_context()
 // --- Context objects ---
 // -----------------------
 
-v8::Local<v8::ObjectTemplate> js_env::make_json_value_template()
+v8::Local<v8::ObjectTemplate> js_env::make_ryml_noderef_template()
 {
   v8::EscapableHandleScope handle_scope(isolate_);
 
   v8::Local<v8::ObjectTemplate> result = v8::ObjectTemplate::New(isolate_);
   result->SetInternalFieldCount(1);
-  result->SetHandler(v8::NamedPropertyHandlerConfiguration(json_value_get_by_name,
-                                                           json_value_set_by_name));
+  result->SetHandler(v8::NamedPropertyHandlerConfiguration(ryml_noderef_get_by_name,
+                                                           ryml_noderef_set_by_name));
 
-  result->SetHandler(v8::IndexedPropertyHandlerConfiguration(json_value_get_by_idx,
-                                                             json_value_set_by_idx));
+  result->SetHandler(v8::IndexedPropertyHandlerConfiguration(ryml_noderef_get_by_idx,
+                                                             ryml_noderef_set_by_idx));
 
   // Return the result through the current handle scope.
   return handle_scope.Escape(result);
@@ -128,12 +127,14 @@ bool js_env::install_scenario_objects()
 {
   v8::HandleScope handle_scope(isolate_);
 
-  v8::Local<v8::Object> scenario_out_obj = wrap_json_value(parent_.scenario_out_);
+  auto &holder = nodes_holder_[&parent_.scenario_out_] = std::unordered_map<size_t, ryml::NodeRef>();
+  auto &root = holder[parent_.scenario_out_.root_id()] = parent_.scenario_out_.rootref();
+  v8::Local<v8::Object> scenario_out_obj = wrap_ryml_noderef(root);
 
   // Set the chatterbox_.scenario_out_ object as a property on the global object.
   scenario_context_.Get(isolate_)->Global()
   ->Set(scenario_context_.Get(isolate_),
-        v8::String::NewFromUtf8(isolate_, "outJson", v8::NewStringType::kNormal)
+        v8::String::NewFromUtf8(isolate_, "out", v8::NewStringType::kNormal)
         .ToLocalChecked(),
         scenario_out_obj)
   .FromJust();
@@ -141,115 +142,125 @@ bool js_env::install_scenario_objects()
   return true;
 }
 
-//Json::Value
+//ryml::NodeRef
 
-v8::Local<v8::Object> js_env::wrap_json_value(Json::Value &obj)
+v8::Local<v8::Object> js_env::wrap_ryml_noderef(ryml::NodeRef &obj)
 {
   v8::EscapableHandleScope handle_scope(isolate_);
 
-  // Fetch the template for creating json_value wrappers.
+  // Fetch the template for creating ryml::NodeRef wrappers.
   // It only has to be created once, which we do on demand.
-  if(json_value_template_.IsEmpty()) {
-    v8::Local<v8::ObjectTemplate> raw_template = make_json_value_template();
-    json_value_template_.Reset(isolate_, raw_template);
+  if(ryml_noderef_template_.IsEmpty()) {
+    v8::Local<v8::ObjectTemplate> raw_template = make_ryml_noderef_template();
+    ryml_noderef_template_.Reset(isolate_, raw_template);
   }
 
   v8::Local<v8::ObjectTemplate> templ =
-    v8::Local<v8::ObjectTemplate>::New(isolate_, json_value_template_);
+    v8::Local<v8::ObjectTemplate>::New(isolate_, ryml_noderef_template_);
 
-  // Create an empty json_value wrapper.
+  // Create an empty ryml::NodeRef wrapper.
   v8::Local<v8::Object> result =
     templ->NewInstance(scenario_context_.Get(isolate_)).ToLocalChecked();
 
+  std::unordered_map<size_t, ryml::NodeRef> *holder = nullptr;
+  ryml::NodeRef *target = nullptr;
+
+  auto tree_it = nodes_holder_.find(obj.tree());
+  if(tree_it == nodes_holder_.end()) {
+    auto ins_pair = nodes_holder_.emplace(obj.tree(), std::unordered_map<size_t, ryml::NodeRef>());
+    holder = &ins_pair.first->second;
+  } else {
+    holder = &tree_it->second;
+  }
+
+  auto node_it = holder->find(obj.id());
+  if(node_it == holder->end()) {
+    auto ins_pair = holder->emplace(obj.id(), obj);
+    target = &ins_pair.first->second;
+  } else {
+    target = &node_it->second;
+  }
+
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  v8::Local<v8::External> json_value_ptr = v8::External::New(isolate_, &obj);
+  v8::Local<v8::External> ryml_noderef_ptr = v8::External::New(isolate_, target);
 
-  // Store the json_value pointer in the JavaScript wrapper.
-  result->SetInternalField(0, json_value_ptr);
+  // Store the ryml::NodeRef pointer in the JavaScript wrapper.
+  result->SetInternalField(0, ryml_noderef_ptr);
 
   // Return the result through the current handle scope.
   return handle_scope.Escape(result);
 }
 
-Json::Value *js_env::unwrap_json_value(v8::Local<v8::Object> obj)
+ryml::NodeRef *js_env::unwrap_ryml_noderef(v8::Local<v8::Object> obj)
 {
   v8::Local<v8::External> field = v8::Local<v8::External>::Cast(obj->GetInternalField(0));
-  return static_cast<Json::Value *>(field->Value());
+  return static_cast<ryml::NodeRef *>(field->Value());
 }
 
-bool js_env::js_value_from_json_value(Json::Value &obj_val,
-                                      v8::Local<v8::Value> &js_obj_val,
-                                      js_env &self)
+bool js_env::js_value_from_ryml_noderef(ryml::NodeRef &obj_val,
+                                        v8::Local<v8::Value> &js_obj_val,
+                                        js_env &self)
 {
-  switch(obj_val.type()) {
-    case Json::nullValue:
-      js_obj_val = v8::Null(self.isolate_);
-      break;
-    case Json::intValue:
-      js_obj_val = v8::Int32::New(self.isolate_, utils::converter<int32_t>::asType(obj_val));
-      break;
-    case Json::uintValue:
-      js_obj_val = v8::Uint32::New(self.isolate_, utils::converter<uint32_t>::asType(obj_val));
-      break;
-    case Json::realValue:
-      js_obj_val = v8::Number::New(self.isolate_, utils::converter<double>::asType(obj_val));
-      break;
-    case Json::stringValue:
-      js_obj_val = v8::String::NewFromUtf8(self.isolate_,
-                                           utils::converter<std::string>::asType(obj_val).c_str(),
-                                           v8::NewStringType::kNormal).ToLocalChecked();
-      break;
-    case Json::booleanValue:
-      js_obj_val = v8::Boolean::New(self.isolate_, utils::converter<bool>::asType(obj_val));
-      break;
-    case Json::arrayValue:
-    case Json::objectValue:
-      js_obj_val = self.wrap_json_value(obj_val);
-      break;
-    default:
-      self.event_log_->error("unhandled Json::Value::type {}", obj_val.type());
-      return false;
+  if(obj_val.is_val() && obj_val.val_is_null()) {
+    js_obj_val = v8::Null(self.isolate_);
+  } else if(obj_val.is_val() || obj_val.is_keyval()) {
+    js_obj_val = v8::String::NewFromUtf8(self.isolate_,
+                                         utils::converter<std::string>::asType(obj_val).c_str(),
+                                         v8::NewStringType::kNormal).ToLocalChecked();
+  } else if(obj_val.is_map() || obj_val.is_seq()) {
+    js_obj_val = self.wrap_ryml_noderef(obj_val);
+  } else {
+    self.event_log_->error("unhandled ryml::NodeRef type {}", obj_val.type());
+    return false;
   }
+
   return true;
 }
 
-bool js_env::json_value_from_js_value(Json::Value &obj_val,
-                                      v8::Local<v8::Value> &js_obj_val,
-                                      js_env &self)
+bool js_env::ryml_noderef_from_js_value(ryml::NodeRef &obj_val,
+                                        v8::Local<v8::Value> &js_obj_val,
+                                        js_env &self)
 {
   v8::HandleScope scope(self.isolate_);
   v8::Local<v8::Context> ctx = self.scenario_context_.Get(self.isolate_);
+
   if(js_obj_val->IsNull()) {
-    obj_val = Json::Value::null;
   } else if(js_obj_val->IsInt32()) {
-    obj_val = utils::converter<int32_t>::asType(js_obj_val, self.isolate_);
+    obj_val << utils::converter<int32_t>::asType(js_obj_val, self.isolate_);
   } else if(js_obj_val->IsUint32()) {
-    obj_val = utils::converter<uint32_t>::asType(js_obj_val, self.isolate_);
+    obj_val << utils::converter<uint32_t>::asType(js_obj_val, self.isolate_);
   } else if(js_obj_val->IsNumber()) {
-    obj_val = utils::converter<double>::asType(js_obj_val, self.isolate_);
+    obj_val << utils::converter<double>::asType(js_obj_val, self.isolate_);
   } else if(js_obj_val->IsString()) {
-    obj_val = utils::converter<std::string>::asType(js_obj_val, self.isolate_);
+    obj_val << utils::converter<std::string>::asType(js_obj_val, self.isolate_);
   } else if(js_obj_val->IsBoolean()) {
-    obj_val = utils::converter<bool>::asType(js_obj_val, self.isolate_);
+    obj_val << utils::converter<bool>::asType(js_obj_val, self.isolate_);
   } else if(js_obj_val->IsArray()) {
-    obj_val = Json::Value::null;
+    if(obj_val.is_val()) {
+      obj_val.clear_val();
+      obj_val.set_type(ryml::SEQ);
+    } else {
+      obj_val |= ryml::SEQ;
+    }
     auto array = v8::Array::Cast(*js_obj_val);
     for(uint32_t i = 0; i<array->Length(); ++i) {
       v8::Local<v8::Value> js_item = array->Get(ctx, i).ToLocalChecked();
-      Json::Value json_item;
-      if(json_value_from_js_value(json_item, js_item, self)) {
-        obj_val.append(json_item);
-      } else {
+      ryml::NodeRef item = obj_val.append_child();
+      if(!ryml_noderef_from_js_value(item, js_item, self)) {
         return false;
       }
     }
   } else if(js_obj_val->IsObject()) {
-    Json::Value *obj_ptr = unwrap_json_value(js_obj_val->ToObject(ctx).ToLocalChecked());
+    ryml::NodeRef *obj_ptr = unwrap_ryml_noderef(js_obj_val->ToObject(ctx).ToLocalChecked());
     if(obj_ptr) {
-      obj_val = *obj_ptr;
+      obj_val |= ryml::MAP;
+      utils::set_tree_node(*obj_val.tree(),
+                           obj_val,
+                           *obj_ptr,
+                           self.parent_.ryml_modify_buf_);
     } else {
-      self.event_log_->error("failed to unwrap Json::Value");
+      self.event_log_->error("failed to unwrap ryml::NodeRef");
       return false;
     }
   } else {
@@ -259,8 +270,8 @@ bool js_env::json_value_from_js_value(Json::Value &obj_val,
   return true;
 }
 
-void js_env::json_value_get_by_name(v8::Local<v8::Name> key,
-                                    const v8::PropertyCallbackInfo<v8::Value> &pci)
+void js_env::ryml_noderef_get_by_name(v8::Local<v8::Name> key,
+                                      const v8::PropertyCallbackInfo<v8::Value> &pci)
 {
   if(key->IsSymbol()) {
     return;
@@ -280,25 +291,28 @@ void js_env::json_value_get_by_name(v8::Local<v8::Name> key,
     return;
   }
 
-  // Fetch the json_value wrapped by this object.
-  Json::Value *obj_ptr = unwrap_json_value(pci.Holder());
+  // Fetch the ryml::NodeRef wrapped by this object.
+  ryml::NodeRef *obj_ptr = unwrap_ryml_noderef(pci.Holder());
   if(!obj_ptr) {
-    self->event_log_->error("failed to unwrap Json::Value");
+    self->event_log_->error("failed to unwrap ryml::NodeRef");
     return;
   }
 
-  Json::Value &obj = *obj_ptr;
-  Json::Value &obj_val = obj[str_key];
+  auto cstr = ryml::to_substr(str_key);
+  if(!obj_ptr->has_child(cstr)) {
+    return;
+  }
+  ryml::NodeRef obj_val = (*obj_ptr)[cstr];
   v8::Local<v8::Value> js_obj_val;
 
-  if(js_value_from_json_value(obj_val, js_obj_val, *self)) {
+  if(js_value_from_ryml_noderef(obj_val, js_obj_val, *self)) {
     pci.GetReturnValue().Set(js_obj_val);
   }
 }
 
-void js_env::json_value_set_by_name(v8::Local<v8::Name> key,
-                                    v8::Local<v8::Value> value,
-                                    const v8::PropertyCallbackInfo<v8::Value> &pci)
+void js_env::ryml_noderef_set_by_name(v8::Local<v8::Name> key,
+                                      v8::Local<v8::Value> value,
+                                      const v8::PropertyCallbackInfo<v8::Value> &pci)
 {
   if(key->IsSymbol()) {
     return;
@@ -318,20 +332,29 @@ void js_env::json_value_set_by_name(v8::Local<v8::Name> key,
     return;
   }
 
-  // Fetch the json_value wrapped by this object.
-  Json::Value *obj_ptr = unwrap_json_value(pci.Holder());
+  // Fetch the ryml::NodeRef wrapped by this object.
+  ryml::NodeRef *obj_ptr = unwrap_ryml_noderef(pci.Holder());
   if(!obj_ptr) {
-    self->event_log_->error("failed to unwrap Json::Value");
+    self->event_log_->error("failed to unwrap ryml::NodeRef");
     return;
   }
 
-  Json::Value &obj = *obj_ptr;
-  Json::Value &obj_val = obj[str_key];
-  json_value_from_js_value(obj_val, value, *self);
+  ryml::NodeRef obj_val;
+  auto cstr = ryml::to_substr(str_key);
+  if(!obj_ptr->has_child(cstr)) {
+    ryml::csubstr arena_key = obj_ptr->to_arena(str_key);
+    obj_val = (*obj_ptr)[arena_key];
+  } else {
+    obj_val = (*obj_ptr)[cstr];
+  }
+
+  if(ryml_noderef_from_js_value(obj_val, value, *self)) {
+    pci.GetReturnValue().Set(value);
+  }
 }
 
-void js_env::json_value_get_by_idx(uint32_t index,
-                                   const v8::PropertyCallbackInfo<v8::Value> &pci)
+void js_env::ryml_noderef_get_by_idx(uint32_t index,
+                                     const v8::PropertyCallbackInfo<v8::Value> &pci)
 {
   v8::HandleScope scope(pci.GetIsolate());
 
@@ -341,30 +364,30 @@ void js_env::json_value_get_by_idx(uint32_t index,
     return;
   }
 
-  // Fetch the json_value wrapped by this object.
-  Json::Value *obj_ptr = unwrap_json_value(pci.Holder());
+  // Fetch the ryml::NodeRef wrapped by this object.
+  ryml::NodeRef *obj_ptr = unwrap_ryml_noderef(pci.Holder());
   if(!obj_ptr) {
-    self->event_log_->error("failed to unwrap Json::Value");
+    self->event_log_->error("failed to unwrap ryml::NodeRef");
     return;
   }
 
-  Json::Value &obj = *obj_ptr;
-  if(!obj.isArray() || index >= obj.size()) {
-    self->event_log_->error("Json::Value not array or index out of range");
+  ryml::NodeRef obj = *obj_ptr;
+  if(!obj.is_seq() || index >= obj.num_children()) {
+    self->event_log_->error("ryml::NodeRef not sequence or index out of range");
     return;
   }
 
-  Json::Value &obj_val = obj[index];
+  ryml::NodeRef obj_val = obj[index];
   v8::Local<v8::Value> js_obj_val;
 
-  if(js_value_from_json_value(obj_val, js_obj_val, *self)) {
+  if(js_value_from_ryml_noderef(obj_val, js_obj_val, *self)) {
     pci.GetReturnValue().Set(js_obj_val);
   }
 }
 
-void js_env::json_value_set_by_idx(uint32_t index,
-                                   v8::Local<v8::Value> value,
-                                   const v8::PropertyCallbackInfo<v8::Value> &pci)
+void js_env::ryml_noderef_set_by_idx(uint32_t index,
+                                     v8::Local<v8::Value> value,
+                                     const v8::PropertyCallbackInfo<v8::Value> &pci)
 {
   v8::HandleScope scope(pci.GetIsolate());
 
@@ -374,32 +397,34 @@ void js_env::json_value_set_by_idx(uint32_t index,
     return;
   }
 
-  // Fetch the json_value wrapped by this object.
-  Json::Value *obj_ptr = unwrap_json_value(pci.Holder());
+  // Fetch the ryml::NodeRef wrapped by this object.
+  ryml::NodeRef *obj_ptr = unwrap_ryml_noderef(pci.Holder());
   if(!obj_ptr) {
-    self->event_log_->error("failed to unwrap Json::Value");
+    self->event_log_->error("failed to unwrap ryml::NodeRef");
     return;
   }
 
-  Json::Value &obj = *obj_ptr;
-  if(!obj.isArray() || index >= obj.size()) {
-    self->event_log_->error("Json::Value not array or index out of range");
+  ryml::NodeRef obj = *obj_ptr;
+  if(!obj.is_seq() || index >= obj.num_children()) {
+    self->event_log_->error("ryml::NodeRef not sequence or index out of range");
     return;
   }
 
-  Json::Value &obj_val = obj[index];
-  json_value_from_js_value(obj_val, value, *self);
+  ryml::NodeRef obj_val = obj[index];
+  if(ryml_noderef_from_js_value(obj_val, value, *self)) {
+    pci.GetReturnValue().Set(value);
+  }
 }
 
 // -------------------------
 // --- C++ -> Javascript ---
 // -------------------------
 
-bool js_env::invoke_js_function(Json::Value *ctx_json,
+bool js_env::invoke_js_function(ryml::NodeRef *ctx,
                                 const char *js_function_name,
-                                Json::Value &js_args,
+                                ryml::NodeRef js_args,
                                 const std::function <bool (v8::Isolate *isolate,
-                                                           Json::Value &js_args,
+                                                           ryml::NodeRef js_args,
                                                            v8::Local<v8::Value> argv[])> &prepare_argv,
                                 const std::function <bool (v8::Isolate *isolate,
                                                            const v8::Local<v8::Value>& result)> &process_result,
@@ -433,14 +458,14 @@ bool js_env::invoke_js_function(Json::Value *ctx_json,
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(function_val);
 
   // Prepare arguments
-  const int argc = js_args.size() + (ctx_json ? 1 : 0);
+  const int argc = js_args.num_children() + (ctx ? 1 : 0);
   v8::Local<v8::Value> argv[argc];
 
-  if(ctx_json) {
-    argv[0] = wrap_json_value(*ctx_json);
+  if(ctx) {
+    argv[0] = wrap_ryml_noderef(*ctx);
   }
 
-  if(!prepare_argv(isolate_, js_args, &argv[ctx_json ? 1 : 0])) {
+  if(!prepare_argv(isolate_, js_args, &argv[ctx ? 1 : 0])) {
     error = "failed to prepare argv";
     return false;
   }
@@ -678,71 +703,74 @@ bool js_env::run_script(const v8::Local<v8::Script> &script,
 // Reads a script into a v8 string.
 v8::MaybeLocal<v8::String> js_env::read_script_file(const std::string &name)
 {
-  std::stringstream content;
-  if(utils::read_file(name.c_str(), content, event_log_.get())) {
+  std::vector<char> content;
+  if(!utils::file_get_contents(name.c_str(), content, event_log_.get())) {
     return v8::MaybeLocal<v8::String>();
   }
 
   v8::MaybeLocal<v8::String> result = v8::String::NewFromUtf8(isolate_,
-                                                              content.str().c_str(),
+                                                              content.data(),
                                                               v8::NewStringType::kNormal,
-                                                              static_cast<int>(content.str().size()));
+                                                              static_cast<int>(content.size()));
 
   return result;
 }
 
-bool js_env::exec_as_function(Json::Value &from,
+bool js_env::exec_as_function(ryml::NodeRef from,
                               const char *key,
                               bool optional)
 {
-  Json::Value val = from.get(key, Json::Value::null);
-  if(val) {
+  if(!from.has_child(ryml::to_csubstr(key))) {
+    return optional;
+  }
+  ryml::NodeRef val = from[ryml::to_csubstr(key)];
 
-    Json::Value function = val.get("function", Json::Value::null);
-    if(!function || !function.isString()) {
-      event_log_->error("function name is not string type");
+  if(!val.has_child("function")) {
+    event_log_->error("failed to read 'function'");
+    return false;
+  }
+
+  ryml::ConstNodeRef function = val["function"];
+
+  ryml::NodeRef js_args;
+  if(val.has_child("args")) {
+    js_args = val["args"];
+    if(!js_args.is_seq()) {
+      event_log_->error("function args are not sequence type");
       return false;
     }
+  }
 
-    Json::Value js_args = val.get("args", Json::Value::null);
-    if(js_args) {
-      if(!js_args.isArray()) {
-        event_log_->error("function args are not array type");
+  // finally invoke the javascript function
+  std::string result;
+  std::string error;
+
+  std::string fun_str;
+  function >> fun_str;
+
+  bool js_res = invoke_js_function(&from,
+                                   fun_str.c_str(),
+                                   js_args,
+  [&](v8::Isolate *isl, ryml::NodeRef js_args, v8::Local<v8::Value> argv[]) -> bool {
+    for(uint32_t i = 0; i < js_args.num_children(); ++i)
+    {
+      ryml::NodeRef js_arg = js_args[i];
+      if(!js_value_from_ryml_noderef(js_arg, argv[i], *this)) {
         return false;
       }
     }
-
-    // finally invoke the javascript function
-    std::string result;
-    std::string error;
-
-    bool js_res = invoke_js_function(&from,
-                                     function.asCString(),
-                                     js_args,
-    [&](v8::Isolate *isl, Json::Value &js_args, v8::Local<v8::Value> argv[]) -> bool {
-      for(uint32_t i = 0; i < js_args.size(); ++i)
-      {
-        if(!js_value_from_json_value(js_args[i], argv[i], *this)) {
-          return false;
-        }
-      }
-      return true;
-    },
-    [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool {
-      return true;
-    },
-    error);
-
-    if(!js_res) {
-      event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-      return false;
-    }
     return true;
-  } else if(optional) {
+  },
+  [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool {
     return true;
-  } else {
+  },
+  error);
+
+  if(!js_res) {
+    event_log_->error("failure invoking function:{}, error:{}", fun_str, error);
     return false;
   }
+  return true;
 }
 
 std::string js_env::js_obj_to_std_string(v8::Local<v8::Value> value)

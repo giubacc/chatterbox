@@ -11,7 +11,7 @@ request::request(conversation &parent) :
   event_log_(parent_.event_log_) {}
 
 int request::reset(const std::string &raw_host,
-                   const Json::Value &request_in)
+                   ryml::NodeRef request_in)
 {
   // connection reset
   conv_conn_.reset(new RestClient::Connection(raw_host));
@@ -26,8 +26,8 @@ int request::reset(const std::string &raw_host,
 }
 
 int request::process(const std::string &raw_host,
-                     Json::Value &request_in,
-                     Json::Value &requests_out)
+                     ryml::NodeRef request_in,
+                     ryml::NodeRef requests_out)
 {
   int res = 0;
 
@@ -37,17 +37,25 @@ int request::process(const std::string &raw_host,
   }
 
   // for
-  auto pfor = js_env_.eval_as<uint32_t>(request_in, key_for.c_str(), 1);
+  auto pfor = js_env_.eval_as<uint32_t>(request_in, key_for, 1);
   if(!pfor) {
-    event_log_->error("failed to read 'for' field");
+    event_log_->error("failed to read 'for'");
     return 1;
   }
 
   for(uint32_t i = 0; i < pfor; ++i) {
     bool error = false;
     {
-      Json::Value &request_out = requests_out.append(request_in);
-      request_out.removeMember(key_for);
+      ryml::NodeRef request_out = requests_out.append_child();
+      request_out |= ryml::MAP;
+      utils::set_tree_node(*request_in.tree(),
+                           request_in,
+                           request_out,
+                           ryml_modify_buf_);
+
+      if(request_out.has_child(key_for)) {
+        request_out.remove_child(key_for);
+      }
 
       scenario::stack_scope scope(parent_.parent_,
                                   request_in,
@@ -63,45 +71,47 @@ int request::process(const std::string &raw_host,
         parent_.parent_.stats_.incr_request_count();
 
         // method
-        auto method = js_env_.eval_as<std::string>(request_in, key_method.c_str());
+        auto method = js_env_.eval_as<std::string>(request_in, key_method);
         if(!method) {
-          event_log_->error("failed to read 'method' field");
+          event_log_->error("failed to read 'method'");
           return 1;
         }
 
         // uri
-        auto uri = js_env_.eval_as<std::string>(request_in, key_uri.c_str(), "");
+        auto uri = js_env_.eval_as<std::string>(request_in, key_uri, "");
         if(!uri) {
-          event_log_->error("failed to read 'uri' field");
+          event_log_->error("failed to read 'uri'");
           return 1;
         }
 
         // query_string
-        auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string.c_str(), "");
+        auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string, "");
         if(!query_string) {
-          event_log_->error("failed to read 'query_string' field");
+          event_log_->error("failed to read 'query_string'");
           return 1;
         }
 
         //data
-        auto data = js_env_.eval_as<std::string>(request_in, key_data.c_str(), "");
+        auto data = js_env_.eval_as<std::string>(request_in, key_data, "");
         if(!data) {
-          event_log_->error("failed to read 'data' field");
+          event_log_->error("failed to read 'data'");
           return 1;
         }
 
         //optional auth directive
-        auto auth = js_env_.eval_as<std::string>(request_in, key_auth.c_str());
+        auto auth = js_env_.eval_as<std::string>(request_in, key_auth);
         if(auth) {
-          request_out[key_auth] = *auth;
+          request_out[key_auth] << *auth;
         }
 
-        request_out[key_method] = *method;
-        request_out[key_uri] = *uri;
-        request_out[key_query_string] = *query_string;
-        request_out[key_data] = *data;
+        request_out[key_method] << *method;
+        request_out[key_uri] << *uri;
+        request_out[key_query_string] << *query_string;
+        request_out[key_data] << *data;
 
-        response_mock_ = const_cast<Json::Value *>(request_in.find(key_mock.data(), key_mock.data()+key_mock.length()));
+        if(request_in.has_child(key_mock)) {
+          response_mock_ = request_in[key_mock];
+        }
 
         if((res = execute(*method,
                           auth,
@@ -114,8 +124,8 @@ int request::process(const std::string &raw_host,
         }
         scope.commit();
       } else {
-        request_out.clear();
-        request_out[key_enabled] = false;
+        request_out.clear_children();
+        request_out[key_enabled] << STR_FALSE;
         break;
       }
     }
@@ -127,11 +137,10 @@ int request::process(const std::string &raw_host,
   return res;
 }
 
-
 int request::process_response(const RestClient::Response &resRC,
                               const int64_t rtt,
-                              Json::Value &response_in,
-                              Json::Value &response_out)
+                              ryml::NodeRef response_in,
+                              ryml::NodeRef response_out)
 {
   bool error = false;
   {
@@ -144,38 +153,51 @@ int request::process_response(const RestClient::Response &resRC,
       return 1;
     }
 
-    auto &fopts = scope.out_options_[key_format];
+    ryml::ConstNodeRef out_opts_root = scope.out_opts_.rootref();
+    ryml::ConstNodeRef fopts = out_opts_root[key_format];
 
-    response_out[key_code] = resRC.code;
-    response_out[key_rtt] = utils::from_nano(rtt, utils::from_literal(fopts[key_rtt].asString()));
+    response_out[key_code] << resRC.code;
+    std::string rttf;
+    fopts[key_rtt] >> rttf;
+    response_out[key_rtt] << utils::from_nano(rtt, utils::from_literal(rttf));
 
-    Json::Value &headers = response_out[key_headers];
-    for(auto &it : resRC.headers) {
-      headers[it.first] = it.second;
+    if(!resRC.headers.empty()) {
+      ryml::NodeRef headers = response_out[key_headers];
+      headers |= ryml::MAP;
+      for(auto &it : resRC.headers) {
+        ryml::csubstr header = headers.to_arena(it.first);
+        headers[header] << it.second;
+      }
     }
 
     if(!resRC.body.empty()) {
-      if(fopts[key_body] == "json") {
-        try {
-          Json::Value body;
-          std::istringstream is(resRC.body);
-          is >> body;
-          response_out[key_body] = body;
-        } catch(const Json::RuntimeError &) {
-          response_out[key_body] = resRC.body;
-        }
+      if(fopts[key_body] == STR_JSON) {
+        ryml::set_callbacks(parent_.parent_.reh_.callbacks());
+        parent_.parent_.reh_.check_error_occurs([&] {
+          std::stringstream ss;
+          ss << resRC.body;
+          ryml::Tree body = ryml::parse_in_arena(ryml::to_csubstr(ss.str()));
+          ryml::NodeRef response_body = response_out[key_body];
+          response_body |= ryml::MAP;
+          utils::set_tree_node(body,
+                               body.rootref(),
+                               response_body,
+                               ryml_modify_buf_);
+        }, [&](std::runtime_error const &e) {
+          response_out[key_body] << resRC.body;
+        });
+        ryml::set_callbacks(parent_.parent_.reh_.defaults);
       } else {
-        response_out[key_body] = resRC.body;
+        response_out[key_body] << resRC.body;
       }
     }
 
     scope.commit();
+    if(error) {
+      return 1;
+    }
+    return 0;
   }
-  if(error) {
-    return 1;
-  }
-
-  return 0;
 }
 
 int request::execute(const std::string &method,
@@ -183,25 +205,27 @@ int request::execute(const std::string &method,
                      const std::string &uri,
                      const std::string &query_string,
                      const std::string &data,
-                     Json::Value &request_in,
-                     Json::Value &request_out)
+                     ryml::NodeRef request_in,
+                     ryml::NodeRef request_out)
 {
   int res = 0;
   RestClient::HeaderFields reqHF;
 
   //read user defined http-headers
-  Json::Value *header_node_ptr = nullptr;
-  if((header_node_ptr = const_cast<Json::Value *>(request_in.find(key_headers.data(), key_headers.data()+key_headers.length())))) {
-    Json::Value::Members keys = header_node_ptr->getMemberNames();
-    std::for_each(keys.begin(), keys.end(), [&](const Json::String &it) {
-      auto hdr_val = js_env_.eval_as<std::string>(*header_node_ptr, it.c_str(), "");
+  if(request_in.has_child(key_headers)) {
+    ryml::NodeRef header_node = request_in[key_headers];
+    for(ryml::ConstNodeRef const &hdr : header_node.children()) {
+      std::ostringstream os;
+      os << hdr.key();
+      auto hdr_val = js_env_.eval_as<std::string>(header_node, os.str().c_str(), "");
       if(!hdr_val) {
         res = 1;
       } else {
-        reqHF[it] = *hdr_val;
+        reqHF[os.str().c_str()] = *hdr_val;
       }
-    });
+    }
   }
+
   if(res) {
     return res;
   }
@@ -241,8 +265,8 @@ int request::execute(const std::string &method,
 
 int request::on_response(const RestClient::Response &resRC,
                          const int64_t rtt,
-                         Json::Value &request_in,
-                         Json::Value &request_out)
+                         ryml::NodeRef request_in,
+                         ryml::NodeRef request_out)
 {
   int res = 0;
   std::ostringstream os;
@@ -254,8 +278,12 @@ int request::on_response(const RestClient::Response &resRC,
   // update scenario stats
   parent_.parent_.stats_.incr_categorization(os.str());
 
-  Json::Value &response_in = request_in[key_response];
-  Json::Value &response_out = request_out[key_response];
+  ryml::NodeRef response_in;
+  if(request_in.has_child(key_response)) {
+    response_in = request_in[key_response];
+  }
+  ryml::NodeRef response_out = request_out[key_response];
+  response_out |= ryml::MAP;
 
   res = process_response(resRC,
                          rtt,
@@ -314,7 +342,7 @@ int request::post(RestClient::HeaderFields &reqHF,
 
   RestClient::Response resRC;
   std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
-  if(response_mock_) {
+  if(response_mock_.valid()) {
     if((res = mocked_to_res(resRC))) {
       return res;
     }
@@ -344,7 +372,7 @@ int request::put(RestClient::HeaderFields &reqHF,
 
   RestClient::Response resRC;
   std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
-  if(response_mock_) {
+  if(response_mock_.valid()) {
     if((res = mocked_to_res(resRC))) {
       return res;
     }
@@ -373,7 +401,7 @@ int request::get(RestClient::HeaderFields &reqHF,
 
   RestClient::Response resRC;
   std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
-  if(response_mock_) {
+  if(response_mock_.valid()) {
     if((res = mocked_to_res(resRC))) {
       return res;
     }
@@ -402,7 +430,7 @@ int request::del(RestClient::HeaderFields &reqHF,
 
   RestClient::Response resRC;
   std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
-  if(response_mock_) {
+  if(response_mock_.valid()) {
     if((res = mocked_to_res(resRC))) {
       return res;
     }
@@ -431,7 +459,7 @@ int request::head(RestClient::HeaderFields &reqHF,
 
   RestClient::Response resRC;
   std::chrono::system_clock::time_point t0 = std::chrono::system_clock::now();
-  if(response_mock_) {
+  if(response_mock_.valid()) {
     if((res = mocked_to_res(resRC))) {
       return res;
     }
@@ -450,7 +478,7 @@ int request::head(RestClient::HeaderFields &reqHF,
 
 void request::dump_hdr(const RestClient::HeaderFields &hdr) const
 {
-  std::for_each(hdr.begin(), hdr.end(), [&](auto it) {
+  std::for_each(hdr.begin(), hdr.end(), [&](const auto &it) {
     event_log_->trace("{}:{}", it.first, it.second);
   });
 }
@@ -458,13 +486,13 @@ void request::dump_hdr(const RestClient::HeaderFields &hdr) const
 int request::mocked_to_res(RestClient::Response &resRC)
 {
   //code
-  auto code = js_env_.eval_as<int32_t>(*response_mock_, key_code.c_str());
+  auto code = js_env_.eval_as<int32_t>(response_mock_, key_code);
   if(code) {
     resRC.code = *code;
   }
 
   //body
-  auto body = js_env_.eval_as<std::string>(*response_mock_, key_body.c_str());
+  auto body = js_env_.eval_as<std::string>(response_mock_, key_body);
   if(body) {
     resRC.body = *body;
   }

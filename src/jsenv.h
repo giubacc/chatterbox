@@ -15,14 +15,18 @@ struct converter;
 
 template <>
 struct converter<bool> {
-  static bool isType(const Json::Value &val) {
-    return val.isBool();
+  static bool isType(ryml::ConstNodeRef val) {
+    bool bval;
+    val >> bval;
+    return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
     return val->IsBoolean();
   }
-  static bool asType(const Json::Value &val) {
-    return val.asBool();
+  static bool asType(ryml::ConstNodeRef val) {
+    bool bval;
+    val >> bval;
+    return bval;
   }
   static bool asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
     return val->BooleanValue(isl);
@@ -34,14 +38,18 @@ struct converter<bool> {
 
 template <>
 struct converter<int32_t> {
-  static bool isType(const Json::Value &val) {
-    return val.isUInt();
+  static bool isType(ryml::ConstNodeRef val) {
+    int32_t ival;
+    val >> ival;
+    return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
     return val->IsInt32();
   }
-  static int32_t asType(const Json::Value &val) {
-    return val.asInt();
+  static int32_t asType(ryml::ConstNodeRef val) {
+    int32_t ival;
+    val >> ival;
+    return ival;
   }
   static int32_t asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
     return val->Int32Value(isl->GetCurrentContext()).FromMaybe(0);
@@ -53,14 +61,18 @@ struct converter<int32_t> {
 
 template <>
 struct converter<uint32_t> {
-  static bool isType(const Json::Value &val) {
-    return val.isUInt();
+  static bool isType(ryml::ConstNodeRef val) {
+    int32_t uival;
+    val >> uival;
+    return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
     return val->IsUint32();
   }
-  static uint32_t asType(const Json::Value &val) {
-    return val.asUInt();
+  static uint32_t asType(ryml::ConstNodeRef val) {
+    int32_t uival;
+    val >> uival;
+    return uival;
   }
   static uint32_t asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
     return val->Uint32Value(isl->GetCurrentContext()).FromMaybe(0);
@@ -72,14 +84,18 @@ struct converter<uint32_t> {
 
 template <>
 struct converter<double> {
-  static bool isType(const Json::Value &val) {
-    return val.isDouble();
+  static bool isType(ryml::ConstNodeRef val) {
+    double dval;
+    val >> dval;
+    return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
     return val->IsNumber();
   }
-  static double asType(const Json::Value &val) {
-    return val.asDouble();
+  static double asType(ryml::ConstNodeRef val) {
+    double dval;
+    val >> dval;
+    return dval;
   }
   static double asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
     return val->NumberValue(isl->GetCurrentContext()).FromMaybe(0.0);
@@ -91,14 +107,18 @@ struct converter<double> {
 
 template <>
 struct converter<std::string> {
-  static bool isType(const Json::Value &val) {
-    return val.isString();
+  static bool isType(ryml::ConstNodeRef val) {
+    std::string sval;
+    val >> sval;
+    return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
     return val->IsString();
   }
-  static std::string asType(const Json::Value &val) {
-    return val.asString();
+  static std::string asType(ryml::ConstNodeRef val) {
+    std::string sval;
+    val >> sval;
+    return sval;
   }
   static std::string asType(const v8::Local<v8::Value> &val, v8::Isolate *isl) {
     v8::String::Utf8Value utf_res(isl, val);
@@ -125,7 +145,7 @@ struct js_env {
 
   int init(std::shared_ptr<spdlog::logger> &event_log);
 
-  int renew_scenario_context();
+  int reset();
 
   // -----------------------
   // --- Context objects ---
@@ -133,44 +153,44 @@ struct js_env {
 
   bool install_scenario_objects();
 
-  //Json::Value
+  //ryml::NodeRef
 
-  v8::Local<v8::ObjectTemplate> make_json_value_template();
+  v8::Local<v8::ObjectTemplate> make_ryml_noderef_template();
 
-  v8::Local<v8::Object> wrap_json_value(Json::Value &obj);
-  static Json::Value *unwrap_json_value(v8::Local<v8::Object> obj);
+  v8::Local<v8::Object> wrap_ryml_noderef(ryml::NodeRef &obj);
+  static ryml::NodeRef *unwrap_ryml_noderef(v8::Local<v8::Object> obj);
 
-  static bool js_value_from_json_value(Json::Value &obj_val,
-                                       v8::Local<v8::Value> &js_obj_val,
-                                       js_env &self);
+  static bool js_value_from_ryml_noderef(ryml::NodeRef &obj_val,
+                                         v8::Local<v8::Value> &js_obj_val,
+                                         js_env &self);
 
-  static bool json_value_from_js_value(Json::Value &obj_val,
-                                       v8::Local<v8::Value> &js_obj_val,
-                                       js_env &self);
+  static bool ryml_noderef_from_js_value(ryml::NodeRef &obj_val,
+                                         v8::Local<v8::Value> &js_obj_val,
+                                         js_env &self);
 
-  static void json_value_get_by_name(v8::Local<v8::Name> key,
-                                     const v8::PropertyCallbackInfo<v8::Value> &pci);
+  static void ryml_noderef_get_by_name(v8::Local<v8::Name> key,
+                                       const v8::PropertyCallbackInfo<v8::Value> &pci);
 
-  static void json_value_set_by_name(v8::Local<v8::Name> key,
-                                     v8::Local<v8::Value> value,
-                                     const v8::PropertyCallbackInfo<v8::Value> &pci);
+  static void ryml_noderef_set_by_name(v8::Local<v8::Name> key,
+                                       v8::Local<v8::Value> value,
+                                       const v8::PropertyCallbackInfo<v8::Value> &pci);
 
-  static void json_value_get_by_idx(uint32_t index,
-                                    const v8::PropertyCallbackInfo<v8::Value> &pci);
+  static void ryml_noderef_get_by_idx(uint32_t index,
+                                      const v8::PropertyCallbackInfo<v8::Value> &pci);
 
-  static void json_value_set_by_idx(uint32_t index,
-                                    v8::Local<v8::Value> value,
-                                    const v8::PropertyCallbackInfo<v8::Value> &pci);
+  static void ryml_noderef_set_by_idx(uint32_t index,
+                                      v8::Local<v8::Value> value,
+                                      const v8::PropertyCallbackInfo<v8::Value> &pci);
 
   // -------------------------
   // --- C++ -> Javascript ---
   // -------------------------
 
-  bool invoke_js_function(Json::Value *ctx_json,
+  bool invoke_js_function(ryml::NodeRef *ctx,
                           const char *js_function_name,
-                          Json::Value &js_args,
+                          ryml::NodeRef js_args,
                           const std::function <bool (v8::Isolate *,
-                                                     Json::Value &,
+                                                     ryml::NodeRef,
                                                      v8::Local<v8::Value> [])> &prepare_argv,
                           const std::function <bool (v8::Isolate *,
                                                      const v8::Local<v8::Value>&)> &process_result,
@@ -189,65 +209,70 @@ struct js_env {
   // ----------------------------
 
   template <typename T>
-  std::optional<T> eval_as(const Json::Value &from,
+  std::optional<T> eval_as(ryml::NodeRef from,
                            const char *key,
                            const std::optional<T> default_value = std::nullopt) {
-    Json::Value val = from.get(key, Json::Value::null);
-    if(val) {
-      if(utils::converter<T>::isType(val)) {
-        //eval as primitive value
-        return utils::converter<T>::asType(val);
-      } else {
-        //eval as javascript function
-        Json::Value function = val.get("function", Json::Value::null);
-        if(!function || !function.isString()) {
-          event_log_->error("function name is not string type");
+    if(!from.has_child(ryml::to_csubstr(key))) {
+      return default_value;
+    }
+    ryml::NodeRef val = from[ryml::to_csubstr(key)];
+    if(utils::converter<T>::isType(val)) {
+      //eval as primitive value
+      return utils::converter<T>::asType(val);
+    } else {
+      //eval as javascript function
+
+      if(!val.has_child("function")) {
+        event_log_->error("failed to read 'function'");
+        return std::nullopt;
+      }
+
+      ryml::NodeRef function = val["function"];
+      ryml::NodeRef js_args;
+      if(val.has_child("args")) {
+        js_args = val["args"];
+        if(!js_args.is_seq()) {
+          event_log_->error("function args are not sequence type");
           return std::nullopt;
         }
+      }
 
-        Json::Value js_args = val.get("args", Json::Value::null);
-        if(js_args) {
-          if(!js_args.isArray()) {
-            event_log_->error("function args are not array type");
-            return std::nullopt;
-          }
-        }
+      //finally invoke the javascript function
+      T result;
+      std::string error;
 
-        //finally invoke the javascript function
-        T result;
-        std::string error;
+      std::string fun_str;
+      function >> fun_str;
 
-        bool js_res = invoke_js_function(nullptr,
-                                         function.asCString(),
-                                         js_args,
-        [&](v8::Isolate *isl, Json::Value &js_args, v8::Local<v8::Value> argv[]) -> bool{
-          for(uint32_t i = 0; i < js_args.size(); ++i) {
-            if(!js_value_from_json_value(js_args[i], argv[i], *this)) {
-              return false;
-            }
-          }
-          return true;
-        },
-        [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
-          if(!utils::converter<T>::isType(res)) {
-            std::stringstream ss;
-            ss << "function result is not " << utils::converter<T>::name() << " type";
-            event_log_->error(ss.str());
+      bool js_res = invoke_js_function(nullptr,
+                                       fun_str.c_str(),
+                                       js_args,
+      [&](v8::Isolate *isl, ryml::NodeRef js_args, v8::Local<v8::Value> argv[]) -> bool{
+        for(uint32_t i = 0; i < js_args.num_children(); ++i) {
+          ryml::NodeRef js_arg = js_args[i];
+          if(!js_value_from_ryml_noderef(js_arg, argv[i], *this)) {
             return false;
           }
-          result = utils::converter<T>::asType(res, isl);
-          return true;
-        },
-        error);
-
-        if(!js_res) {
-          event_log_->error("failure invoking function:{}, error:{}", function.asString(), error);
-          return std::nullopt;
         }
-        return result;
+        return true;
+      },
+      [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
+        if(!utils::converter<T>::isType(res)) {
+          std::stringstream ss;
+          ss << "function result is not " << utils::converter<T>::name() << " type";
+          event_log_->error(ss.str());
+          return false;
+        }
+        result = utils::converter<T>::asType(res, isl);
+        return true;
+      },
+      error);
+
+      if(!js_res) {
+        event_log_->error("failure invoking function:{}, error:{}", fun_str, error);
+        return std::nullopt;
       }
-    } else {
-      return default_value;
+      return result;
     }
   }
 
@@ -266,7 +291,7 @@ struct js_env {
                   v8::Local<v8::Value> &result,
                   std::string &error);
 
-  bool exec_as_function(Json::Value &from,
+  bool exec_as_function(ryml::NodeRef from,
                         const char *key,
                         bool optional = true);
 
@@ -292,8 +317,11 @@ struct js_env {
   //it is disposed and then recreated on every scenario.
   v8::Global<v8::Context> scenario_context_;
 
-  //the global object template for json_value
-  v8::Global<v8::ObjectTemplate> json_value_template_;
+  //the global object template for ryml::NodeRef
+  v8::Global<v8::ObjectTemplate> ryml_noderef_template_;
+
+  //support map to keep alive ryml::NodeRef objects inside the js context
+  std::unordered_map<void *, std::unordered_map<size_t, ryml::NodeRef>> nodes_holder_;
 
   //event logger
   std::string event_log_fmt_;

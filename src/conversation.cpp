@@ -37,14 +37,14 @@ conversation::conversation(scenario &parent) :
   auth_.init(event_log_);
 }
 
-int conversation::reset(const Json::Value &conversation_in)
+int conversation::reset(ryml::NodeRef conversation_in)
 {
   // reset stats
   stats_.reset();
 
-  auto raw_host = js_env_.eval_as<std::string>(conversation_in, key_host.c_str());
+  auto raw_host = js_env_.eval_as<std::string>(conversation_in, key_host);
   if(!raw_host) {
-    event_log_->error("failed to read 'host' field");
+    event_log_->error("failed to read 'host'");
     return 1;
   }
 
@@ -55,23 +55,23 @@ int conversation::reset(const Json::Value &conversation_in)
   host = host.substr(0, (host.find(':') == std::string::npos ? host.length() : host.find(':')));
 
   //authorization
-  const Json::Value *auth_node = nullptr;
-  if((auth_node = conversation_in.find(key_auth.data(), key_auth.data()+key_auth.length()))) {
-    auto service = js_env_.eval_as<std::string>(conversation_in, key_service.c_str(), "s3");
-    auto access_key = js_env_.eval_as<std::string>(*auth_node, key_access_key.c_str(), "");
-    auto secret_key = js_env_.eval_as<std::string>(*auth_node, key_secret_key.c_str(), "");
-    auto signed_headers = js_env_.eval_as<std::string>(*auth_node,
-                                                       key_signed_headers.c_str(),
+  if(conversation_in.has_child(key_auth)) {
+    ryml::NodeRef auth_node = conversation_in[key_auth];
+    auto service = js_env_.eval_as<std::string>(conversation_in, key_service, "s3");
+    auto access_key = js_env_.eval_as<std::string>(auth_node, key_access_key, "");
+    auto secret_key = js_env_.eval_as<std::string>(auth_node, key_secret_key, "");
+    auto signed_headers = js_env_.eval_as<std::string>(auth_node,
+                                                       key_signed_headers,
                                                        "host;x-amz-content-sha256;x-amz-date");
-    auto region = js_env_.eval_as<std::string>(*auth_node, key_region.c_str(), "US");
+    auto region = js_env_.eval_as<std::string>(auth_node, key_region, "US");
     auth_.reset(host, *access_key, *secret_key, *service, *signed_headers, *region);
   }
 
   return 0;
 }
 
-int conversation::process(Json::Value &conversation_in,
-                          Json::Value &conversation_out)
+int conversation::process(ryml::NodeRef conversation_in,
+                          ryml::NodeRef conversation_out)
 {
   int res = 0;
 
@@ -94,38 +94,37 @@ int conversation::process(Json::Value &conversation_in,
     if(scope.enabled_) {
       parent_.stats_.incr_conversation_count();
 
-      Json::Value &requests_in = conversation_in[key_requests];
-      if(!requests_in.isArray()) {
-        event_log_->error("requests field is not an array");
+      if(!conversation_in.has_child(key_requests)) {
+        return 0;
+      }
+      ryml::NodeRef requests_in = conversation_in[key_requests];
+      if(!requests_in.is_seq()) {
+        event_log_->error("'requests' is not a sequence");
         return 1;
       }
 
-      Json::Value &requests_out = conversation_out[key_requests];
-      requests_out.clear();
+      ryml::NodeRef requests_out = conversation_out[key_requests];
+      requests_out |= ryml::SEQ;
+      requests_out.clear_children();
 
       //requests cycle
-      uint32_t req_it = 0;
-      while(true) {
-        if(!requests_in.isValidIndex(req_it)) {
-          break;
-        }
+      for(ryml::NodeRef const &request_in : requests_in.children()) {
 
         /*TODO parallel handling*/
         request req(*this);
 
         if((res = req.process(raw_host_,
-                              requests_in[req_it],
+                              request_in,
                               requests_out))) {
           return res;
         }
-        ++req_it;
       }
 
       enrich_with_stats(conversation_out);
       scope.commit();
     } else {
-      conversation_out.clear();
-      conversation_out[key_enabled] = false;
+      conversation_out.clear_children();
+      conversation_out[key_enabled] << STR_FALSE;
     }
   }
   if(error) {
@@ -135,14 +134,16 @@ int conversation::process(Json::Value &conversation_in,
   return res;
 }
 
-void conversation::enrich_with_stats(Json::Value &conversation_out)
+void conversation::enrich_with_stats(ryml::NodeRef conversation_out)
 {
-  Json::Value &statistics = conversation_out[key_stats];
-  statistics[key_requests] = stats_.request_count_;
-  std::for_each(stats_.categorization_.begin(),
-  stats_.categorization_.end(), [&](auto it) {
-    Json::Value &res_code_categorization = statistics[key_categorization];
-    res_code_categorization[it.first] = it.second;
+  ryml::NodeRef statistics = conversation_out[key_stats];
+  statistics |= ryml::MAP;
+  statistics[key_requests] << stats_.request_count_;
+  ryml::NodeRef res_code_categorization = statistics[key_categorization];
+  res_code_categorization |= ryml::MAP;
+  std::for_each(stats_.categorization_.begin(), stats_.categorization_.end(), [&](const auto &it) {
+    ryml::csubstr code = res_code_categorization.to_arena(it.first);
+    res_code_categorization[code] << it.second;
   });
 }
 
