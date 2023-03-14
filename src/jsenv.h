@@ -16,6 +16,9 @@ struct converter;
 template <>
 struct converter<bool> {
   static bool isType(ryml::ConstNodeRef val) {
+    if(!val.is_keyval() && !val.is_val()) {
+      return false;
+    }
     bool bval;
     val >> bval;
     return true;
@@ -39,6 +42,9 @@ struct converter<bool> {
 template <>
 struct converter<int32_t> {
   static bool isType(ryml::ConstNodeRef val) {
+    if(!val.is_keyval() && !val.is_val()) {
+      return false;
+    }
     int32_t ival;
     val >> ival;
     return true;
@@ -62,7 +68,10 @@ struct converter<int32_t> {
 template <>
 struct converter<uint32_t> {
   static bool isType(ryml::ConstNodeRef val) {
-    int32_t uival;
+    if(!val.is_keyval() && !val.is_val()) {
+      return false;
+    }
+    uint32_t uival;
     val >> uival;
     return true;
   }
@@ -70,7 +79,7 @@ struct converter<uint32_t> {
     return val->IsUint32();
   }
   static uint32_t asType(ryml::ConstNodeRef val) {
-    int32_t uival;
+    uint32_t uival;
     val >> uival;
     return uival;
   }
@@ -85,6 +94,9 @@ struct converter<uint32_t> {
 template <>
 struct converter<double> {
   static bool isType(ryml::ConstNodeRef val) {
+    if(!val.is_keyval() && !val.is_val()) {
+      return false;
+    }
     double dval;
     val >> dval;
     return true;
@@ -108,6 +120,9 @@ struct converter<double> {
 template <>
 struct converter<std::string> {
   static bool isType(ryml::ConstNodeRef val) {
+    if(!val.is_keyval() && !val.is_val()) {
+      return false;
+    }
     std::string sval;
     val >> sval;
     return true;

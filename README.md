@@ -151,18 +151,15 @@ chatterbox -p /scenarios -f scenario.yaml
 
 ## Input/Output concepts
 
-`chatterbox` works with this fundamental concept: the input provided by
-the user is also the skeleton used to render the output. The output
+`chatterbox` adopts the main concept that the input provided by
+the user is the template used to render the output. The output
 keeps the same format of the input, eventually enriched.
 
 Conceptually, the input is unwound by the `chatterbox`'s engine
 to produce the final rendered output.
-
-Each response for every request defined in the input is inserted in the output
-at the proper place.
-
-All the modifications operated by some JavaScript function are inserted
-in the output as well.
+Each response in the input is inserted in the output
+at the proper place. All the modifications operated by JavaScript
+functions are rendered in the output as well.
 
 ### Input/Output example
 
@@ -339,11 +336,11 @@ For example, to define these handlers in the scenario context:
 
 ```yaml
 will:
-  function: "onScenarioWill",
-  args: ["one", 2, "three"]
+  function: onScenarioWill
+  args: [one, 2, three]
 did:
-  "function": "onScenarioDid",
-  "args": [1, "two", 3]
+  function: onScenarioDid
+  args: [1, two, 3]
 conversations: []
 ```
 
@@ -379,7 +376,7 @@ global objects automatically set by `chatterbox`.
 
 Currently, you can access and manipulate the following objects:
 
-- `out`.
+- `out`
 
 This object represents the current state of the output. You can access
 any of its properties and also modify or add entries.

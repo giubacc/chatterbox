@@ -65,6 +65,25 @@
 
 namespace utils {
 
+struct cfg {
+  std::string in_scenario_path = "";
+  std::string in_scenario_name = "";
+
+  std::string out_channel = "stdout";
+  std::string out_format = STR_YAML;
+
+  std::string evt_log_channel = "stderr";
+  std::string evt_log_level = "inf";
+
+  bool no_out_ = false;
+};
+
+const ryml::Tree &get_default_out_options();
+const ryml::Tree &get_default_scenario_out_options();
+const ryml::Tree &get_default_conversation_out_options();
+const ryml::Tree &get_default_request_out_options();
+const ryml::Tree &get_default_response_out_options();
+
 enum resolution {
   nanoseconds,
   microseconds,
