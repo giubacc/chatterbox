@@ -17,6 +17,9 @@ namespace crypto {
 std::string hmac_sha1(const std::string &key,
                       const std::string &data)
 {
+  if(key.empty()) {
+    return "";
+  }
   std::vector<CryptoPP::byte> byte_key;
   try {
 
@@ -37,6 +40,9 @@ std::string hmac_sha1(const std::string &key,
 std::string hmac_sha256(const std::string &key,
                         const std::string &data)
 {
+  if(key.empty()) {
+    return "";
+  }
   std::vector<CryptoPP::byte> byte_key;
   try {
 

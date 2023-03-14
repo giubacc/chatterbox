@@ -4,6 +4,74 @@
 const std::string algorithm = "AWS4-HMAC-SHA256";
 namespace utils {
 
+static std::unique_ptr<ryml::Tree> default_out_options;
+const ryml::Tree &get_default_out_options()
+{
+  if(!default_out_options) {
+    default_out_options.reset(new ryml::Tree);
+    ryml::NodeRef root = default_out_options->rootref();
+    root |= ryml::MAP;
+    ryml::NodeRef default_out_dumps = root[key_dump];
+    default_out_dumps |= ryml::MAP;
+    default_out_dumps[key_out] << STR_FALSE;
+    default_out_dumps[key_will] << STR_FALSE;
+    default_out_dumps[key_did] << STR_FALSE;
+    default_out_dumps[key_enabled] << STR_FALSE;
+    ryml::NodeRef default_out_formats = root[key_format];
+    default_out_formats |= ryml::MAP;
+    default_out_formats[key_rtt] << key_msec;
+  }
+  return *default_out_options;
+}
+
+static std::unique_ptr<ryml::Tree> default_scenario_out_options;
+const ryml::Tree &get_default_scenario_out_options()
+{
+  if(!default_scenario_out_options) {
+    default_scenario_out_options.reset(new ryml::Tree);
+    *default_scenario_out_options = get_default_out_options();
+  }
+  return *default_scenario_out_options;
+}
+
+static std::unique_ptr<ryml::Tree> default_conversation_out_options;
+const ryml::Tree &get_default_conversation_out_options()
+{
+  if(!default_conversation_out_options) {
+    default_conversation_out_options.reset(new ryml::Tree);
+    *default_conversation_out_options = get_default_out_options();
+  }
+  return *default_conversation_out_options;
+}
+
+static std::unique_ptr<ryml::Tree> default_request_out_options;
+const ryml::Tree &get_default_request_out_options()
+{
+  if(!default_request_out_options) {
+    default_request_out_options.reset(new ryml::Tree);
+    *default_request_out_options = get_default_out_options();
+    ryml::NodeRef root = default_request_out_options->rootref();
+    ryml::NodeRef request_out_dumps = root[key_dump];
+    request_out_dumps[key_auth] << STR_FALSE;
+    request_out_dumps[key_for] << STR_FALSE;
+    request_out_dumps[key_mock] << STR_FALSE;
+  }
+  return *default_request_out_options;
+}
+
+static std::unique_ptr<ryml::Tree> default_response_out_options;
+const ryml::Tree &get_default_response_out_options()
+{
+  if(!default_response_out_options) {
+    default_response_out_options.reset(new ryml::Tree);
+    *default_response_out_options = get_default_out_options();
+    ryml::NodeRef root = default_response_out_options->rootref();
+    ryml::NodeRef response_out_formats = root[key_format];
+    response_out_formats[key_body] << STR_JSON;
+  }
+  return *default_response_out_options;
+}
+
 size_t file_get_contents(const char *filename,
                          std::vector<char> &v,
                          spdlog::logger *log)

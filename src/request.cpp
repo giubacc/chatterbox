@@ -5,8 +5,7 @@ const std::string algorithm = "AWS4-HMAC-SHA256";
 
 namespace cbox {
 
-request::request(conversation &parent) :
-  parent_(parent),
+request::request(conversation &parent) : parent_(parent),
   js_env_(parent_.js_env_),
   event_log_(parent_.event_log_) {}
 
@@ -61,7 +60,7 @@ int request::process(const std::string &raw_host,
                                   request_in,
                                   request_out,
                                   error,
-                                  scenario::get_default_request_out_options());
+                                  utils::get_default_request_out_options());
       if(error) {
         return 1;
       }
@@ -75,40 +74,43 @@ int request::process(const std::string &raw_host,
         if(!method) {
           event_log_->error("failed to read 'method'");
           return 1;
+        } else {
+          request_out.remove_child(key_method);
+          request_out[key_method] << *method;
         }
 
         // uri
-        auto uri = js_env_.eval_as<std::string>(request_in, key_uri, "");
+        auto uri = js_env_.eval_as<std::string>(request_in, key_uri);
         if(!uri) {
           event_log_->error("failed to read 'uri'");
           return 1;
+        } else {
+          request_out.remove_child(key_uri);
+          request_out[key_uri] << *uri;
         }
 
         // query_string
-        auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string, "");
-        if(!query_string) {
-          event_log_->error("failed to read 'query_string'");
-          return 1;
+        auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string);
+        if(query_string) {
+          request_out.remove_child(key_query_string);
+          request_out[key_query_string] << *query_string;
         }
 
-        //data
-        auto data = js_env_.eval_as<std::string>(request_in, key_data, "");
-        if(!data) {
-          event_log_->error("failed to read 'data'");
-          return 1;
+        // data
+        auto data = js_env_.eval_as<std::string>(request_in, key_data);
+        if(data) {
+          request_out.remove_child(key_data);
+          request_out[key_data] << *data;
         }
 
-        //optional auth directive
+        // auth directive
         auto auth = js_env_.eval_as<std::string>(request_in, key_auth);
         if(auth) {
+          request_out.remove_child(key_auth);
           request_out[key_auth] << *auth;
         }
 
-        request_out[key_method] << *method;
-        request_out[key_uri] << *uri;
-        request_out[key_query_string] << *query_string;
-        request_out[key_data] << *data;
-
+        // mock
         if(request_in.has_child(key_mock)) {
           response_mock_ = request_in[key_mock];
         }
@@ -148,7 +150,7 @@ int request::process_response(const RestClient::Response &resRC,
                                 response_in,
                                 response_out,
                                 error,
-                                scenario::get_default_response_out_options());
+                                utils::get_default_response_out_options());
     if(error) {
       return 1;
     }
@@ -172,8 +174,8 @@ int request::process_response(const RestClient::Response &resRC,
 
     if(!resRC.body.empty()) {
       if(fopts[key_body] == STR_JSON) {
-        ryml::set_callbacks(parent_.parent_.reh_.callbacks());
-        parent_.parent_.reh_.check_error_occurs([&] {
+        ryml::set_callbacks(parent_.parent_.REH_.callbacks());
+        parent_.parent_.REH_.check_error_occurs([&] {
           std::stringstream ss;
           ss << resRC.body;
           ryml::Tree body = ryml::parse_in_arena(ryml::to_csubstr(ss.str()));
@@ -183,12 +185,14 @@ int request::process_response(const RestClient::Response &resRC,
                                body.rootref(),
                                response_body,
                                ryml_modify_buf_);
-        }, [&](std::runtime_error const &e) {
-          response_out[key_body] << resRC.body;
+        },
+        [&](std::runtime_error const &e) {
+          response_out[key_body] << resRC.body |= ryml::KEYVAL;
         });
-        ryml::set_callbacks(parent_.parent_.reh_.defaults);
+        ryml::set_callbacks(parent_.parent_.REH_.defaults);
       } else {
-        response_out[key_body] << resRC.body;
+        response_out[key_body] << resRC.body |= ryml::KEYVAL;
+        ;
       }
     }
 
@@ -211,51 +215,63 @@ int request::execute(const std::string &method,
   int res = 0;
   RestClient::HeaderFields reqHF;
 
-  //read user defined http-headers
-  if(request_in.has_child(key_headers)) {
-    ryml::NodeRef header_node = request_in[key_headers];
-    for(ryml::ConstNodeRef const &hdr : header_node.children()) {
+  // read user defined http-headers
+  if(request_out.has_child(key_headers)) {
+    ryml::Tree rendered_headers;
+    ryml::NodeRef rh_root = rendered_headers.rootref();
+    rh_root |= ryml::MAP;
+
+    ryml::NodeRef header_node = request_out[key_headers];
+    for(ryml::NodeRef hdr : header_node.children()) {
       std::ostringstream os;
       os << hdr.key();
       auto hdr_val = js_env_.eval_as<std::string>(header_node, os.str().c_str(), "");
       if(!hdr_val) {
         res = 1;
       } else {
-        reqHF[os.str().c_str()] = *hdr_val;
+        auto key = os.str();
+        reqHF[key.c_str()] = *hdr_val;
+        ryml::csubstr arena_key = rh_root.to_arena(key);
+        rh_root[arena_key] << *hdr_val;
       }
     }
+    header_node.clear_children();
+    utils::set_tree_node(rendered_headers,
+                         rh_root,
+                         header_node,
+                         ryml_modify_buf_);
   }
 
   if(res) {
     return res;
   }
 
-  //invoke http-method
+  // invoke http-method
   if(method == "GET") {
     res = get(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
-                         request_out);});
+                         request_out); });
   } else if(method == "POST") {
     res = post(reqHF, auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
-                         request_out);});
+                         request_out); });
   } else if(method == "PUT") {
     res = put(reqHF, auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
-                         request_out);});
+                         request_out); });
   } else if(method == "DELETE") {
     res = del(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
-                         request_out);});
+                         request_out); });
   } else if(method == "HEAD") {
     res = head(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
-                         request_out);});
+                         request_out); });
   } else {
     event_log_->error("bad method:{}", method);
     res = 1;
@@ -330,7 +346,7 @@ int request::post(RestClient::HeaderFields &reqHF,
                   const std::string &uri,
                   const std::string &query_string,
                   const std::string &data,
-                  const std::function <int (const RestClient::Response &, const int64_t)> &cb)
+                  const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -360,7 +376,7 @@ int request::put(RestClient::HeaderFields &reqHF,
                  const std::string &uri,
                  const std::string &query_string,
                  const std::string &data,
-                 const std::function <int (const RestClient::Response &, const int64_t)> &cb)
+                 const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -389,7 +405,7 @@ int request::get(RestClient::HeaderFields &reqHF,
                  const std::optional<std::string> &auth,
                  const std::string &uri,
                  const std::string &query_string,
-                 const std::function <int (const RestClient::Response &, const int64_t)> &cb)
+                 const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -418,7 +434,7 @@ int request::del(RestClient::HeaderFields &reqHF,
                  const std::optional<std::string> &auth,
                  const std::string &uri,
                  const std::string &query_string,
-                 const std::function <int (const RestClient::Response &, const int64_t)> &cb)
+                 const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -447,7 +463,7 @@ int request::head(RestClient::HeaderFields &reqHF,
                   const std::optional<std::string> &auth,
                   const std::string &uri,
                   const std::string &query_string,
-                  const std::function <int (const RestClient::Response &, const int64_t)> &cb)
+                  const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
@@ -485,16 +501,20 @@ void request::dump_hdr(const RestClient::HeaderFields &hdr) const
 
 int request::mocked_to_res(RestClient::Response &resRC)
 {
-  //code
+  // code
   auto code = js_env_.eval_as<int32_t>(response_mock_, key_code);
   if(code) {
     resRC.code = *code;
+    response_mock_.remove_child(key_code);
+    response_mock_[key_code] << *code;
   }
 
-  //body
+  // body
   auto body = js_env_.eval_as<std::string>(response_mock_, key_body);
   if(body) {
     resRC.body = *body;
+    response_mock_.remove_child(key_body);
+    response_mock_[key_body] << *body;
   }
 
   return 0;

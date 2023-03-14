@@ -2,74 +2,6 @@
 
 namespace cbox {
 
-static std::unique_ptr<ryml::Tree> default_out_options;
-const ryml::Tree &scenario::get_default_out_options()
-{
-  if(!default_out_options) {
-    default_out_options.reset(new ryml::Tree);
-    ryml::NodeRef root = default_out_options->rootref();
-    root |= ryml::MAP;
-    ryml::NodeRef default_out_dumps = root[key_dump];
-    default_out_dumps |= ryml::MAP;
-    default_out_dumps[key_out] << STR_FALSE;
-    default_out_dumps[key_will] << STR_FALSE;
-    default_out_dumps[key_did] << STR_FALSE;
-    default_out_dumps[key_enabled] << STR_FALSE;
-    ryml::NodeRef default_out_formats = root[key_format];
-    default_out_formats |= ryml::MAP;
-    default_out_formats[key_rtt] << key_msec;
-  }
-  return *default_out_options;
-}
-
-static std::unique_ptr<ryml::Tree> default_scenario_out_options;
-const ryml::Tree &scenario::get_default_scenario_out_options()
-{
-  if(!default_scenario_out_options) {
-    default_scenario_out_options.reset(new ryml::Tree);
-    *default_scenario_out_options = get_default_out_options();
-  }
-  return *default_scenario_out_options;
-}
-
-static std::unique_ptr<ryml::Tree> default_conversation_out_options;
-const ryml::Tree &scenario::get_default_conversation_out_options()
-{
-  if(!default_conversation_out_options) {
-    default_conversation_out_options.reset(new ryml::Tree);
-    *default_conversation_out_options = get_default_out_options();
-  }
-  return *default_conversation_out_options;
-}
-
-static std::unique_ptr<ryml::Tree> default_request_out_options;
-const ryml::Tree &scenario::get_default_request_out_options()
-{
-  if(!default_request_out_options) {
-    default_request_out_options.reset(new ryml::Tree);
-    *default_request_out_options = get_default_out_options();
-    ryml::NodeRef root = default_request_out_options->rootref();
-    ryml::NodeRef request_out_dumps = root[key_dump];
-    request_out_dumps[key_auth] << STR_FALSE;
-    request_out_dumps[key_for] << STR_FALSE;
-    request_out_dumps[key_mock] << STR_FALSE;
-  }
-  return *default_request_out_options;
-}
-
-static std::unique_ptr<ryml::Tree> default_response_out_options;
-const ryml::Tree &scenario::get_default_response_out_options()
-{
-  if(!default_response_out_options) {
-    default_response_out_options.reset(new ryml::Tree);
-    *default_response_out_options = get_default_out_options();
-    ryml::NodeRef root = default_response_out_options->rootref();
-    ryml::NodeRef response_out_formats = root[key_format];
-    response_out_formats[key_body] << STR_JSON;
-  }
-  return *default_response_out_options;
-}
-
 // -------------------
 // --- STACK SCOPE ---
 // -------------------
@@ -384,14 +316,14 @@ int scenario::load_source_process(const char *fname)
 
   size_t sz;
   if((sz = utils::file_get_contents(fpath.str().c_str(), ryml_load_buf_, event_log_.get()))) {
-    ryml::set_callbacks(reh_.callbacks());
-    reh_.check_error_occurs([&] {
+    ryml::set_callbacks(REH_.callbacks());
+    REH_.check_error_occurs([&] {
       scenario_in_ = ryml::parse_in_place(ryml::to_substr(ryml_load_buf_));
     }, [&](std::runtime_error const &e) {
       event_log_->error("malformed scenario\n{}", e.what());
       res = 1;
     });
-    ryml::set_callbacks(reh_.defaults);
+    ryml::set_callbacks(REH_.defaults);
   } else {
     res = 1;
   }
@@ -420,7 +352,7 @@ int scenario::process()
                       scenario_in_root,
                       scenario_out_root,
                       error,
-                      get_default_scenario_out_options());
+                      utils::get_default_scenario_out_options());
     if(error) {
       goto fend;
     }

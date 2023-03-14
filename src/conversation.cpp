@@ -41,32 +41,6 @@ int conversation::reset(ryml::NodeRef conversation_in)
 {
   // reset stats
   stats_.reset();
-
-  auto raw_host = js_env_.eval_as<std::string>(conversation_in, key_host);
-  if(!raw_host) {
-    event_log_->error("failed to read 'host'");
-    return 1;
-  }
-
-  raw_host_ = *raw_host;
-  auto host = raw_host_;
-  utils::find_and_replace(host, "http://", "");
-  utils::find_and_replace(host, "https://", "");
-  host = host.substr(0, (host.find(':') == std::string::npos ? host.length() : host.find(':')));
-
-  //authorization
-  if(conversation_in.has_child(key_auth)) {
-    ryml::NodeRef auth_node = conversation_in[key_auth];
-    auto service = js_env_.eval_as<std::string>(conversation_in, key_service, "s3");
-    auto access_key = js_env_.eval_as<std::string>(auth_node, key_access_key, "");
-    auto secret_key = js_env_.eval_as<std::string>(auth_node, key_secret_key, "");
-    auto signed_headers = js_env_.eval_as<std::string>(auth_node,
-                                                       key_signed_headers,
-                                                       "host;x-amz-content-sha256;x-amz-date");
-    auto region = js_env_.eval_as<std::string>(auth_node, key_region, "US");
-    auth_.reset(host, *access_key, *secret_key, *service, *signed_headers, *region);
-  }
-
   return 0;
 }
 
@@ -86,13 +60,77 @@ int conversation::process(ryml::NodeRef conversation_in,
                                 conversation_in,
                                 conversation_out,
                                 error,
-                                scenario::get_default_conversation_out_options());
+                                utils::get_default_conversation_out_options());
     if(error) {
       return 1;
     }
 
     if(scope.enabled_) {
       parent_.stats_.incr_conversation_count();
+
+      auto raw_host = js_env_.eval_as<std::string>(conversation_out, key_host);
+      if(!raw_host) {
+        event_log_->error("failed to read 'host'");
+        return 1;
+      } else {
+        conversation_out.remove_child(key_host);
+        conversation_out[key_host] << *raw_host;
+      }
+
+      raw_host_ = *raw_host;
+      auto host = raw_host_;
+      utils::find_and_replace(host, "http://", "");
+      utils::find_and_replace(host, "https://", "");
+      host = host.substr(0, (host.find(':') == std::string::npos ? host.length() : host.find(':')));
+
+      //auth
+      if(conversation_out.has_child(key_auth)) {
+        ryml::NodeRef auth_node = conversation_out[key_auth];
+        auto service = js_env_.eval_as<std::string>(auth_node, key_service, "s3");
+        if(service) {
+          if(auth_node.has_child(key_service)) {
+            auth_node.remove_child(key_service);
+          }
+          auth_node[key_service] << *service;
+        }
+
+        auto access_key = js_env_.eval_as<std::string>(auth_node, key_access_key);
+        if(access_key) {
+          auth_node.remove_child(key_access_key);
+          auth_node[key_access_key] << *access_key;
+        }
+
+        auto secret_key = js_env_.eval_as<std::string>(auth_node, key_secret_key);
+        if(secret_key) {
+          auth_node.remove_child(key_secret_key);
+          auth_node[key_secret_key] << *secret_key;
+        }
+
+        auto signed_headers = js_env_.eval_as<std::string>(auth_node,
+                                                           key_signed_headers,
+                                                           "host;x-amz-content-sha256;x-amz-date");
+        if(signed_headers) {
+          if(auth_node.has_child(key_signed_headers)) {
+            auth_node.remove_child(key_signed_headers);
+          }
+          auth_node[key_signed_headers] << *signed_headers;
+        }
+
+        auto region = js_env_.eval_as<std::string>(auth_node, key_region, "US");
+        if(region) {
+          if(auth_node.has_child(key_region)) {
+            auth_node.remove_child(key_region);
+          }
+          auth_node[key_region] << *region;
+        }
+
+        auth_.reset(host,
+                    *access_key,
+                    *secret_key,
+                    *service,
+                    *signed_headers,
+                    *region);
+      }
 
       if(!conversation_in.has_child(key_requests)) {
         return 0;

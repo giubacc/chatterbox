@@ -5,26 +5,6 @@ namespace cbox {
 
 struct scenario {
 
-    // scenario configuration
-    struct cfg {
-      std::string in_scenario_path = "";
-      std::string in_scenario_name = "";
-
-      std::string out_channel = "stdout";
-      std::string out_format = STR_YAML;
-
-      std::string evt_log_channel = "stderr";
-      std::string evt_log_level = "inf";
-
-      bool no_out_ = false;
-    };
-
-    static const ryml::Tree &get_default_out_options();
-    static const ryml::Tree &get_default_scenario_out_options();
-    static const ryml::Tree &get_default_conversation_out_options();
-    static const ryml::Tree &get_default_request_out_options();
-    static const ryml::Tree &get_default_response_out_options();
-
     // -------------------
     // --- STACK SCOPE ---
     // -------------------
@@ -36,7 +16,7 @@ struct scenario {
                     ryml::NodeRef obj_in,
                     ryml::NodeRef obj_out,
                     bool &error,
-                    const ryml::Tree &default_out_options = get_default_out_options(),
+                    const ryml::Tree &default_out_options = utils::get_default_out_options(),
                     bool call_dump_val_cb = false,
                     const std::function<void(const std::string &key, bool val)> &dump_val_cb =
                     [](const std::string &, bool) {},
@@ -115,7 +95,10 @@ struct scenario {
     void enrich_with_stats(ryml::NodeRef scenario_out);
 
   public:
-    cfg cfg_;
+    utils::cfg cfg_;
+
+    //ryml error handler
+    utils::RymlErrorHandler REH_;
 
     //current scenario_in and scenario_out
     ryml::Tree scenario_in_;
@@ -125,9 +108,6 @@ struct scenario {
     std::vector<char> ryml_load_buf_;
     //ryml scenario modify support buffer
     std::vector<char> ryml_modify_buf_;
-
-    //ryml error handler
-    utils::RymlErrorHandler reh_;
 
     //scenario statistics
     statistics stats_;
