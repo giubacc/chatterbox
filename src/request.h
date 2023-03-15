@@ -18,8 +18,8 @@ struct request {
     int execute(const std::string &method,
                 const std::optional<std::string> &auth,
                 const std::string &uri,
-                const std::string &query_string,
-                const std::string &data,
+                const std::optional<std::string> &query_string,
+                const std::optional<std::string> &data,
                 ryml::NodeRef request_in,
                 ryml::NodeRef request_out);
 
@@ -43,8 +43,8 @@ struct request {
     int post(RestClient::HeaderFields &reqHF,
              const std::optional<std::string> &auth,
              const std::string &uri,
-             const std::string &query_string,
-             const std::string &data,
+             const std::optional<std::string> &query_string,
+             const std::optional<std::string> &data,
              const std::function<int(const RestClient::Response &, const int64_t)> &cb);
 
     /**
@@ -53,8 +53,8 @@ struct request {
     int put(RestClient::HeaderFields &reqHF,
             const std::optional<std::string> &auth,
             const std::string &uri,
-            const std::string &query_string,
-            const std::string &data,
+            const std::optional<std::string> &query_string,
+            const std::optional<std::string> &data,
             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
     /**
@@ -63,7 +63,7 @@ struct request {
     int get(RestClient::HeaderFields &reqHF,
             const std::optional<std::string> &auth,
             const std::string &uri,
-            const std::string &query_string,
+            const std::optional<std::string> &query_string,
             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
     /**
@@ -72,7 +72,7 @@ struct request {
     int del(RestClient::HeaderFields &reqHF,
             const std::optional<std::string> &auth,
             const std::string &uri,
-            const std::string &query_string,
+            const std::optional<std::string> &query_string,
             const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
     /**
@@ -81,15 +81,15 @@ struct request {
     int head(RestClient::HeaderFields &reqHF,
              const std::optional<std::string> &auth,
              const std::string &uri,
-             const std::string &query_string,
+             const std::optional<std::string> &query_string,
              const std::function <int (const RestClient::Response &, const int64_t)> &cb);
 
   private:
 
     int prepare_http_req(const char *method,
                          const std::optional<std::string> &auth,
-                         const std::string &query_string,
-                         const std::string &data,
+                         const std::optional<std::string> &query_string,
+                         const std::optional<std::string> &data,
                          std::string &uri_out,
                          RestClient::HeaderFields &reqHF);
 

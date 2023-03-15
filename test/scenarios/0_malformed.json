@@ -4,7 +4,7 @@
       "host": "localhost:80",
       "requests": [
         {
-          "method": "HEAD",
+          "method": HTTP_HEAD,
           "uri": "test"
         }
       ]

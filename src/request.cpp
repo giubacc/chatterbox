@@ -118,8 +118,8 @@ int request::process(const std::string &raw_host,
         if((res = execute(*method,
                           auth,
                           *uri,
-                          *query_string,
-                          *data,
+                          query_string,
+                          data,
                           request_in,
                           request_out))) {
           return res;
@@ -207,8 +207,8 @@ int request::process_response(const RestClient::Response &resRC,
 int request::execute(const std::string &method,
                      const std::optional<std::string> &auth,
                      const std::string &uri,
-                     const std::string &query_string,
-                     const std::string &data,
+                     const std::optional<std::string> &query_string,
+                     const std::optional<std::string> &data,
                      ryml::NodeRef request_in,
                      ryml::NodeRef request_out)
 {
@@ -247,27 +247,27 @@ int request::execute(const std::string &method,
   }
 
   // invoke http-method
-  if(method == "GET") {
+  if(method == HTTP_GET) {
     res = get(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out); });
-  } else if(method == "POST") {
+  } else if(method == HTTP_POST) {
     res = post(reqHF, auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out); });
-  } else if(method == "PUT") {
+  } else if(method == HTTP_PUT) {
     res = put(reqHF, auth, uri, query_string, data, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out); });
-  } else if(method == "DELETE") {
+  } else if(method == HTTP_DELETE) {
     res = del(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
                          request_out); });
-  } else if(method == "HEAD") {
+  } else if(method == HTTP_HEAD) {
     res = head(reqHF, auth, uri, query_string, [&](const RestClient::Response &res, const int64_t rtt) -> int {
       return on_response(res, rtt,
                          request_in,
@@ -314,15 +314,15 @@ int request::on_response(const RestClient::Response &resRC,
 
 int request::prepare_http_req(const char *method,
                               const std::optional<std::string> &auth,
-                              const std::string &query_string,
-                              const std::string &data,
+                              const std::optional<std::string> &query_string,
+                              const std::optional<std::string> &data,
                               std::string &uri_out,
                               RestClient::HeaderFields &reqHF)
 {
-  if(auth == "aws_v2") {
+  if(auth == AUTH_AWS_V2) {
     parent_.auth_.x_amz_date_ = utils::aws_auth::aws_sign_v2_build_date();
     parent_.auth_.aws_sign_v2_build(method, uri_out, reqHF);
-  } else if(auth == "aws_v4") {
+  } else if(auth == AUTH_AWS_V4) {
     parent_.auth_.x_amz_date_ = utils::aws_auth::aws_sign_v4_build_date();
     parent_.auth_.aws_sign_v4_build(method,
                                     uri_out,
@@ -333,9 +333,9 @@ int request::prepare_http_req(const char *method,
   conv_conn_->SetHeaders(reqHF);
   dump_hdr(reqHF);
 
-  if(query_string != "") {
+  if(query_string && query_string != "") {
     uri_out += '?';
-    uri_out += query_string;
+    uri_out += *query_string;
   }
 
   return 0;
@@ -344,15 +344,15 @@ int request::prepare_http_req(const char *method,
 int request::post(RestClient::HeaderFields &reqHF,
                   const std::optional<std::string> &auth,
                   const std::string &uri,
-                  const std::string &query_string,
-                  const std::string &data,
+                  const std::optional<std::string> &query_string,
+                  const std::optional<std::string> &data,
                   const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
   luri += uri;
 
-  if((res = prepare_http_req("POST", auth, query_string, data, luri, reqHF))) {
+  if((res = prepare_http_req(HTTP_POST, auth, query_string, data, luri, reqHF))) {
     return res;
   }
 
@@ -363,7 +363,7 @@ int request::post(RestClient::HeaderFields &reqHF,
       return res;
     }
   } else {
-    resRC = conv_conn_->post(luri, data);
+    resRC = conv_conn_->post(luri, data ? *data : "");
   }
   std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
@@ -374,15 +374,15 @@ int request::post(RestClient::HeaderFields &reqHF,
 int request::put(RestClient::HeaderFields &reqHF,
                  const std::optional<std::string> &auth,
                  const std::string &uri,
-                 const std::string &query_string,
-                 const std::string &data,
+                 const std::optional<std::string> &query_string,
+                 const std::optional<std::string> &data,
                  const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
   luri += uri;
 
-  if((res = prepare_http_req("PUT", auth, query_string, data, luri, reqHF))) {
+  if((res = prepare_http_req(HTTP_PUT, auth, query_string, data, luri, reqHF))) {
     return res;
   }
 
@@ -393,7 +393,7 @@ int request::put(RestClient::HeaderFields &reqHF,
       return res;
     }
   } else {
-    resRC = conv_conn_->put(luri, data);
+    resRC = conv_conn_->put(luri, data ? *data : "");
   }
   std::chrono::duration lrtt = std::chrono::system_clock::now() - t0;
 
@@ -404,14 +404,14 @@ int request::put(RestClient::HeaderFields &reqHF,
 int request::get(RestClient::HeaderFields &reqHF,
                  const std::optional<std::string> &auth,
                  const std::string &uri,
-                 const std::string &query_string,
+                 const std::optional<std::string> &query_string,
                  const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
   luri += uri;
 
-  if((res = prepare_http_req("GET", auth, query_string, "", luri, reqHF))) {
+  if((res = prepare_http_req(HTTP_GET, auth, query_string, std::nullopt, luri, reqHF))) {
     return res;
   }
 
@@ -433,14 +433,14 @@ int request::get(RestClient::HeaderFields &reqHF,
 int request::del(RestClient::HeaderFields &reqHF,
                  const std::optional<std::string> &auth,
                  const std::string &uri,
-                 const std::string &query_string,
+                 const std::optional<std::string> &query_string,
                  const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
   luri += uri;
 
-  if((res = prepare_http_req("DELETE", auth, query_string, "", luri, reqHF))) {
+  if((res = prepare_http_req(HTTP_DELETE, auth, query_string, std::nullopt, luri, reqHF))) {
     return res;
   }
 
@@ -462,14 +462,14 @@ int request::del(RestClient::HeaderFields &reqHF,
 int request::head(RestClient::HeaderFields &reqHF,
                   const std::optional<std::string> &auth,
                   const std::string &uri,
-                  const std::string &query_string,
+                  const std::optional<std::string> &query_string,
                   const std::function<int(const RestClient::Response &, const int64_t)> &cb)
 {
   int res = 0;
   std::string luri("/");
   luri += uri;
 
-  if((res = prepare_http_req("HEAD", auth, query_string, "", luri, reqHF))) {
+  if((res = prepare_http_req(HTTP_HEAD, auth, query_string, std::nullopt, luri, reqHF))) {
     return res;
   }
 

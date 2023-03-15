@@ -52,7 +52,6 @@ const ryml::Tree &get_default_request_out_options()
     *default_request_out_options = get_default_out_options();
     ryml::NodeRef root = default_request_out_options->rootref();
     ryml::NodeRef request_out_dumps = root[key_dump];
-    request_out_dumps[key_auth] << STR_FALSE;
     request_out_dumps[key_for] << STR_FALSE;
     request_out_dumps[key_mock] << STR_FALSE;
   }
@@ -160,8 +159,11 @@ std::string aws_auth::aws_sign_v4_build_date()
   return buf;
 }
 
-std::string aws_auth::aws_sign_v4_get_canonical_query_string(const std::string &query_string)
+std::string aws_auth::aws_sign_v4_get_canonical_query_string(const std::optional<std::string> &query_string)
 {
+  if(!query_string) {
+    return "";
+  }
   std::ostringstream os;
   std::map<std::string, std::optional<std::string>> key_vals;
 
@@ -170,12 +172,12 @@ std::string aws_auth::aws_sign_v4_get_canonical_query_string(const std::string &
   bool end = false;
   while(!end) {
     amp_it_start = amp_it_end;
-    if((amp_it_end = query_string.find("&", amp_it_end)) == std::string::npos) {
-      amp_it_end = query_string.length();
+    if((amp_it_end = (*query_string).find("&", amp_it_end)) == std::string::npos) {
+      amp_it_end = (*query_string).length();
       end = true;
     }
 
-    key_val = query_string.substr(amp_it_start, (amp_it_end-amp_it_start));
+    key_val = (*query_string).substr(amp_it_start, (amp_it_end-amp_it_start));
     std::string key, val;
     if(((eq_it = key_val.find("=")) != std::string::npos) && (eq_it != key_val.length()-1)) {
       key_vals[key_val.substr(0, eq_it)] = key_val.substr(eq_it+1);
@@ -330,11 +332,11 @@ std::string aws_auth::aws_sign_v4_build_string_to_sign(const std::string &canoni
 
 void aws_auth::aws_sign_v4_build(const char *method,
                                  const std::string &uri,
-                                 const std::string &query_string,
-                                 const std::string &data,
+                                 const std::optional<std::string> &query_string,
+                                 const std::optional<std::string> &data,
                                  RestClient::HeaderFields &reqHF) const
 {
-  std::string x_amz_content_sha256 = crypto::hex(crypto::sha256(data));
+  std::string x_amz_content_sha256 = crypto::hex(crypto::sha256(data ? *data : ""));
 
   reqHF["host"] = host_;
   reqHF["x-amz-date"] = x_amz_date_;

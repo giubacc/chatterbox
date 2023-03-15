@@ -63,6 +63,15 @@
 #define STR_JSON            "json"
 #define STR_YAML            "yaml"
 
+#define HTTP_HEAD           "HEAD"
+#define HTTP_DELETE         "DELETE"
+#define HTTP_PUT            "PUT"
+#define HTTP_POST           "POST"
+#define HTTP_GET            "GET"
+
+#define AUTH_AWS_V2         "aws_v2"
+#define AUTH_AWS_V4         "aws_v4"
+
 namespace utils {
 
 struct cfg {
@@ -305,7 +314,7 @@ struct aws_auth {
     // AWS Signature Version 4
 
     static std::string aws_sign_v4_build_date();
-    static std::string aws_sign_v4_get_canonical_query_string(const std::string &query_string);
+    static std::string aws_sign_v4_get_canonical_query_string(const std::optional<std::string> &query_string);
 
     std::string aws_sign_v4_build_signing_key() const;
     std::string aws_sign_v4_build_canonical_headers(const std::string &x_amz_content_sha256) const;
@@ -321,8 +330,8 @@ struct aws_auth {
 
     void aws_sign_v4_build(const char *method,
                            const std::string &uri,
-                           const std::string &query_string,
-                           const std::string &data,
+                           const std::optional<std::string> &query_string,
+                           const std::optional<std::string> &data,
                            RestClient::HeaderFields &reqHF) const;
 
     std::string host_;

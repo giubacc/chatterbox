@@ -15,9 +15,9 @@
 namespace crypto {
 
 std::string hmac_sha1(const std::string &key,
-                      const std::string &data)
+                      const std::optional<std::string> &data)
 {
-  if(key.empty()) {
+  if(key.empty() || !data) {
     return "";
   }
   std::vector<CryptoPP::byte> byte_key;
@@ -30,7 +30,7 @@ std::string hmac_sha1(const std::string &key,
 
     //apply HMAC
     std::string result;
-    CryptoPP::StringSource(data, true, new CryptoPP::HashFilter(hmac, new CryptoPP::StringSink(result)));
+    CryptoPP::StringSource(*data, true, new CryptoPP::HashFilter(hmac, new CryptoPP::StringSink(result)));
     return result;
   } catch(const CryptoPP::Exception &e) {
     return "";
@@ -38,9 +38,9 @@ std::string hmac_sha1(const std::string &key,
 }
 
 std::string hmac_sha256(const std::string &key,
-                        const std::string &data)
+                        const std::optional<std::string> &data)
 {
-  if(key.empty()) {
+  if(key.empty() || !data) {
     return "";
   }
   std::vector<CryptoPP::byte> byte_key;
@@ -53,33 +53,42 @@ std::string hmac_sha256(const std::string &key,
 
     //apply HMAC
     std::string result;
-    CryptoPP::StringSource(data, true, new CryptoPP::HashFilter(hmac, new CryptoPP::StringSink(result)));
+    CryptoPP::StringSource(*data, true, new CryptoPP::HashFilter(hmac, new CryptoPP::StringSink(result)));
     return result;
   } catch(const CryptoPP::Exception &e) {
     return "";
   }
 }
 
-std::string sha256(const std::string &data)
+std::string sha256(const std::optional<std::string> &data)
 {
-  CryptoPP::byte const *pbData = (CryptoPP::byte *)data.data();
-  size_t nDataLen = data.length();
+  if(!data) {
+    return "";
+  }
+  CryptoPP::byte const *pbData = (CryptoPP::byte *)(*data).data();
+  size_t nDataLen = (*data).length();
   CryptoPP::byte abDigest[CryptoPP::SHA256::DIGESTSIZE];
   CryptoPP::SHA256().CalculateDigest(abDigest, pbData, nDataLen);
   return std::string((char *)abDigest, CryptoPP::SHA256::DIGESTSIZE);
 }
 
-std::string hex(const std::string &data)
+std::string hex(const std::optional<std::string> &data)
 {
+  if(!data) {
+    return "";
+  }
   std::string result;
-  CryptoPP::StringSource(data, true, new CryptoPP::HexEncoder(new CryptoPP::StringSink(result), false));
+  CryptoPP::StringSource(*data, true, new CryptoPP::HexEncoder(new CryptoPP::StringSink(result), false));
   return result;
 }
 
-std::string base64(const std::string &data)
+std::string base64(const std::optional<std::string> &data)
 {
+  if(!data) {
+    return "";
+  }
   std::string result;
-  CryptoPP::StringSource(data, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(result), false));
+  CryptoPP::StringSource(*data, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(result), false));
   return result;
 }
 
