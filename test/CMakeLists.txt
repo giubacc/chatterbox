@@ -14,6 +14,7 @@ set(CONTRIB_PATH "../contrib" CACHE STRING "the path where contrib resources are
 include_directories(${CHATTERBOX_PATH}
                     ${CONTRIB_PATH}
                     ${CONTRIB_PATH}/rapidyaml-build
+                    ${CONTRIB_PATH}/pistache/build/include
                     ${CONTRIB_PATH}/restclient-cpp/include
                     ${CONTRIB_PATH}/cryptopp
                     ${CONTRIB_PATH}/spdlog/include
@@ -23,6 +24,7 @@ include_directories(${CHATTERBOX_PATH}
 
 link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
                  ${CONTRIB_PATH}/rapidyaml-build/lib
+                 ${CONTRIB_PATH}/pistache/build/src
                  ${CONTRIB_PATH}/cryptopp
                  ${CONTRIB_PATH}/v8/out/x86.release/obj
                  ${CONTRIB_PATH}/googletest/build/lib)
@@ -39,6 +41,7 @@ add_executable(chatterbox_test
 target_link_libraries(chatterbox_test
                       "librestclient-cpp.a"
                       ryml
+                      pistache
                       cryptopp
                       v8_monolith
                       curl

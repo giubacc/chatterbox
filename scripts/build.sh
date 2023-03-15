@@ -116,6 +116,12 @@ build_rapidyaml() {
   cd $contrib_path/rapidyaml-build/lib && cmake .. && make
 }
 
+build_pistache() {
+  echo "Building pistache ..."
+  mkdir -p $contrib_path/pistache/build
+  cd $contrib_path/pistache/build && cmake .. -DBUILD_SHARED_LIBS=OFF -DPISTACHE_USE_SSL=ON && make
+}
+
 build_googletest() {
   echo "Building googletest ..."
   mkdir -p $contrib_path/googletest/build && cd $contrib_path/googletest/build && cmake .. -DBUILD_GMOCK=OFF && make
@@ -134,6 +140,11 @@ clean_restclient_cpp() {
 clean_rapidyaml() {
   echo "Cleaning rapidyaml ..."
   rm -rf $contrib_path/rapidyaml-build
+}
+
+clean_pistache() {
+  echo "Cleaning pistache ..."
+  rm -rf $contrib_path/pistache/build
 }
 
 clean_googletest() {
@@ -180,6 +191,7 @@ build_deps() {
   build_cryptopp
   build_restclient_cpp
   build_rapidyaml
+  build_pistache
   build_v8
   build_googletest
 }
@@ -188,6 +200,7 @@ clean_deps() {
   clean_cryptopp
   clean_restclient_cpp
   clean_rapidyaml
+  clean_pistache
   clean_v8
   clean_googletest
 }
@@ -197,6 +210,7 @@ build_deps_no_v8() {
   build_cryptopp
   build_restclient_cpp
   build_rapidyaml
+  build_pistache
   build_googletest
 }
 
@@ -204,6 +218,7 @@ clean_deps_no_v8() {
   clean_cryptopp
   clean_restclient_cpp
   clean_rapidyaml
+  clean_pistache
   clean_googletest
 }
 

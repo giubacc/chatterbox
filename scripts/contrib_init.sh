@@ -8,6 +8,7 @@ echo "Cloning contrib resources ..."
 
 cd $contrib_path
 git clone --recursive https://github.com/biojppm/rapidyaml
+git clone https://github.com/pistacheio/pistache.git
 git clone https://github.com/weidai11/cryptopp.git
 git clone https://github.com/gabime/spdlog.git
 git clone https://github.com/muellan/clipp.git
@@ -19,6 +20,7 @@ echo "Bumping contrib resources ..."
 
 cd $contrib_path/clipp && git checkout v1.2.3
 cd $contrib_path/rapidyaml && git checkout master
+cd $contrib_path/pistache && git checkout master
 cd $contrib_path/restclient-cpp && git checkout set-verify-host
 cd $contrib_path/spdlog && git checkout v1.9.2
 cd $contrib_path/cryptopp && git checkout CRYPTOPP_8_7_0

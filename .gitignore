@@ -6,3 +6,4 @@ contrib/v8
 contrib/.cipd
 contrib/.gclient*
 contrib/rapidyaml-build
+contrib/pistache-build
