@@ -20,3 +20,6 @@
 [submodule "contrib/rapidyaml"]
 	path = contrib/rapidyaml
 	url = https://github.com/biojppm/rapidyaml.git
+[submodule "contrib/pistache"]
+	path = contrib/pistache
+	url = https://github.com/pistacheio/pistache.git

@@ -10,8 +10,7 @@ env variables
   HOST_PATH           Specify the host's path that is mounted on container's /monitor directory.
 
 examples
-  HOST_PATH=/tmp/test chatterbox.sh -m                    Monitor host's /tmp/test for new scenarios.
-  HOST_PATH=/tmp/test chatterbox.sh -f scenario.json      Process host's /tmp/test/scenario.json
+  HOST_PATH=/tmp/test chatterbox.sh -f scenario.yaml      Process host's /tmp/test/scenario.yaml
 EOF
 }
 

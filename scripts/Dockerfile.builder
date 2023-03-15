@@ -29,6 +29,8 @@ RUN contrib_init.sh && build.sh build-deps \
 && find /contrib -name "*.so" -type f -delete \
 && find /contrib -name "*.exe" -type f -delete \
 && cp -R --parents /contrib/rapidyaml-build /tmp \
+&& cp -R --parents /contrib/pistache/build/include /tmp \
+&& cp -R --parents /contrib/pistache/build/src /tmp \
 && cp -R --parents /contrib/restclient-cpp/include /tmp \
 && cp -R --parents /contrib/cryptopp /tmp \
 && cp -R --parents /contrib/spdlog/include /tmp \
