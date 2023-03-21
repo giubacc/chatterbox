@@ -8,24 +8,24 @@ let TLV = {
   OFF: 6,
 }
 
-function onScenarioWill(outCtx, p1, p2, p3) {
-  log(TLV.INF, "-onScenarioWill-", "customTag from output-context-json parameter: " + outCtx.customTag);
-  log(TLV.INF, "-onScenarioWill-", "customTag from output-global-json object: " + out.customTag);
-  log(TLV.INF, "-onScenarioWill-", "parameter-1: " + p1);
-  log(TLV.INF, "-onScenarioWill-", "parameter-2: " + p2);
-  log(TLV.INF, "-onScenarioWill-", "parameter-3: " + p3);
+function onScenarioBefore(outCtx, p1, p2, p3) {
+  log(TLV.INF, "-onScenarioBefore-", "customTag from output-context-json parameter: " + outCtx.customTag);
+  log(TLV.INF, "-onScenarioBefore-", "customTag from output-global-json object: " + out.customTag);
+  log(TLV.INF, "-onScenarioBefore-", "parameter-1: " + p1);
+  log(TLV.INF, "-onScenarioBefore-", "parameter-2: " + p2);
+  log(TLV.INF, "-onScenarioBefore-", "parameter-3: " + p3);
 
   //set an optional execution tag in the output json at the scenario level
   out.executionTag = "my-custom-tag";
 }
 
-function onScenarioDid(out, p1, p2, p3) {
-  log(TLV.INF, "-onScenarioDid-", "parameter-1: " + p1);
-  log(TLV.INF, "-onScenarioDid-", "parameter-2: " + p2);
-  log(TLV.INF, "-onScenarioDid-", "parameter-3: " + p3);
+function onScenarioAfter(out, p1, p2, p3) {
+  log(TLV.INF, "-onScenarioAfter-", "parameter-1: " + p1);
+  log(TLV.INF, "-onScenarioAfter-", "parameter-2: " + p2);
+  log(TLV.INF, "-onScenarioAfter-", "parameter-3: " + p3);
 
   //read the optional execution tag we set before
-  log(TLV.INF, "-onScenarioDid-", "executionTag: " + out.executionTag);
+  log(TLV.INF, "-onScenarioAfter-", "executionTag: " + out.executionTag);
 }
 
 function onGETUserInfoResponse_AssertNotFound(outCtx, tag) {

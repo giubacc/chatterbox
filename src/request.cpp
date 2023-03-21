@@ -1,5 +1,12 @@
 #include "scenario.h"
+#include "conversation.h"
 #include "request.h"
+
+#define ERR_FAIL_RESET_REQ    "failed to reset request"
+#define ERR_FAIL_READ_FOR     "failed to read 'for'"
+#define ERR_FAIL_READ_METHOD  "failed to read 'method'"
+#define ERR_BAD_METHOD        "bad 'method'"
+#define ERR_FAIL_READ_URI     "failed to read 'uri'"
 
 const std::string algorithm = "AWS4-HMAC-SHA256";
 
@@ -14,10 +21,6 @@ int request::reset(const std::string &raw_host,
 {
   // connection reset
   conv_conn_.reset(new RestClient::Connection(raw_host));
-  if(!conv_conn_) {
-    event_log_->error("failed creating resource_conn_ object");
-    return 1;
-  }
   conv_conn_->SetVerifyPeer(false);
   conv_conn_->SetVerifyHost(false);
   conv_conn_->SetTimeout(30);
@@ -31,14 +34,14 @@ int request::process(const std::string &raw_host,
   int res = 0;
 
   if((res = reset(raw_host, request_in))) {
-    event_log_->error("failed to reset request");
+    event_log_->error(ERR_FAIL_RESET_REQ);
     return res;
   }
 
   // for
   auto pfor = js_env_.eval_as<uint32_t>(request_in, key_for, 1);
   if(!pfor) {
-    event_log_->error("failed to read 'for'");
+    event_log_->error(ERR_FAIL_READ_FOR);
     return 1;
   }
 
@@ -50,7 +53,7 @@ int request::process(const std::string &raw_host,
       utils::set_tree_node(*request_in.tree(),
                            request_in,
                            request_out,
-                           ryml_modify_buf_);
+                           ryml_request_out_buf_);
 
       if(request_out.has_child(key_for)) {
         request_out.remove_child(key_for);
@@ -72,62 +75,77 @@ int request::process(const std::string &raw_host,
         // method
         auto method = js_env_.eval_as<std::string>(request_in, key_method);
         if(!method) {
-          event_log_->error("failed to read 'method'");
-          return 1;
+          res = 1;
+          event_log_->error(ERR_FAIL_READ_METHOD);
+          utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_READ_METHOD);
         } else {
           request_out.remove_child(key_method);
           request_out[key_method] << *method;
         }
 
         // uri
-        auto uri = js_env_.eval_as<std::string>(request_in, key_uri);
-        if(!uri) {
-          event_log_->error("failed to read 'uri'");
-          return 1;
-        } else {
-          request_out.remove_child(key_uri);
-          request_out[key_uri] << *uri;
+        std::optional<std::string> uri;
+        if(!res) {
+          uri = js_env_.eval_as<std::string>(request_in, key_uri);
+          if(!uri) {
+            res = 1;
+            event_log_->error(ERR_FAIL_READ_URI);
+            utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_READ_URI);
+          } else {
+            request_out.remove_child(key_uri);
+            request_out[key_uri] << *uri;
+          }
         }
 
         // query_string
-        auto query_string = js_env_.eval_as<std::string>(request_in, key_query_string);
-        if(query_string) {
-          request_out.remove_child(key_query_string);
-          request_out[key_query_string] << *query_string;
+        std::optional<std::string> query_string;
+        if(!res) {
+          query_string = js_env_.eval_as<std::string>(request_in, key_query_string);
+          if(query_string) {
+            request_out.remove_child(key_query_string);
+            request_out[key_query_string] << *query_string;
+          }
         }
 
         // data
-        auto data = js_env_.eval_as<std::string>(request_in, key_data);
-        if(data) {
-          request_out.remove_child(key_data);
-          request_out[key_data] << *data;
+        std::optional<std::string> data;
+        if(!res) {
+          data = js_env_.eval_as<std::string>(request_in, key_data);
+          if(data) {
+            request_out.remove_child(key_data);
+            request_out[key_data] << *data;
+          }
         }
 
-        // auth directive
-        auto auth = js_env_.eval_as<std::string>(request_in, key_auth);
-        if(auth) {
-          request_out.remove_child(key_auth);
-          request_out[key_auth] << *auth;
+        // auth
+        std::optional<std::string> auth;
+        if(!res) {
+          auth = js_env_.eval_as<std::string>(request_in, key_auth);
+          if(auth) {
+            request_out.remove_child(key_auth);
+            request_out[key_auth] << *auth;
+          }
         }
 
         // mock
-        if(request_in.has_child(key_mock)) {
+        if(!res && request_in.has_child(key_mock)) {
           response_mock_ = request_in[key_mock];
         }
 
-        if((res = execute(*method,
-                          auth,
-                          *uri,
-                          query_string,
-                          data,
-                          request_in,
-                          request_out))) {
-          return res;
+        if(!res && (res = execute(*method,
+                                  auth,
+                                  *uri,
+                                  query_string,
+                                  data,
+                                  request_in,
+                                  request_out)));
+        if(!res) {
+          scope.commit();
+        } else {
+          break;
         }
-        scope.commit();
       } else {
-        request_out.clear_children();
-        request_out[key_enabled] << STR_FALSE;
+        utils::clear_map_node_put_key_val(request_out, key_enabled, STR_FALSE);
         break;
       }
     }
@@ -174,8 +192,8 @@ int request::process_response(const RestClient::Response &resRC,
 
     if(!resRC.body.empty()) {
       if(fopts[key_body] == STR_JSON) {
-        ryml::set_callbacks(parent_.parent_.REH_.callbacks());
-        parent_.parent_.REH_.check_error_occurs([&] {
+        ryml::set_callbacks(parent_.parent_.ctx_.REH_.callbacks());
+        parent_.parent_.ctx_.REH_.check_error_occurs([&] {
           std::stringstream ss;
           ss << resRC.body;
           ryml::Tree body = ryml::parse_in_arena(ryml::to_csubstr(ss.str()));
@@ -184,22 +202,21 @@ int request::process_response(const RestClient::Response &resRC,
           utils::set_tree_node(body,
                                body.rootref(),
                                response_body,
-                               ryml_modify_buf_);
+                               ryml_request_out_buf_);
         },
         [&](std::runtime_error const &e) {
           response_out[key_body] << resRC.body |= ryml::KEYVAL;
         });
-        ryml::set_callbacks(parent_.parent_.REH_.defaults);
+        ryml::set_callbacks(parent_.parent_.ctx_.REH_.defaults);
       } else {
         response_out[key_body] << resRC.body |= ryml::KEYVAL;
-        ;
       }
     }
 
-    scope.commit();
     if(error) {
       return 1;
     }
+    scope.commit();
     return 0;
   }
 }
@@ -239,7 +256,7 @@ int request::execute(const std::string &method,
     utils::set_tree_node(rendered_headers,
                          rh_root,
                          header_node,
-                         ryml_modify_buf_);
+                         ryml_request_out_buf_);
   }
 
   if(res) {
@@ -273,7 +290,8 @@ int request::execute(const std::string &method,
                          request_in,
                          request_out); });
   } else {
-    event_log_->error("bad method:{}", method);
+    event_log_->error("{}:{}", ERR_BAD_METHOD, method);
+    utils::clear_map_node_put_key_val(request_out, key_error, ERR_BAD_METHOD);
     res = 1;
   }
   return res;

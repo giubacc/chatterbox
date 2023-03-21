@@ -1,9 +1,7 @@
 #pragma once
-#include "jsenv.h"
+#include "conversation.h"
 
 namespace cbox {
-struct conversation;
-
 struct request {
 
     request(conversation &parent);
@@ -107,8 +105,8 @@ struct request {
     //parent
     conversation &parent_;
 
-    //ryml request modify support buffer
-    std::vector<char> ryml_modify_buf_;
+    //ryml request out support buffer
+    std::vector<char> ryml_request_out_buf_;
 
     //js environment
     js::js_env &js_env_;

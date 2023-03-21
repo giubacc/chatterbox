@@ -1,4 +1,4 @@
-FROM opensuse/tumbleweed
+FROM opensuse/leap
 LABEL Name=chatterbox
 
 RUN zypper -n install --no-recommends curl \

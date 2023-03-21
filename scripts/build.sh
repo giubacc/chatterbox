@@ -188,20 +188,20 @@ clean_v8() {
 
 build_deps() {
   [ -d "$contrib_path/rapidyaml-build" ] || cp -R rapidyaml-build $contrib_path
+  build_v8
   build_cryptopp
   build_restclient_cpp
   build_rapidyaml
   build_pistache
-  build_v8
   build_googletest
 }
 
 clean_deps() {
+  clean_v8
   clean_cryptopp
   clean_restclient_cpp
   clean_rapidyaml
   clean_pistache
-  clean_v8
   clean_googletest
 }
 

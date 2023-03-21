@@ -1,4 +1,11 @@
-#include "scenario.h"
+#include "conversation.h"
+
+#define ERR_PUSH_OUT_OPTS       "failed to push the out options in the current scope"
+#define ERR_POP_OUT_OPTS        "failed to process the out options in the current scope"
+#define ERR_EXEC_BEF_HNDL       "failed to execute the before handler in the current scope"
+#define ERR_EXEC_AFT_HNDL       "failed to execute the after handler in the current scope"
+#define ERR_CONV_NOT_SEQ        "'conversations' is not a sequence"
+#define ERR_FAIL_READ_ENABLED   "failed to read 'enabled'"
 
 namespace cbox {
 
@@ -30,11 +37,13 @@ scenario::stack_scope::stack_scope(scenario &parent,
                     dump_val_cb,
                     call_format_val_cb,
                     format_val_cb)) {
-    parent_.event_log_->error("failed to push out-options for the current scope");
+    parent_.event_log_->error(ERR_PUSH_OUT_OPTS);
+    utils::clear_map_node_put_key_val(obj_out_, key_error, ERR_PUSH_OUT_OPTS);
     error_ = true;
   } else {
-    if(!parent_.js_env_.exec_as_function(obj_out_, key_will)) {
-      parent_.event_log_->error("failed to execute will-handler for the current scope");
+    if(!parent_.js_env_.exec_as_function(obj_out_, key_before)) {
+      parent_.event_log_->error(ERR_EXEC_BEF_HNDL);
+      utils::clear_map_node_put_key_val(obj_out_, key_error, ERR_EXEC_BEF_HNDL);
       error_ = true;
     }
   }
@@ -47,7 +56,8 @@ scenario::stack_scope::stack_scope(scenario &parent,
   if(obj_in_.valid()) {
     auto enabled_opt = parent_.js_env_.eval_as<bool>(obj_in_, key_enabled, true);
     if(!enabled_opt) {
-      parent_.event_log_->error("failed to read 'enabled'");
+      parent_.event_log_->error(ERR_FAIL_READ_ENABLED);
+      utils::clear_map_node_put_key_val(obj_out_, key_error, ERR_FAIL_READ_ENABLED);
       error_ = true;
     } else {
       enabled_ = *enabled_opt;
@@ -59,15 +69,17 @@ scenario::stack_scope::~stack_scope()
 {
   if(commit_) {
     //on_end handler
-    if(!parent_.js_env_.exec_as_function(obj_out_, key_did)) {
-      parent_.event_log_->error("failed to execute did-handler for the current scope");
+    if(!parent_.js_env_.exec_as_function(obj_out_, key_after)) {
+      parent_.event_log_->error(ERR_EXEC_AFT_HNDL);
+      utils::clear_map_node_put_key_val(obj_out_, key_error, ERR_EXEC_AFT_HNDL);
       error_ = true;
-    } else {
-      if(!pop_process_out_opts()) {
-        parent_.event_log_->error("failed to pop-process out-options for the current scope");
-        error_ = true;
-      }
     }
+  }
+
+  if(!pop_process_out_opts()) {
+    parent_.event_log_->error(ERR_POP_OUT_OPTS);
+    utils::clear_map_node_put_key_val(obj_out_, key_error, ERR_POP_OUT_OPTS);
+    error_ = true;
   }
 
   if(parent_.assert_failure_) {
@@ -108,7 +120,7 @@ bool scenario::stack_scope::push_out_opts(const ryml::Tree &default_out_options,
       utils::set_tree_node(out_opts_,
                            out_opts_root[key_dump],
                            dump_node,
-                           parent_.ryml_modify_buf_);
+                           parent_.ryml_scenario_out_buf_);
     }
 
     if(out_node.has_child(key_format)) {
@@ -129,7 +141,7 @@ bool scenario::stack_scope::push_out_opts(const ryml::Tree &default_out_options,
       utils::set_tree_node(out_opts_,
                            out_opts_root[key_format],
                            format_node,
-                           parent_.ryml_modify_buf_);
+                           parent_.ryml_scenario_out_buf_);
     }
 
   } else {
@@ -138,7 +150,7 @@ bool scenario::stack_scope::push_out_opts(const ryml::Tree &default_out_options,
     utils::set_tree_node(out_opts_,
                          out_opts_root,
                          out_node,
-                         parent_.ryml_modify_buf_);
+                         parent_.ryml_scenario_out_buf_);
   }
 
   out_opts_root.clear();
@@ -147,12 +159,12 @@ bool scenario::stack_scope::push_out_opts(const ryml::Tree &default_out_options,
   utils::set_tree_node(*out_node.tree(),
                        out_node[key_dump],
                        out_opts_root,
-                       parent_.ryml_modify_buf_);
+                       parent_.ryml_scenario_out_buf_);
 
   utils::set_tree_node(*out_node.tree(),
                        out_node[key_format],
                        out_opts_root,
-                       parent_.ryml_modify_buf_);
+                       parent_.ryml_scenario_out_buf_);
 
   if(call_dump_val_cb) {
     ryml::NodeRef dump_node = out_node[key_dump];
@@ -228,49 +240,19 @@ void scenario::statistics::incr_categorization(const std::string &key)
 // --- SCENARIO ---
 // ----------------
 
-scenario::scenario() :
+scenario::scenario(context &env) :
+  ctx_(env),
   stats_(*this),
   js_env_(*this)
 {}
 
 scenario::~scenario()
+{}
+
+int scenario::init(std::shared_ptr<spdlog::logger> &event_log)
 {
-  event_log_.reset();
-}
-
-int scenario::init(int argc, const char *argv[])
-{
-  //output init
-  std::shared_ptr<spdlog::logger> output;
-  if(cfg_.out_channel == "stdout") {
-    output = spdlog::stdout_color_mt("output");
-  } else if(cfg_.out_channel == "stderr") {
-    output = spdlog::stderr_color_mt("output");
-  } else {
-    output = spdlog::basic_logger_mt(cfg_.out_channel, cfg_.out_channel);
-  }
-  output->set_pattern("%v");
-  output->set_level(spdlog::level::info);
-  output_ = output;
-
-  //event logger init
-  std::shared_ptr<spdlog::logger> event_log;
-  if(cfg_.evt_log_channel == "stdout") {
-    event_log = spdlog::stdout_color_mt("event_log");
-  } else if(cfg_.evt_log_channel == "stderr") {
-    event_log = spdlog::stderr_color_mt("event_log");
-  } else {
-    event_log = spdlog::basic_logger_mt(cfg_.evt_log_channel, cfg_.evt_log_channel);
-  }
-
-  event_log_fmt_ = DEF_EVT_LOG_PATTERN;
-  event_log->set_pattern(event_log_fmt_);
-  event_log->set_level(utils::get_spdloglvl(cfg_.evt_log_level.c_str()));
-  event_log_ = event_log;
-
-  spdlog::flush_every(std::chrono::seconds(2));
-
   int res = 0;
+  event_log_ = event_log;
 
   if((res = js_env_.init(event_log_))) {
     return res;
@@ -279,127 +261,100 @@ int scenario::init(int argc, const char *argv[])
   return res;
 }
 
-int scenario::reset()
+int scenario::reset(ryml::Tree &doc_in,
+                    ryml::NodeRef scenario_in)
 {
+  scenario_in_root_ = scenario_in;
   assert_failure_ = false;
+
+  //clear out & buffers
+  scenario_out_.clear();
+  ryml_scenario_out_buf_.clear();
 
   // reset stats
   stats_.reset();
 
   //initialize scenario-out
-  scenario_out_ = scenario_in_;
+  utils::set_tree_node(doc_in,
+                       scenario_in_root_,
+                       scenario_out_.rootref(),
+                       ryml_scenario_out_buf_);
 
   int res = js_env_.reset();
   return res;
 }
 
-int scenario::load_source_process()
-{
-  std::string file_name;
-  if(cfg_.in_scenario_path.empty()) {
-    utils::base_name(cfg_.in_scenario_name,
-                     cfg_.in_scenario_path,
-                     file_name);
-  } else {
-    file_name = cfg_.in_scenario_name;
-  }
-  return load_source_process(file_name.c_str());
-}
-
-int scenario::load_source_process(const char *fname)
-{
-  int res = 0;
-  event_log_->trace("processing scenario file:{}", fname);
-
-  std::ostringstream fpath;
-  fpath << cfg_.in_scenario_path << "/" << fname;
-
-  size_t sz;
-  if((sz = utils::file_get_contents(fpath.str().c_str(), ryml_load_buf_, event_log_.get()))) {
-    ryml::set_callbacks(REH_.callbacks());
-    REH_.check_error_occurs([&] {
-      scenario_in_ = ryml::parse_in_place(ryml::to_substr(ryml_load_buf_));
-    }, [&](std::runtime_error const &e) {
-      event_log_->error("malformed scenario\n{}", e.what());
-      res = 1;
-    });
-    ryml::set_callbacks(REH_.defaults);
-  } else {
-    res = 1;
-  }
-
-  if(!res) {
-    res = process();
-  }
-  return res;
-}
-
-int scenario::process()
+int scenario::process(ryml::Tree &doc_in,
+                      ryml::NodeRef scenario_in)
 {
   int res = 0;
 
-  if((res = reset())) {
+  if((res = reset(doc_in, scenario_in))) {
     event_log_->error("failed to reset scenario");
     return res;
   }
 
   bool error = false;
-  {
-    ryml::NodeRef scenario_in_root = scenario_in_.rootref();
-    ryml::NodeRef scenario_out_root = scenario_out_.rootref();
+  ryml::NodeRef scenario_out_root = scenario_out_.rootref();
 
+  {
     stack_scope scope(*this,
-                      scenario_in_root,
+                      scenario_in_root_,
                       scenario_out_root,
                       error,
                       utils::get_default_scenario_out_options());
     if(error) {
-      goto fend;
+      goto fun_end;
     }
 
     if(scope.enabled_) {
-      if(!scenario_in_root.has_child(key_conversations)) {
-        goto fend;
-      }
-      ryml::NodeRef conversations_in = scenario_in_root[key_conversations];
-      if(!conversations_in.is_seq()) {
-        event_log_->error("'conversations' is not a sequence");
-        goto fend;
-      }
-
-      ryml::NodeRef conversations_out = scenario_out_root[key_conversations];
-
-      uint32_t conv_it = 0;
-      for(ryml::NodeRef const &conversation_in : conversations_in.children()) {
-
-        /*TODO parallel handling*/
-        conversation conv(*this);
-
-        if((res = conv.process(conversation_in,
-                               conversations_out[conv_it]))) {
-          goto fend;
+      if(scenario_in_root_.has_child(key_conversations)) {
+        ryml::NodeRef conversations_in = scenario_in_root_[key_conversations];
+        if(!conversations_in.is_seq()) {
+          res = 1;
+          event_log_->error(ERR_CONV_NOT_SEQ);
+          utils::clear_map_node_put_key_val(scenario_out_root, key_error, ERR_CONV_NOT_SEQ);
+          goto fun_end;
         }
-        ++conv_it;
-      }
 
-      enrich_with_stats(scenario_out_root);
-      scope.commit();
+        ryml::NodeRef conversations_out = scenario_out_root[key_conversations];
+
+        uint32_t conv_it = 0;
+        for(ryml::NodeRef const &conversation_in : conversations_in.children()) {
+
+          /*TODO parallel handling*/
+          conversation conv(*this);
+
+          if((res = conv.process(conversation_in,
+                                 conversations_out[conv_it]))) {
+            break;
+          }
+          ++conv_it;
+        }
+      }
+      if(!res) {
+        enrich_with_stats(scenario_out_root);
+        scope.commit();
+      }
     } else {
-      scenario_out_root.clear_children();
-      scenario_out_root[key_enabled] << STR_FALSE;
+      utils::clear_map_node_put_key_val(scenario_out_root, key_enabled, STR_FALSE);
     }
   }
 
-fend:
+fun_end:
+  if(error) {
+    res = 1;
+  }
+  if(res) {
+    scenario_out_root[key_error_occurred] << STR_TRUE;
+  }
   // finally write scenario_out on the output
-  if(!cfg_.no_out_) {
-    std::stringstream ss;
-    if(cfg_.out_format == STR_YAML) {
-      ss << scenario_out_;
-    } else if(cfg_.out_format == STR_JSON) {
-      ss << ryml::as_json(scenario_out_);
+  if(!ctx_.cfg_.no_out_) {
+    if(ctx_.cfg_.out_format == STR_YAML) {
+      *ctx_.output_ << YAML_DOC_SEP << std::endl << scenario_out_;
+    } else if(ctx_.cfg_.out_format == STR_JSON) {
+      *ctx_.output_ << ryml::as_json(scenario_out_);
     }
-    output_->info("{}", ss.str());
   }
   return res;
 }

@@ -1,4 +1,4 @@
-#include "scenario.h"
+#include "cbox.h"
 #include "clipp.h"
 
 int main(int argc, char *argv[])
@@ -6,36 +6,48 @@ int main(int argc, char *argv[])
   int res = 0;
 
   {
-    cbox::scenario scenario;
+    cbox::env env;
 
     auto cli = (
                  clipp::option("-n", "--noout")
-                 .set(scenario.cfg_.no_out_, true)
+                 .set(env.cfg_.no_out_, true)
                  .doc("no output"),
 
                  clipp::option("-f", "--filename")
-                 .doc("specify scenario [filename]")
-                 & clipp::value("filename", scenario.cfg_.in_scenario_name),
+                 .doc("specify input filename")
+                 & clipp::value("input filename", env.cfg_.in_name),
 
                  clipp::option("-p", "--path")
-                 .doc("specify scenario's path [path]")
-                 & clipp::value("path", scenario.cfg_.in_scenario_path),
+                 .doc("specify input path [path]")
+                 & clipp::value("path", env.cfg_.in_path),
 
                  clipp::option("-o", "--output-format")
                  .doc("specify output format [yaml, json]")
-                 & clipp::value("output format", scenario.cfg_.out_format),
+                 & clipp::value("output format", env.cfg_.out_format),
 
                  clipp::option("-oc", "--output-channel")
                  .doc("specify output channel [stdout, stderr, filename]")
-                 & clipp::value("output channel", scenario.cfg_.out_channel),
+                 & clipp::value("output channel", env.cfg_.out_channel),
 
                  clipp::option("-l", "--log")
                  .doc("specify event log output channel [stderr, stdout, filename]")
-                 & clipp::value("event log output", scenario.cfg_.evt_log_channel),
+                 & clipp::value("event log output", env.cfg_.evt_log_channel),
 
                  clipp::option("-v", "--verbosity")
-                 .doc("specify event log verbosity [trc, dbg, inf, wrn, err, cri, off]")
-                 & clipp::value("event log verbosity", scenario.cfg_.evt_log_level)
+                 .doc("specify event log verbosity [t, d, i, w, e, c, o]")
+                 & clipp::value("event log verbosity", env.cfg_.evt_log_level),
+
+                 clipp::option("-d", "--daemon")
+                 .set(env.cfg_.daemon, true)
+                 .doc("start daemon"),
+
+                 clipp::option("--endpoint-port")
+                 .doc("specify the endpoint port")
+                 & clipp::value("endpoint port", env.cfg_.endpoint_port),
+
+                 clipp::option("--endpoint-concurrency")
+                 .doc("specify the endpoint concurrency")
+                 & clipp::value("endpoint concurrency", env.cfg_.endpoint_concurrency)
                );
 
     if(!clipp::parse(argc, argv, cli)) {
@@ -49,13 +61,13 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-    //init chatterbox
-    if((res = scenario.init(argc, (const char **)argv))) {
-      std::cerr << "error init chatterbox, exiting..." << std::endl;
+    //init environment
+    if((res = env.init())) {
+      std::cerr << "error init environment, exiting..." << std::endl;
       return res;
     }
 
-    res = scenario.load_source_process();
+    res = env.exec();
   }
 
   js::js_env::stop_V8();

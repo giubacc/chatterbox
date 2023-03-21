@@ -31,10 +31,10 @@ js_env::~js_env()
 {
   if(isolate_) {
     if(!ryml_noderef_template_.IsEmpty()) {
-      ryml_noderef_template_.Empty();
+      ryml_noderef_template_.Clear();
     }
     if(!scenario_context_.IsEmpty()) {
-      scenario_context_.Empty();
+      scenario_context_.Clear();
     }
     isolate_->Dispose();
     delete params_.array_buffer_allocator;
@@ -258,7 +258,7 @@ bool js_env::ryml_noderef_from_js_value(ryml::NodeRef &obj_val,
       utils::set_tree_node(*obj_val.tree(),
                            obj_val,
                            *obj_ptr,
-                           self.parent_.ryml_modify_buf_);
+                           self.parent_.ryml_scenario_out_buf_);
     } else {
       self.event_log_->error("failed to unwrap ryml::NodeRef");
       return false;
@@ -533,7 +533,7 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
   }
 
   std::ostringstream fpath;
-  fpath << self->parent_.cfg_.in_scenario_path << "/" << *script_path;
+  fpath << self->parent_.ctx_.cfg_.in_path << "/" << *script_path;
   if(self->processed_scripts_.find(fpath.str()) == self->processed_scripts_.end()) {
     self->processed_scripts_.insert(fpath.str());
   } else {
@@ -612,12 +612,12 @@ int js_env::load_scripts()
   DIR *dir;
   struct dirent *ent;
 
-  if((dir = opendir(parent_.cfg_.in_scenario_path.c_str())) != nullptr) {
+  if((dir = opendir(parent_.ctx_.cfg_.in_path.c_str())) != nullptr) {
     while((ent = readdir(dir)) != nullptr) {
       if(strcmp(ent->d_name,".") && strcmp(ent->d_name,"..")) {
         struct stat info;
         std::ostringstream fpath;
-        fpath << parent_.cfg_.in_scenario_path << "/" << ent->d_name;
+        fpath << parent_.ctx_.cfg_.in_path << "/" << ent->d_name;
         if(processed_scripts_.find(fpath.str()) == processed_scripts_.end()) {
           processed_scripts_.insert(fpath.str());
         } else {
