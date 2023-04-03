@@ -1,8 +1,7 @@
 #pragma once
-#include "jsenv.h"
+#include "scenario.h"
 
 namespace cbox {
-struct scenario;
 
 struct conversation {
 
@@ -48,9 +47,6 @@ struct conversation {
   public:
     //parent
     scenario &parent_;
-
-    //ryml conversation modify support buffer
-    std::vector<char> ryml_modify_buf_;
 
     //js environment
     js::js_env &js_env_;

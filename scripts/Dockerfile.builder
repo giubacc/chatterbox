@@ -1,7 +1,8 @@
-FROM opensuse/tumbleweed
+FROM opensuse/leap
 LABEL Name=chatterbox-builder
 
 RUN zypper -n install --no-recommends \
+    xz \
     find \
     make \
     cmake \
@@ -9,13 +10,18 @@ RUN zypper -n install --no-recommends \
     ccache \
     ninja \
     binutils \
-    gcc-c++ \
+    gcc12-c++ \
     automake \
     autogen \
     libtool \
     libcurl-devel \
     libopenssl-devel \
     && zypper clean --all
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 \
+&& update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12 \
+&& update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12 \
+&& update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
 
 COPY contrib_init.sh /usr/bin/contrib_init.sh
 COPY rapidyaml-build /contrib/rapidyaml-build
@@ -29,7 +35,7 @@ RUN contrib_init.sh && build.sh build-deps \
 && find /contrib -name "*.so" -type f -delete \
 && find /contrib -name "*.exe" -type f -delete \
 && cp -R --parents /contrib/rapidyaml-build /tmp \
-&& cp -R --parents /contrib/pistache/build/include /tmp \
+&& cp -R --parents /contrib/pistache/include /tmp \
 && cp -R --parents /contrib/pistache/build/src /tmp \
 && cp -R --parents /contrib/restclient-cpp/include /tmp \
 && cp -R --parents /contrib/cryptopp /tmp \

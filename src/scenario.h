@@ -1,5 +1,5 @@
 #pragma once
-#include "conversation.h"
+#include "cbox.h"
 
 namespace cbox {
 
@@ -74,15 +74,16 @@ struct scenario {
         std::unordered_map<std::string, int32_t> categorization_;
     };
 
-    scenario();
+    scenario(context &env);
     ~scenario();
 
-    int init(int argc, const char *argv[]);
-    int reset();
+    int init(std::shared_ptr<spdlog::logger> &event_log);
 
-    int load_source_process();
-    int load_source_process(const char *fname);
-    int process();
+    int reset(ryml::Tree &doc_in,
+              ryml::NodeRef scenario_in);
+
+    int process(ryml::Tree &doc_in,
+                ryml::NodeRef scenario_in);
 
     void set_assert_failure() {
       assert_failure_ = true;
@@ -95,36 +96,26 @@ struct scenario {
     void enrich_with_stats(ryml::NodeRef scenario_out);
 
   public:
-    utils::cfg cfg_;
-
-    //ryml error handler
-    utils::RymlErrorHandler REH_;
+    context &ctx_;
 
     //current scenario_in and scenario_out
-    ryml::Tree scenario_in_;
+    ryml::NodeRef scenario_in_root_;
     ryml::Tree scenario_out_;
 
-    //ryml scenario load buffer
-    std::vector<char> ryml_load_buf_;
-    //ryml scenario modify support buffer
-    std::vector<char> ryml_modify_buf_;
+    //ryml scenario out support buffer
+    std::vector<char> ryml_scenario_out_buf_;
 
     //scenario statistics
     statistics stats_;
+
+    //js environment
+    js::js_env js_env_;
 
   private:
     //assert failure
     bool assert_failure_ = false;
 
   public:
-    //js environment
-    js::js_env js_env_;
-
-    //output
-    std::shared_ptr<spdlog::logger> output_;
-
-    //event log
-    std::string event_log_fmt_;
     std::shared_ptr<spdlog::logger> event_log_;
 };
 

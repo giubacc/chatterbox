@@ -1,4 +1,4 @@
-#include "globals.h"
+#include "utils.h"
 #include "crypto.h"
 
 const std::string algorithm = "AWS4-HMAC-SHA256";
@@ -14,8 +14,8 @@ const ryml::Tree &get_default_out_options()
     ryml::NodeRef default_out_dumps = root[key_dump];
     default_out_dumps |= ryml::MAP;
     default_out_dumps[key_out] << STR_FALSE;
-    default_out_dumps[key_will] << STR_FALSE;
-    default_out_dumps[key_did] << STR_FALSE;
+    default_out_dumps[key_before] << STR_FALSE;
+    default_out_dumps[key_after] << STR_FALSE;
     default_out_dumps[key_enabled] << STR_FALSE;
     ryml::NodeRef default_out_formats = root[key_format];
     default_out_formats |= ryml::MAP;

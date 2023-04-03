@@ -12,7 +12,7 @@ set(CONTRIB_PATH "../contrib" CACHE STRING "the path where contrib resources are
 
 include_directories(${CONTRIB_PATH}
                     ${CONTRIB_PATH}/rapidyaml-build
-                    ${CONTRIB_PATH}/pistache/build/include
+                    ${CONTRIB_PATH}/pistache/include
                     ${CONTRIB_PATH}/restclient-cpp/include
                     ${CONTRIB_PATH}/cryptopp
                     ${CONTRIB_PATH}/spdlog/include
@@ -32,7 +32,9 @@ add_executable(chatterbox
                jsenv.cpp
                request.cpp
                conversation.cpp
-               scenario.cpp)
+               scenario.cpp
+               endpoint.cpp
+               cbox.cpp)
 
 target_link_libraries(chatterbox
                       "librestclient-cpp.a"
@@ -42,7 +44,9 @@ target_link_libraries(chatterbox
                       v8_monolith
                       curl
                       dl
-                      pthread)
+                      pthread
+                      crypto
+                      ssl)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

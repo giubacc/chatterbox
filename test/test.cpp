@@ -19,44 +19,44 @@ int main(int argc, char *argv[])
 
 void cbox_test::SetUp()
 {
-  cbox.reset(new cbox::scenario());
-  ASSERT_EQ(cbox->init(argc_, argv_), 0);
+  env_.reset(new cbox::env());
+  ASSERT_EQ(env_->init(), 0);
 }
 
 void cbox_test::TearDown()
 {
-  cbox.release();
+  env_.release();
   spdlog::drop_all();
 }
 
 TEST_F(cbox_test, NoPathNonExistingInputFile)
 {
-  cbox->event_log_->set_level(spdlog::level::level_enum::off);
-  cbox->cfg_.in_scenario_name = "in.json";
-  ASSERT_EQ(cbox->load_source_process(), 1);
+  env_->event_log_->set_level(spdlog::level::level_enum::off);
+  env_->cfg_.in_name = "in.json";
+  ASSERT_EQ(env_->exec(), 1);
 }
 
 TEST_F(cbox_test, PathNonExistingInputFile)
 {
-  cbox->event_log_->set_level(spdlog::level::level_enum::off);
-  cbox->cfg_.in_scenario_path = "empty";
-  cbox->cfg_.in_scenario_name = "in.json";
-  ASSERT_EQ(cbox->load_source_process(), 1);
+  env_->event_log_->set_level(spdlog::level::level_enum::off);
+  env_->cfg_.in_path = "empty";
+  env_->cfg_.in_name = "in.json";
+  ASSERT_EQ(env_->exec(), 1);
 }
 
 TEST_F(cbox_test, MalformedJson)
 {
-  cbox->event_log_->set_level(spdlog::level::level_enum::off);
-  cbox->cfg_.in_scenario_path = "scenarios";
-  cbox->cfg_.in_scenario_name = "0_malformed.json";
-  ASSERT_EQ(cbox->load_source_process(), 1);
+  env_->event_log_->set_level(spdlog::level::level_enum::off);
+  env_->cfg_.in_path = "scenarios";
+  env_->cfg_.in_name = "0_malformed.json";
+  ASSERT_EQ(env_->exec(), 1);
 }
 
 TEST_F(cbox_test, HEAD_1Conv_1Req)
 {
-  cbox->event_log_->set_level(spdlog::level::level_enum::off);
-  cbox->output_->set_level(spdlog::level::level_enum::off);
-  cbox->cfg_.in_scenario_path = "scenarios";
-  cbox->cfg_.in_scenario_name = "1_head1conv1req.json";
-  ASSERT_EQ(cbox->load_source_process(), 0);
+  env_->event_log_->set_level(spdlog::level::level_enum::off);
+  env_->cfg_.no_out_ = true;
+  env_->cfg_.in_path = "scenarios";
+  env_->cfg_.in_name = "1_head1conv1req.json";
+  ASSERT_EQ(env_->exec(), 0);
 }

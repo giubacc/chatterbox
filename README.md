@@ -323,7 +323,7 @@ function getQueryString(p1, p2, p3) {
 ### Context lifecycle handlers
 
 At every context activation, `chatterbox` can invoke, if defined, the corresponding
-`will` and `did` handlers.
+`before` and `after` handlers.
 
 Valid contexts, where this mechanism works, are:
 
@@ -335,11 +335,11 @@ Valid contexts, where this mechanism works, are:
 For example, to define these handlers in the scenario context:
 
 ```yaml
-will:
-  function: onScenarioWill
+before:
+  function: onScenarioBefore
   args: [one, 2, three]
-did:
-  function: onScenarioDid
+after:
+  function: onScenarioAfter
   args: [1, two, 3]
 conversations: []
 ```
@@ -347,22 +347,22 @@ conversations: []
 You would also define the corresponding functions in the JavaScript:
 
 ```Javascript
-function onScenarioWill(outCtx, p1, p2, p3) {
-  log(TLV.INF, "onScenarioWill", "parameter-1: " + p1);
-  log(TLV.INF, "onScenarioWill", "parameter-2: " + p2);
-  log(TLV.INF, "onScenarioWill", "parameter-3: " + p3);
+function onScenarioBefore(outCtx, p1, p2, p3) {
+  log(TLV.INF, "onScenarioBefore", "parameter-1: " + p1);
+  log(TLV.INF, "onScenarioBefore", "parameter-2: " + p2);
+  log(TLV.INF, "onScenarioBefore", "parameter-3: " + p3);
 
   //set an optional tag in the contextual object passed as first argument
   outCtx.optionalTag = "my-custom-tag";
 }
 
-function onScenarioDid(outCtx, p1, p2, p3) {
-  log(TLV.INF, "onScenarioDid", "parameter-1: " + p1);
-  log(TLV.INF, "onScenarioDid", "parameter-2: " + p2);
-  log(TLV.INF, "onScenarioDid", "parameter-3: " + p3);
+function onScenarioAfter(outCtx, p1, p2, p3) {
+  log(TLV.INF, "onScenarioAfter", "parameter-1: " + p1);
+  log(TLV.INF, "onScenarioAfter", "parameter-2: " + p2);
+  log(TLV.INF, "onScenarioAfter", "parameter-3: " + p3);
 
   //read the optional tag we set before
-  log(TLV.INF, "onScenarioDid", "optionalTag: " + outCtx.optionalTag);
+  log(TLV.INF, "onScenarioAfter", "optionalTag: " + outCtx.optionalTag);
 }
 ```
 

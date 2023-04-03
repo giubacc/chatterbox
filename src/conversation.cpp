@@ -1,5 +1,8 @@
-#include "scenario.h"
 #include "request.h"
+
+#define ERR_FAIL_RESET_CONV   "failed to reset conversation"
+#define ERR_FAIL_READ_HOST    "failed to read 'host'"
+#define ERR_REQ_NOT_SEQ       "'requests' is not a sequence"
 
 namespace cbox {
 
@@ -50,7 +53,7 @@ int conversation::process(ryml::NodeRef conversation_in,
   int res = 0;
 
   if((res = reset(conversation_in))) {
-    event_log_->error("failed to reset conversation");
+    event_log_->error(ERR_FAIL_RESET_CONV);
     return res;
   }
 
@@ -62,7 +65,8 @@ int conversation::process(ryml::NodeRef conversation_in,
                                 error,
                                 utils::get_default_conversation_out_options());
     if(error) {
-      return 1;
+      res = 1;
+      goto fun_end;
     }
 
     if(scope.enabled_) {
@@ -70,7 +74,7 @@ int conversation::process(ryml::NodeRef conversation_in,
 
       auto raw_host = js_env_.eval_as<std::string>(conversation_out, key_host);
       if(!raw_host) {
-        event_log_->error("failed to read 'host'");
+        event_log_->error(ERR_FAIL_READ_HOST);
         return 1;
       } else {
         conversation_out.remove_child(key_host);
@@ -108,7 +112,7 @@ int conversation::process(ryml::NodeRef conversation_in,
 
         auto signed_headers = js_env_.eval_as<std::string>(auth_node,
                                                            key_signed_headers,
-                                                           "host;x-amz-content-sha256;x-amz-date");
+                                                           AUTH_AWS_DEF_SIGN_HDRS);
         if(signed_headers) {
           if(auth_node.has_child(key_signed_headers)) {
             auth_node.remove_child(key_signed_headers);
@@ -132,43 +136,45 @@ int conversation::process(ryml::NodeRef conversation_in,
                     *region);
       }
 
-      if(!conversation_in.has_child(key_requests)) {
-        return 0;
-      }
-      ryml::NodeRef requests_in = conversation_in[key_requests];
-      if(!requests_in.is_seq()) {
-        event_log_->error("'requests' is not a sequence");
-        return 1;
-      }
+      if(conversation_in.has_child(key_requests)) {
+        ryml::NodeRef requests_in = conversation_in[key_requests];
+        if(!requests_in.is_seq()) {
+          res = 1;
+          event_log_->error(ERR_REQ_NOT_SEQ);
+          utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_REQ_NOT_SEQ);
+          goto fun_end;
+        }
 
-      ryml::NodeRef requests_out = conversation_out[key_requests];
-      requests_out |= ryml::SEQ;
-      requests_out.clear_children();
+        ryml::NodeRef requests_out = conversation_out[key_requests];
+        requests_out |= ryml::SEQ;
+        requests_out.clear_children();
 
-      //requests cycle
-      for(ryml::NodeRef const &request_in : requests_in.children()) {
+        //requests cycle
+        for(ryml::NodeRef const &request_in : requests_in.children()) {
 
-        /*TODO parallel handling*/
-        request req(*this);
+          /*TODO parallel handling*/
+          request req(*this);
 
-        if((res = req.process(raw_host_,
-                              request_in,
-                              requests_out))) {
-          return res;
+          if((res = req.process(raw_host_,
+                                request_in,
+                                requests_out))) {
+            break;
+          }
         }
       }
-
-      enrich_with_stats(conversation_out);
-      scope.commit();
+      if(!res) {
+        enrich_with_stats(conversation_out);
+        scope.commit();
+      }
     } else {
-      conversation_out.clear_children();
-      conversation_out[key_enabled] << STR_FALSE;
+      utils::clear_map_node_put_key_val(conversation_out, key_enabled, STR_FALSE);
     }
   }
   if(error) {
     return 1;
   }
 
+fun_end:
   return res;
 }
 

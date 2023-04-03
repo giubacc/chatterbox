@@ -1,5 +1,4 @@
 #pragma once
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -15,6 +14,9 @@
 
 #include "restclient-cpp/connection.h"
 #include "restclient-cpp/restclient.h"
+#include "pistache/endpoint.h"
+#include "pistache/http.h"
+#include "pistache/router.h"
 #include "ryml.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
@@ -34,6 +36,8 @@
 #define key_data            "data"
 #define key_dump            "dump"
 #define key_enabled         "enabled"
+#define key_error           "error"
+#define key_error_occurred  "errorOccurred"
 #define key_for             "for"
 #define key_format          "format"
 #define key_headers         "headers"
@@ -42,8 +46,8 @@
 #define key_mock            "mock"
 #define key_msec            "msec"
 #define key_nsec            "nsec"
-#define key_will            "will"
-#define key_did             "did"
+#define key_before          "before"
+#define key_after           "after"
 #define key_out             "out"
 #define key_query_string    "queryString"
 #define key_region          "region"
@@ -62,6 +66,7 @@
 #define STR_FALSE           "false"
 #define STR_JSON            "json"
 #define STR_YAML            "yaml"
+#define YAML_DOC_SEP        "---"
 
 #define HTTP_HEAD           "HEAD"
 #define HTTP_DELETE         "DELETE"
@@ -69,20 +74,37 @@
 #define HTTP_POST           "POST"
 #define HTTP_GET            "GET"
 
-#define AUTH_AWS_V2         "aws_v2"
-#define AUTH_AWS_V4         "aws_v4"
+#define AUTH_AWS_V2             "aws_v2"
+#define AUTH_AWS_V4             "aws_v4"
+#define AUTH_AWS_DEF_SIGN_HDRS  "host;x-amz-content-sha256;x-amz-date"
+
+namespace cbox {
+struct env;
+struct scenario;
+struct conversation;
+struct request;
+struct response;
+}
+
+namespace rest {
+struct endpoint;
+}
 
 namespace utils {
 
 struct cfg {
-  std::string in_scenario_path = "";
-  std::string in_scenario_name = "";
+  std::string in_path = "";
+  std::string in_name = "";
 
   std::string out_channel = "stdout";
   std::string out_format = STR_YAML;
 
   std::string evt_log_channel = "stderr";
   std::string evt_log_level = "inf";
+
+  bool daemon = false;
+  uint16_t endpoint_port = 8080;
+  uint32_t endpoint_concurrency = 2;
 
   bool no_out_ = false;
 };
@@ -132,19 +154,19 @@ inline int64_t from_nano(int64_t nanoseconds, resolution to)
 
 inline spdlog::level::level_enum get_spdloglvl(const char *log_level)
 {
-  if(!strcmp("trc", log_level)) {
+  if(!strcmp("t", log_level)) {
     return spdlog::level::level_enum::trace;
-  } else if(!strcmp("dbg", log_level)) {
+  } else if(!strcmp("d", log_level)) {
     return spdlog::level::level_enum::debug;
-  } else if(!strcmp("inf", log_level)) {
+  } else if(!strcmp("i", log_level)) {
     return spdlog::level::level_enum::info;
-  } else if(!strcmp("wrn", log_level)) {
+  } else if(!strcmp("w", log_level)) {
     return spdlog::level::level_enum::warn;
-  } else if(!strcmp("err", log_level)) {
+  } else if(!strcmp("e", log_level)) {
     return spdlog::level::level_enum::err;
-  } else if(!strcmp("cri", log_level)) {
+  } else if(!strcmp("c", log_level)) {
     return spdlog::level::level_enum::critical;
-  } else if(!strcmp("off", log_level)) {
+  } else if(!strcmp("o", log_level)) {
     return spdlog::level::level_enum::off;
   } else {
     return spdlog::level::level_enum::err;
@@ -237,7 +259,7 @@ inline std::string get_formatted_string(const std::string &str,
 // ------------------
 
 struct RymlErrorHandler {
-  // this will be called on error
+  // this before be called on error
   void on_error(const char *msg,
                 size_t len,
                 ryml::Location loc) {
@@ -346,5 +368,13 @@ struct aws_auth {
     //event logger
     std::shared_ptr<spdlog::logger> event_log_;
 };
+
+inline void clear_map_node_put_key_val(ryml::NodeRef map_node,
+                                       const char *stable_key,
+                                       const char *val)
+{
+  map_node.clear_children();
+  map_node[ryml::to_csubstr(stable_key)] << val;
+}
 
 }

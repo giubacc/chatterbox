@@ -1,8 +1,7 @@
 #pragma once
-
 #include "libplatform/libplatform.h"
 #include "v8.h"
-#include "globals.h"
+#include "utils.h"
 
 namespace cbox {
 struct scenario;
