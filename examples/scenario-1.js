@@ -19,7 +19,7 @@ function onScenarioBefore(outCtx, p1, p2, p3) {
   out.executionTag = "my-custom-tag";
 }
 
-function onScenarioAfter(out, p1, p2, p3) {
+function onScenarioAfter(outCtx, p1, p2, p3) {
   log(TLV.INF, "-onScenarioAfter-", "parameter-1: " + p1);
   log(TLV.INF, "-onScenarioAfter-", "parameter-2: " + p2);
   log(TLV.INF, "-onScenarioAfter-", "parameter-3: " + p3);

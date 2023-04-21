@@ -32,7 +32,18 @@ int endpoint::start()
 void endpoint::setup_routes()
 {
   using namespace Pistache::Rest;
+  Routes::Put(router_, "/echo", Routes::bind(&endpoint::do_put_echo, this));
   Routes::Put(router_, "/document", Routes::bind(&endpoint::do_put_document, this));
+}
+
+void endpoint::do_put_echo(const Pistache::Rest::Request &request,
+                           Pistache::Http::ResponseWriter response)
+{
+  if(request.body().empty()) {
+    response.send(Pistache::Http::Code::Bad_Request, "empty document");
+    return;
+  }
+  response.send(Pistache::Http::Code::Ok, request.body());
 }
 
 void endpoint::do_put_document(const Pistache::Rest::Request &request,

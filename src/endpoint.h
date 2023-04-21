@@ -13,6 +13,9 @@ struct endpoint {
 
   void setup_routes();
 
+  void do_put_echo(const Pistache::Rest::Request &request,
+                   Pistache::Http::ResponseWriter response);
+
   void do_put_document(const Pistache::Rest::Request &request,
                        Pistache::Http::ResponseWriter response);
 

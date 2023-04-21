@@ -458,7 +458,7 @@ bool js_env::invoke_js_function(ryml::NodeRef *ctx,
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(function_val);
 
   // Prepare arguments
-  const int argc = js_args.num_children() + (ctx ? 1 : 0);
+  const int argc = (js_args.valid() ? js_args.num_children() : 0) + (ctx ? 1 : 0);
   v8::Local<v8::Value> argv[argc];
 
   if(ctx) {
@@ -704,7 +704,8 @@ bool js_env::run_script(const v8::Local<v8::Script> &script,
 v8::MaybeLocal<v8::String> js_env::read_script_file(const std::string &name)
 {
   std::vector<char> content;
-  if(!utils::file_get_contents(name.c_str(), content, event_log_.get())) {
+  int error = 0;
+  if(!utils::file_get_contents(name.c_str(), content, event_log_.get(), error)) {
     return v8::MaybeLocal<v8::String>();
   }
 
@@ -752,6 +753,10 @@ bool js_env::exec_as_function(ryml::NodeRef from,
                                    fun_str.c_str(),
                                    js_args,
   [&](v8::Isolate *isl, ryml::NodeRef js_args, v8::Local<v8::Value> argv[]) -> bool {
+    if(!js_args.valid())
+    {
+      return true;
+    }
     for(uint32_t i = 0; i < js_args.num_children(); ++i)
     {
       ryml::NodeRef js_arg = js_args[i];
