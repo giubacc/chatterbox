@@ -1,0 +1,22 @@
+
+before:
+  function: onScenarioBefore
+after:
+  function: onScenarioAfter
+  args: [one, 2, three]
+conversations:
+    - host: localhost:8080
+      requests:
+        - method: PUT
+          uri: document
+          data:
+            before:
+              function: onScenarioBefore
+            after:
+              function: onScenarioAfter
+            conversations:
+                - host: localhost:8081
+                  requests:
+                    - method: PUT
+                      uri: echo
+                      data: hello from pong

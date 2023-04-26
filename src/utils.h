@@ -245,7 +245,8 @@ inline void base_name(const std::string &input,
 
 size_t file_get_contents(const char *filename,
                          std::vector<char> &v,
-                         spdlog::logger *log);
+                         spdlog::logger *log,
+                         int &error);
 
 inline std::string get_formatted_string(const std::string &str,
                                         fmt::terminal_color color,

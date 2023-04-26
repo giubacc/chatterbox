@@ -9,7 +9,7 @@ after:
 conversations:
     - host: localhost:7480
       requests:
-        - method:
+        - method: GET
           uri: user/info
           queryString: uid=julius
           mock:

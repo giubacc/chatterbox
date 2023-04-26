@@ -73,13 +73,15 @@ const ryml::Tree &get_default_response_out_options()
 
 size_t file_get_contents(const char *filename,
                          std::vector<char> &v,
-                         spdlog::logger *log)
+                         spdlog::logger *log,
+                         int &error)
 {
   ::FILE *fp = ::fopen(filename, "rb");
   if(fp == nullptr) {
     if(log) {
       log->error("{}:{}", filename, strerror(errno));
     }
+    error = 1;
     return 0;
   }
   ::fseek(fp, 0, SEEK_END);

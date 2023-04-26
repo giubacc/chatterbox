@@ -225,7 +225,9 @@ struct js_env {
   template <typename T>
   std::optional<T> eval_as(ryml::NodeRef from,
                            const char *key,
-                           const std::optional<T> default_value = std::nullopt) {
+                           const std::optional<T> default_value = std::nullopt,
+                           bool log_errors = true,
+                           bool *is_error = nullptr) {
     if(!from.has_child(ryml::to_csubstr(key))) {
       return default_value;
     }
@@ -237,7 +239,12 @@ struct js_env {
       //eval as javascript function
 
       if(!val.has_child("function")) {
-        event_log_->error("failed to read 'function'");
+        if(log_errors) {
+          event_log_->error("failed to read 'function'");
+        }
+        if(is_error) {
+          *is_error = true;
+        }
         return std::nullopt;
       }
 
@@ -246,7 +253,12 @@ struct js_env {
       if(val.has_child("args")) {
         js_args = val["args"];
         if(!js_args.is_seq()) {
-          event_log_->error("function args are not sequence type");
+          if(log_errors) {
+            event_log_->error("function args are not sequence type");
+          }
+          if(is_error) {
+            *is_error = true;
+          }
           return std::nullopt;
         }
       }
@@ -262,9 +274,15 @@ struct js_env {
                                        fun_str.c_str(),
                                        js_args,
       [&](v8::Isolate *isl, ryml::NodeRef js_args, v8::Local<v8::Value> argv[]) -> bool{
+        if(!js_args.valid()) {
+          return true;
+        }
         for(uint32_t i = 0; i < js_args.num_children(); ++i) {
           ryml::NodeRef js_arg = js_args[i];
           if(!js_value_from_ryml_noderef(js_arg, argv[i], *this)) {
+            if(is_error) {
+              *is_error = true;
+            }
             return false;
           }
         }
@@ -274,7 +292,12 @@ struct js_env {
         if(!utils::converter<T>::isType(res)) {
           std::stringstream ss;
           ss << "function result is not " << utils::converter<T>::name() << " type";
-          event_log_->error(ss.str());
+          if(log_errors) {
+            event_log_->error(ss.str());
+          }
+          if(is_error) {
+            *is_error = true;
+          }
           return false;
         }
         result = utils::converter<T>::asType(res, isl);
@@ -283,7 +306,12 @@ struct js_env {
       error);
 
       if(!js_res) {
-        event_log_->error("failure invoking function:{}, error:{}", fun_str, error);
+        if(log_errors) {
+          event_log_->error("failure invoking function:{}, error:{}", fun_str, error);
+        }
+        if(is_error) {
+          *is_error = true;
+        }
         return std::nullopt;
       }
       return result;

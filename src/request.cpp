@@ -109,8 +109,31 @@ int request::process(const std::string &raw_host,
 
         // data
         std::optional<std::string> data;
+        bool is_error = false;
         if(!res) {
-          data = js_env_.eval_as<std::string>(request_in, key_data);
+          data = js_env_.eval_as<std::string>(request_in,
+                                              key_data,
+                                              std::nullopt,
+                                              false,
+                                              &is_error);
+          if(is_error && request_in.has_child(key_data)) {
+            ryml::NodeRef node_data_in = request_in[key_data];
+
+            ryml::Tree tree_data;
+            ryml::NodeRef td_root = tree_data.rootref();
+            td_root |= ryml::MAP;
+            utils::set_tree_node(*node_data_in.tree(),
+                                 node_data_in,
+                                 td_root,
+                                 ryml_request_out_buf_);
+
+            ryml::NodeRef node_data = td_root[key_data];
+            node_data.clear_key();
+
+            std::ostringstream os;
+            os << node_data;
+            data.emplace(os.str());
+          }
           if(data) {
             request_out.remove_child(key_data);
             request_out[key_data] << *data;

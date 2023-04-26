@@ -53,10 +53,14 @@ int context::load_document_by_file(const char *fname)
   std::ostringstream fpath;
   fpath << cfg_.in_path << "/" << fname;
 
+  int error = 0;
   size_t sz;
-  if((sz = utils::file_get_contents(fpath.str().c_str(), ryml_load_buf_, event_log_.get()))) {
+  if((sz = utils::file_get_contents(fpath.str().c_str(), ryml_load_buf_, event_log_.get(), error))) {
     res = load_document();
   } else {
+    if(!error) {
+      event_log_->error("empty file");
+    }
     res = 1;
   }
 
@@ -65,6 +69,10 @@ int context::load_document_by_file(const char *fname)
 
 int context::load_document_by_string(const std::string &str)
 {
+  if(str.empty()) {
+    event_log_->error("empty string");
+    return 1;
+  }
   ryml_load_buf_.resize(str.size());
   std::memcpy(ryml_load_buf_.data(), str.data(), str.size());
   return load_document();
@@ -88,18 +96,19 @@ int context::process_scenario()
 {
   int res = 0;
   ryml::NodeRef stream = doc_in_.rootref();
-  if(stream.is_stream()) {
+  if(stream.empty()) {
+    event_log_->error("empty document");
+    return 1;
+  } else if(stream.is_stream()) {
     for(ryml::NodeRef doc : stream.children()) {
       if((res = scenario_->process(doc_in_, doc))) {
         return res;
       }
     }
-  } else if(stream.is_doc()) {
+  } else {
     if((res = scenario_->process(doc_in_, doc_in_.rootref()))) {
       return res;
     }
-  } else {
-    event_log_->info("empty document");
   }
   //end of scenarios
   return -1;
