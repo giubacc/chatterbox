@@ -10,13 +10,13 @@ conversations:
         - method: PUT
           uri: document
           data:
-            before:
-              function: onScenarioBefore
-            after:
-              function: onScenarioAfter
             conversations:
                 - host: localhost:8081
                   requests:
                     - method: PUT
                       uri: echo
-                      data: hello from pong
+                      data: hello!
+                      response:
+                        out:
+                          format:
+                            body: text

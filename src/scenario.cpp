@@ -348,14 +348,31 @@ fun_end:
   if(res) {
     scenario_out_root[key_error_occurred] << STR_TRUE;
   }
+
   // finally write scenario_out on the output
   if(!ctx_.cfg_.no_out_) {
-    if(ctx_.cfg_.out_format == STR_YAML) {
-      *ctx_.output_ << YAML_DOC_SEP << std::endl << scenario_out_;
-    } else if(ctx_.cfg_.out_format == STR_JSON) {
-      *ctx_.output_ << ryml::as_json(scenario_out_);
+    if(!ctx_.cfg_.daemon) {
+      if(ctx_.cfg_.out_format == STR_YAML) {
+        *ctx_.output_ << YAML_DOC_SEP << std::endl << scenario_out_;
+      } else if(ctx_.cfg_.out_format == STR_JSON) {
+        *ctx_.output_ << ryml::as_json(scenario_out_);
+      }
+    } else {
+      Pistache::Http::Code endpoint_res = res ? Pistache::Http::Code::Internal_Server_Error : Pistache::Http::Code::Ok;
+      auto stream = ctx_.response_writer_->stream(endpoint_res);
+      ryml::csubstr output = ryml::emit_yaml(scenario_out_,
+                                             scenario_out_.root_id(),
+                                             ryml::substr{}, false);
+      size_t num_needed_chars = output.len;
+      std::vector<char> buf(num_needed_chars);
+      output = ryml::emit_yaml(scenario_out_,
+                               scenario_out_.root_id(),
+                               ryml::to_substr(buf), true);
+      stream.write(buf.data(), buf.size());
+      stream << Pistache::Http::ends;
     }
   }
+
   return res;
 }
 

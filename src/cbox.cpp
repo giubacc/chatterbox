@@ -6,8 +6,8 @@ namespace cbox {
 // --- context ---
 // ---------------
 
-context::context(utils::cfg &cfg) :
-  cfg_(cfg) {}
+context::context(utils::cfg &cfg, Pistache::Http::ResponseWriter *rw) :
+  cfg_(cfg), response_writer_(rw) {}
 
 int context::init(std::shared_ptr<spdlog::logger> &event_log)
 {
@@ -159,6 +159,9 @@ int env::exec()
   int res = 0;
 
   if(cfg_.daemon) {
+    if(cfg_.in_path.empty()) {
+      cfg_.in_path = ".";
+    }
     res = endpoint_->start();
   } else {
     context ctx(cfg_);
