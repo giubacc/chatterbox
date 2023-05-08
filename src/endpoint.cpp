@@ -56,7 +56,7 @@ void endpoint::do_put_document(const Pistache::Rest::Request &request,
     return;
   }
 
-  cbox::context ctx(env_.cfg_);
+  cbox::context ctx(env_.cfg_, &response);
   if((res = ctx.init(event_log_))) {
     return;
   }

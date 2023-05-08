@@ -5,7 +5,7 @@ namespace cbox {
 
 struct context {
 
-  context(utils::cfg &cfg);
+  context(utils::cfg &cfg, Pistache::Http::ResponseWriter *rw = nullptr);
 
   int init(std::shared_ptr<spdlog::logger> &event_log);
 
@@ -32,6 +32,9 @@ struct context {
 
   //output
   std::unique_ptr<std::ostream> output_;
+
+  //endpoint-output
+  Pistache::Http::ResponseWriter *response_writer_;
 
   //event log
   std::shared_ptr<spdlog::logger> event_log_;
