@@ -1,0 +1,50 @@
+{{- if .Values.backend.ingress.enabled }}
+---
+# Backend Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: '{{ .Release.Name }}-no-tls'
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "chatterbox.labels" . | indent 4 }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares:
+      '{{ .Release.Namespace }}-{{ include "chatterbox.CORSMiddlewareName" . }}@kubernetescrd'
+spec:
+  rules:
+    - host: '{{ include "chatterbox.serviceName" . }}.{{ .Values.backend.publicDomain }}'
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: '{{ include "chatterbox.serviceName" . }}'
+                port:
+                  number: 80
+---
+# Middleware for Traefik
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "chatterbox.CORSMiddlewareName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "chatterbox.labels" . | indent 4 }}
+spec:
+  headers:
+    accessControlAllowMethods:
+      - "DELETE"
+      - "GET"
+      - "HEAD"
+      - "POST"
+      - "PUT"
+      - "OPTIONS"
+    accessControlAllowOriginList:
+      - "*"
+    accessControlAllowHeaders:
+      - "*"
+    accessControlExposeHeaders:
+      - "*"
+{{- end }}

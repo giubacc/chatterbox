@@ -1,0 +1,3 @@
+{{- if and (.Values.backend.ingress.enabled) (empty .Values.backend.publicDomain) }}
+{{- fail "Please provide a value for `.Values.backend.publicDomain`." }}
+{{- end }}

@@ -1,0 +1,48 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "chatterbox.labels" . | indent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+{{ include "chatterbox.selectorLabels" . | indent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+{{ include "chatterbox.selectorLabels" . | indent 8 }}
+    spec:
+      containers:
+        - name: {{ .Release.Name }}
+          image: {{ include "chatterbox.image" . | quote }}
+          imagePullPolicy: {{ default "IfNotPresent" .Values.backend.imagePullPolicy }}
+          args:
+            - "-d"
+            - "--endpoint-port"
+            - "8080"
+            - "-v"
+            - "t"
+{{- range $.Values.backend.customArgs }}
+            - {{ . | quote}}
+{{- end }}
+          env:
+{{- range $.Values.backend.customEnvs }}
+{{- if (regexMatch "[^=]+=[^=]+" .) }}
+{{- $tokens := split "=" . }}
+            - name: {{ $tokens._0 }}
+              value: {{ $tokens._1 | quote}}
+{{- else if (regexMatch "^[^=]" .) }}
+            - name: {{ . }}
+{{- else }}
+{{- fail (print ".Values.backend.customEnvs contains an invalid entry: " .) }}
+{{- end }}
+{{- end }}
+          ports:
+            - containerPort: 8080
+              name: cbox-plain

@@ -1,0 +1,11 @@
+backend:
+  ingress:
+    enabled: true
+  serviceName: ""
+  publicDomain: ""
+  customArgs: []
+  customEnvs: []
+  imageName:
+  imageTag:
+  imageRegistry:
+  imagePullPolicy:

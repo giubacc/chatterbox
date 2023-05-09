@@ -1,5 +1,8 @@
 # chatterbox
 
+<h1 align="left"><img alt="chatterbox-logo" src="./assets/images/cbox-logo.png"/>
+</h1>
+
 ![License](https://img.shields.io/github/license/giubacc/chatterbox)
 ![Lint](https://github.com/giubacc/chatterbox/actions/workflows/lint.yaml/badge.svg)
 ![Builder Image](https://github.com/giubacc/chatterbox/actions/workflows/build-builder.yaml/badge.svg)
