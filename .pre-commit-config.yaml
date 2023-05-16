@@ -28,6 +28,7 @@ repos:
   rev: v2.1.0
   hooks:
     - id: codespell
+      exclude: ui/chatterbox/package-lock.json
 
 - repo: https://github.com/DavidAnson/markdownlint-cli2
   rev: v0.4.0
