@@ -3,6 +3,7 @@ LABEL Name=chatterbox-builder
 
 RUN zypper -n install --no-recommends \
     xz \
+    wget \
     find \
     make \
     cmake \
