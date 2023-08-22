@@ -213,7 +213,7 @@ int request::process_response(const RestClient::Response &resRC,
       }
     }
 
-    if(!resRC.body.empty()) {
+    if(resRC.code != CURLE_GOT_NOTHING && !resRC.body.empty()) {
       if(fopts[key_body] == STR_JSON) {
         ryml::set_callbacks(parent_.parent_.ctx_.REH_.callbacks());
         parent_.parent_.ctx_.REH_.check_error_occurs([&] {
