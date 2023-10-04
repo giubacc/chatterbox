@@ -155,6 +155,7 @@ clean_googletest() {
 # see this issue: https://bugs.chromium.org/p/v8/issues/detail?id=13455
 patch_v8_code() {
   sed -i 's/std::is_pod/std::is_standard_layout/g' $basedir/contrib/v8/src/base/vector.h
+  sed -i 's/std::back_insert_iterator(snapshots)/std::back_insert_iterator<base::SmallVector<Snapshot, 8>>(snapshots)/g' $basedir/contrib/v8/src/compiler/turboshaft/wasm-gc-type-reducer.cc
 }
 
 build_v8() {
