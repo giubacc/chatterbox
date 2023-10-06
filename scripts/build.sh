@@ -1,6 +1,6 @@
 #!/bin/bash
 
-container_mng=${CNT_MNG:-"podman"}
+container_mng=${CNT_MNG:-"docker"}
 basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
 builder_image=${BUILDER_IMAGE:-"chatterbox-builder"}
@@ -87,12 +87,12 @@ create_chatterbox_test() {
 
 build() {
   echo "Building chatterbox binary ..."
-  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make chatterbox
+  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make cbx
 }
 
 build_test() {
   echo "Building chatterbox-test binary ..."
-  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make chatterbox_test
+  mkdir -p $basedir/build && cd $basedir/build && cmake -DCONTRIB_PATH=$contrib_path .. && make cbx_test
 }
 
 clean() {
@@ -155,15 +155,16 @@ clean_googletest() {
 # see this issue: https://bugs.chromium.org/p/v8/issues/detail?id=13455
 patch_v8_code() {
   sed -i 's/std::is_pod/std::is_standard_layout/g' $basedir/contrib/v8/src/base/vector.h
+  sed -i 's/std::back_insert_iterator(snapshots)/std::back_insert_iterator<base::SmallVector<Snapshot, 8>>(snapshots)/g' $basedir/contrib/v8/src/compiler/turboshaft/wasm-gc-type-reducer.cc
 }
 
 build_v8() {
   echo "Building V8 ..."
   PATH=$contrib_path/depot_tools:$PATH
-  gclient
   cd $contrib_path
   fetch v8
   cd v8
+  git checkout branch-heads/11.9
   args=$(cat <<EOF
 dcheck_always_on = false
 is_component_build = false
@@ -183,7 +184,11 @@ EOF
 
 clean_v8() {
   echo "Cleaning v8 build ..."
-  rm -rf $contrib_path/v8/out
+  rm -rf $contrib_path/v8
+  rm -rf $contrib_path/.cipd
+  rm -rf $contrib_path/.gclient
+  rm -rf $contrib_path/.gclient_entries
+  rm -rf $contrib_path/.gclient_previous_sync_commits
 }
 
 build_deps() {

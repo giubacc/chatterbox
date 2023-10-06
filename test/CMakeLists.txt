@@ -29,7 +29,7 @@ link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
                  ${CONTRIB_PATH}/v8/out/x86.release/obj
                  ${CONTRIB_PATH}/googletest/build/lib)
 
-add_executable(chatterbox_test
+add_executable(cbx_test
                test.cpp
                ${CHATTERBOX_PATH}/utils.cpp
                ${CHATTERBOX_PATH}/crypto.cpp
@@ -40,7 +40,7 @@ add_executable(chatterbox_test
                ${CHATTERBOX_PATH}/endpoint.cpp
                ${CHATTERBOX_PATH}/cbox.cpp)
 
-target_link_libraries(chatterbox_test
+target_link_libraries(cbx_test
                       "librestclient-cpp.a"
                       ryml
                       pistache
