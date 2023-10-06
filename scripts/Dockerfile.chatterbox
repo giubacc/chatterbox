@@ -1,4 +1,4 @@
-FROM opensuse/leap
+FROM opensuse/tumbleweed
 LABEL Name=chatterbox
 
 RUN zypper -n install --no-recommends curl \
@@ -7,6 +7,6 @@ RUN zypper -n install --no-recommends curl \
 RUN mkdir /monitor
 VOLUME /monitor
 
-COPY chatterbox /usr/bin/chatterbox
+COPY cbx /usr/bin/cbx
 
-ENTRYPOINT ["chatterbox"]
+ENTRYPOINT ["cbx"]

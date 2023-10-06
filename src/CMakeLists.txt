@@ -25,7 +25,7 @@ link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
                  ${CONTRIB_PATH}/cryptopp
                  ${CONTRIB_PATH}/v8/out/x86.release/obj)
 
-add_executable(chatterbox
+add_executable(cbx
                main.cpp
                utils.cpp
                crypto.cpp
@@ -36,7 +36,7 @@ add_executable(chatterbox
                endpoint.cpp
                cbox.cpp)
 
-target_link_libraries(chatterbox
+target_link_libraries(cbx
                       "librestclient-cpp.a"
                       ryml
                       pistache

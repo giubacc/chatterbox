@@ -1,4 +1,4 @@
-FROM opensuse/leap
+FROM opensuse/tumbleweed
 LABEL Name=chatterbox-test
 
 RUN zypper -n install --no-recommends curl \
@@ -7,7 +7,7 @@ RUN zypper -n install --no-recommends curl \
 RUN mkdir -p /wd/scenarios
 COPY scenarios /wd/scenarios
 
-COPY chatterbox_test /usr/bin/chatterbox_test
+COPY cbx_test /usr/bin/cbx_test
 
 WORKDIR /wd
-ENTRYPOINT ["chatterbox_test"]
+ENTRYPOINT ["cbx_test"]

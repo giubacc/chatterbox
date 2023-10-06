@@ -1,8 +1,9 @@
-FROM opensuse/leap
+FROM opensuse/tumbleweed
 LABEL Name=chatterbox-builder
 
 RUN zypper -n install --no-recommends \
     xz \
+    awk \
     wget \
     find \
     make \
