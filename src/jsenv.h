@@ -18,8 +18,7 @@ struct converter<bool> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    bool bval;
-    val >> bval;
+    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -44,8 +43,7 @@ struct converter<int32_t> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    int32_t ival;
-    val >> ival;
+    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -70,8 +68,7 @@ struct converter<uint32_t> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    uint32_t uival;
-    val >> uival;
+    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -96,8 +93,7 @@ struct converter<double> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    double dval;
-    val >> dval;
+    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -122,8 +118,7 @@ struct converter<std::string> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    std::string sval;
-    val >> sval;
+    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -219,7 +214,7 @@ struct js_env {
   static void cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args);
 
   // ----------------------------
-  // --- Json Field Evaluator ---
+  // --- Yaml Field Evaluator ---
   // ----------------------------
 
   template <typename T>
@@ -227,11 +222,22 @@ struct js_env {
                            const char *key,
                            const std::optional<T> default_value = std::nullopt,
                            bool log_errors = true,
-                           bool *is_error = nullptr) {
+                           bool *is_error = nullptr,
+                           const char *check_regex = nullptr,
+                           bool *further_eval = nullptr) {
     if(!from.has_child(ryml::to_csubstr(key))) {
       return default_value;
     }
     ryml::NodeRef val = from[ryml::to_csubstr(key)];
+
+    if(check_regex && (val.is_keyval() || val.is_val())) {
+      auto str_val = utils::converter<std::string>::asType(val);
+      if(std::regex_search(utils::converter<std::string>::asType(val), std::regex(check_regex))) {
+        *further_eval = true;
+        return std::nullopt;
+      }
+    }
+
     if(utils::converter<T>::isType(val)) {
       //eval as primitive value
       return utils::converter<T>::asType(val);

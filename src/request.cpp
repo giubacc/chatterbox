@@ -13,6 +13,8 @@ const std::string algorithm = "AWS4-HMAC-SHA256";
 namespace cbox {
 
 request::request(conversation &parent) : parent_(parent),
+  scen_out_p_resolv_(parent_.scen_out_p_resolv_),
+  scen_p_evaluator_(parent_.scen_p_evaluator_),
   js_env_(parent_.js_env_),
   event_log_(parent_.event_log_) {}
 
@@ -39,10 +41,24 @@ int request::process(const std::string &raw_host,
   }
 
   // for
-  auto pfor = js_env_.eval_as<uint32_t>(request_in, key_for, 1);
+  bool further_eval = false;
+  auto pfor = js_env_.eval_as<uint32_t>(request_in,
+                                        key_for,
+                                        1,
+                                        true,
+                                        nullptr,
+                                        PROP_EVAL_RGX,
+                                        &further_eval);
   if(!pfor) {
-    event_log_->error(ERR_FAIL_READ_FOR);
-    return 1;
+    if(further_eval) {
+      pfor = scen_p_evaluator_.eval_as<uint32_t>(request_in,
+                                                 key_for,
+                                                 scen_out_p_resolv_);
+    }
+    if(!pfor) {
+      event_log_->error(ERR_FAIL_READ_FOR);
+      return 1;
+    }
   }
 
   for(uint32_t i = 0; i < pfor; ++i) {
@@ -73,34 +89,77 @@ int request::process(const std::string &raw_host,
         parent_.parent_.stats_.incr_request_count();
 
         // method
-        auto method = js_env_.eval_as<std::string>(request_in, key_method);
+        further_eval = false;
+        auto method = js_env_.eval_as<std::string>(request_in,
+                                                   key_method,
+                                                   std::nullopt,
+                                                   true,
+                                                   nullptr,
+                                                   PROP_EVAL_RGX,
+                                                   &further_eval);
         if(!method) {
-          res = 1;
-          event_log_->error(ERR_FAIL_READ_METHOD);
-          utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_READ_METHOD);
-        } else {
-          request_out.remove_child(key_method);
-          request_out[key_method] << *method;
+          if(further_eval) {
+            method = scen_p_evaluator_.eval_as<std::string>(request_in,
+                                                            key_method,
+                                                            scen_out_p_resolv_);
+          }
+          if(!method) {
+            res = 1;
+            event_log_->error(ERR_FAIL_READ_METHOD);
+            utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_READ_METHOD);
+          }
         }
+        request_out.remove_child(key_method);
+        request_out[key_method] << *method;
 
         // uri
+        further_eval = false;
         std::optional<std::string> uri;
         if(!res) {
-          uri = js_env_.eval_as<std::string>(request_in, key_uri);
+          uri = js_env_.eval_as<std::string>(request_in,
+                                             key_uri,
+                                             std::nullopt,
+                                             true,
+                                             nullptr,
+                                             PROP_EVAL_RGX,
+                                             &further_eval);
           if(!uri) {
-            res = 1;
-            event_log_->error(ERR_FAIL_READ_URI);
-            utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_READ_URI);
-          } else {
-            request_out.remove_child(key_uri);
-            request_out[key_uri] << *uri;
+            if(further_eval) {
+              uri = scen_p_evaluator_.eval_as<std::string>(request_in,
+                                                           key_uri,
+                                                           scen_out_p_resolv_);
+            }
+            if(!uri) {
+              res = 1;
+              event_log_->error(ERR_FAIL_READ_URI);
+              utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_READ_URI);
+            }
           }
+          request_out.remove_child(key_uri);
+          request_out[key_uri] << *uri;
         }
 
         // query_string
+        further_eval = false;
         std::optional<std::string> query_string;
         if(!res) {
-          query_string = js_env_.eval_as<std::string>(request_in, key_query_string);
+          query_string = js_env_.eval_as<std::string>(request_in,
+                                                      key_query_string,
+                                                      std::nullopt,
+                                                      true,
+                                                      nullptr,
+                                                      PROP_EVAL_RGX,
+                                                      &further_eval);
+          if(further_eval) {
+            query_string = scen_p_evaluator_.eval_as<std::string>(request_in,
+                                                                  key_query_string,
+                                                                  scen_out_p_resolv_);
+            if(!query_string) {
+              res = 1;
+              event_log_->error(ERR_FAIL_EVAL);
+              utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_EVAL);
+            }
+          }
           if(query_string) {
             request_out.remove_child(key_query_string);
             request_out[key_query_string] << *query_string;
@@ -108,6 +167,7 @@ int request::process(const std::string &raw_host,
         }
 
         // data
+        further_eval = false;
         std::optional<std::string> data;
         bool is_error = false;
         if(!res) {
@@ -115,7 +175,9 @@ int request::process(const std::string &raw_host,
                                               key_data,
                                               std::nullopt,
                                               false,
-                                              &is_error);
+                                              &is_error,
+                                              PROP_EVAL_RGX,
+                                              &further_eval);
           if(is_error && request_in.has_child(key_data)) {
             ryml::NodeRef node_data_in = request_in[key_data];
 
@@ -134,6 +196,16 @@ int request::process(const std::string &raw_host,
             os << node_data;
             data.emplace(os.str());
           }
+          if(further_eval) {
+            data = scen_p_evaluator_.eval_as<std::string>(request_in,
+                                                          key_data,
+                                                          scen_out_p_resolv_);
+            if(!data) {
+              res = 1;
+              event_log_->error(ERR_FAIL_EVAL);
+              utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_EVAL);
+            }
+          }
           if(data) {
             request_out.remove_child(key_data);
             request_out[key_data] << *data;
@@ -141,9 +213,26 @@ int request::process(const std::string &raw_host,
         }
 
         // auth
+        further_eval = false;
         std::optional<std::string> auth;
         if(!res) {
-          auth = js_env_.eval_as<std::string>(request_in, key_auth);
+          auth = js_env_.eval_as<std::string>(request_in,
+                                              key_auth,
+                                              std::nullopt,
+                                              true,
+                                              nullptr,
+                                              PROP_EVAL_RGX,
+                                              &further_eval);
+          if(further_eval) {
+            auth = scen_p_evaluator_.eval_as<std::string>(request_in,
+                                                          key_auth,
+                                                          scen_out_p_resolv_);
+            if(!auth) {
+              res = 1;
+              event_log_->error(ERR_FAIL_EVAL);
+              utils::clear_map_node_put_key_val(request_out, key_error, ERR_FAIL_EVAL);
+            }
+          }
           if(auth) {
             request_out.remove_child(key_auth);
             request_out[key_auth] << *auth;

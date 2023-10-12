@@ -1,7 +1,85 @@
 #pragma once
 #include "cbox.h"
 
+#define ERR_FAIL_EVAL "property evaluation failed"
+
+constexpr const char *PROP_EVAL_RGX = "\\{\\{.*?\\}\\}";
+
 namespace cbox {
+
+// ----------------------------------
+// --- SCENARIO PROPERTY RESOLVER ---
+// ----------------------------------
+
+struct scenario_property_resolver {
+
+  scenario_property_resolver() = default;
+
+  int init(std::shared_ptr<spdlog::logger> &event_log);
+  int reset(ryml::ConstNodeRef scenario_obj_root);
+
+  std::optional<ryml::ConstNodeRef> resolve(const std::string &path) const;
+
+  std::optional<ryml::ConstNodeRef> resolve_common(ryml::ConstNodeRef from, utils::str_tok &tknz) const;
+
+  ryml::ConstNodeRef scenario_obj_root_;
+
+  //event logger
+  std::shared_ptr<spdlog::logger> event_log_;
+};
+
+// -----------------------------------
+// --- SCENARIO PROPERTY EVALUATOR ---
+// -----------------------------------
+
+struct scenario_property_evaluator {
+
+  scenario_property_evaluator() = default;
+
+  int init(std::shared_ptr<spdlog::logger> &event_log);
+  int reset(ryml::ConstNodeRef scenario_obj_root);
+
+  template <typename T>
+  std::optional<T> eval_as(ryml::ConstNodeRef from,
+                           const char *key,
+                           const scenario_property_resolver &spr) {
+    ryml::ConstNodeRef n_val = from[ryml::to_csubstr(key)];
+    std::string str_val, str_res;
+    n_val >> str_val;
+    str_res = str_val;
+    std::regex rgx("\\{\\{.*?\\}\\}");
+
+    std::regex_iterator<std::string::const_iterator> rit(str_val.cbegin(), str_val.cend(), rgx);
+    std::regex_iterator<std::string::const_iterator> rend;
+
+    while(rit!=rend) {
+      auto node_ref = spr.resolve(utils::trim(utils::find_and_replace(utils::find_and_replace(rit->str(),
+                                                                                              "{{", ""), "}}", "")));
+      if(node_ref && ((*node_ref).is_keyval() || (*node_ref).is_val())) {
+        auto node_val = utils::converter<std::string>::asType(*node_ref);
+        str_res = std::regex_replace(str_res,rgx,node_val,std::regex_constants::format_first_only);
+      } else {
+        return std::nullopt;
+      }
+      ++rit;
+    }
+
+    if constexpr(std::is_same_v<T, std::string>) {
+      return str_res;
+    } else {
+      T res;
+      std::stringstream ss;
+      ss << str_res;
+      ss >> res;
+      return res;
+    }
+  }
+
+  ryml::ConstNodeRef scenario_obj_root_;
+
+  //event logger
+  std::shared_ptr<spdlog::logger> event_log_;
+};
 
 struct scenario {
 
@@ -104,6 +182,12 @@ struct scenario {
 
     //ryml scenario out support buffer
     std::vector<char> ryml_scenario_out_buf_;
+
+    //scenario property resolver
+    scenario_property_resolver scen_out_p_resolv_;
+
+    //scenario property evaluator
+    scenario_property_evaluator scen_p_evaluator_;
 
     //scenario statistics
     statistics stats_;

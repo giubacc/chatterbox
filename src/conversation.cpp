@@ -33,6 +33,8 @@ void conversation::statistics::incr_categorization(const std::string &key)
 
 conversation::conversation(scenario &parent) :
   parent_(parent),
+  scen_out_p_resolv_(parent_.scen_out_p_resolv_),
+  scen_p_evaluator_(parent_.scen_p_evaluator_),
   js_env_(parent.js_env_),
   stats_(*this),
   event_log_(parent.event_log_)
@@ -71,15 +73,29 @@ int conversation::process(ryml::NodeRef conversation_in,
 
     if(scope.enabled_) {
       parent_.stats_.incr_conversation_count();
-
-      auto raw_host = js_env_.eval_as<std::string>(conversation_out, key_host);
+      bool further_eval = false;
+      auto raw_host = js_env_.eval_as<std::string>(conversation_out,
+                                                   key_host,
+                                                   std::nullopt,
+                                                   true,
+                                                   nullptr,
+                                                   PROP_EVAL_RGX,
+                                                   &further_eval);
       if(!raw_host) {
-        event_log_->error(ERR_FAIL_READ_HOST);
-        return 1;
-      } else {
-        conversation_out.remove_child(key_host);
-        conversation_out[key_host] << *raw_host;
+        if(further_eval) {
+          raw_host = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                            key_host,
+                                                            scen_out_p_resolv_);
+        }
+        if(!raw_host) {
+          event_log_->error(ERR_FAIL_READ_HOST);
+          utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_FAIL_READ_HOST);
+          return 1;
+        }
       }
+
+      conversation_out.remove_child(key_host);
+      conversation_out[key_host] << *raw_host;
 
       raw_host_ = *raw_host;
       auto host = raw_host_;
@@ -88,9 +104,27 @@ int conversation::process(ryml::NodeRef conversation_in,
       host = host.substr(0, (host.find(':') == std::string::npos ? host.length() : host.find(':')));
 
       //auth
+      further_eval = false;
       if(conversation_out.has_child(key_auth)) {
         ryml::NodeRef auth_node = conversation_out[key_auth];
-        auto service = js_env_.eval_as<std::string>(auth_node, key_service, "s3");
+        auto service = js_env_.eval_as<std::string>(auth_node,
+                                                    key_service,
+                                                    "s3",
+                                                    true,
+                                                    nullptr,
+                                                    PROP_EVAL_RGX,
+                                                    &further_eval);
+
+        if(further_eval) {
+          service = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                           key_service,
+                                                           scen_out_p_resolv_);
+          if(!service) {
+            event_log_->error(ERR_FAIL_EVAL);
+            utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_FAIL_EVAL);
+            return 1;
+          }
+        }
         if(service) {
           if(auth_node.has_child(key_service)) {
             auth_node.remove_child(key_service);
@@ -98,21 +132,73 @@ int conversation::process(ryml::NodeRef conversation_in,
           auth_node[key_service] << *service;
         }
 
-        auto access_key = js_env_.eval_as<std::string>(auth_node, key_access_key);
+        //access_key
+        further_eval = false;
+        auto access_key = js_env_.eval_as<std::string>(auth_node,
+                                                       key_access_key,
+                                                       std::nullopt,
+                                                       true,
+                                                       nullptr,
+                                                       PROP_EVAL_RGX,
+                                                       &further_eval);
+        if(further_eval) {
+          access_key = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                              key_access_key,
+                                                              scen_out_p_resolv_);
+          if(!access_key) {
+            event_log_->error(ERR_FAIL_EVAL);
+            utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_FAIL_EVAL);
+            return 1;
+          }
+        }
         if(access_key) {
           auth_node.remove_child(key_access_key);
           auth_node[key_access_key] << *access_key;
         }
 
-        auto secret_key = js_env_.eval_as<std::string>(auth_node, key_secret_key);
+        //secret_key
+        further_eval = false;
+        auto secret_key = js_env_.eval_as<std::string>(auth_node,
+                                                       key_secret_key,
+                                                       std::nullopt,
+                                                       true,
+                                                       nullptr,
+                                                       PROP_EVAL_RGX,
+                                                       &further_eval);
+        if(further_eval) {
+          secret_key = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                              key_secret_key,
+                                                              scen_out_p_resolv_);
+          if(!secret_key) {
+            event_log_->error(ERR_FAIL_EVAL);
+            utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_FAIL_EVAL);
+            return 1;
+          }
+        }
         if(secret_key) {
           auth_node.remove_child(key_secret_key);
           auth_node[key_secret_key] << *secret_key;
         }
 
+        //signed_headers
+        further_eval = false;
         auto signed_headers = js_env_.eval_as<std::string>(auth_node,
                                                            key_signed_headers,
-                                                           AUTH_AWS_DEF_SIGN_HDRS);
+                                                           AUTH_AWS_DEF_SIGN_HDRS,
+                                                           true,
+                                                           nullptr,
+                                                           PROP_EVAL_RGX,
+                                                           &further_eval);
+        if(further_eval) {
+          signed_headers = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                                  key_signed_headers,
+                                                                  scen_out_p_resolv_);
+          if(!signed_headers) {
+            event_log_->error(ERR_FAIL_EVAL);
+            utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_FAIL_EVAL);
+            return 1;
+          }
+        }
         if(signed_headers) {
           if(auth_node.has_child(key_signed_headers)) {
             auth_node.remove_child(key_signed_headers);
@@ -120,7 +206,25 @@ int conversation::process(ryml::NodeRef conversation_in,
           auth_node[key_signed_headers] << *signed_headers;
         }
 
-        auto region = js_env_.eval_as<std::string>(auth_node, key_region, "US");
+        //region
+        auto region = js_env_.eval_as<std::string>(auth_node,
+                                                   key_region,
+                                                   "US",
+                                                   true,
+                                                   nullptr,
+                                                   PROP_EVAL_RGX,
+                                                   &further_eval);
+
+        if(further_eval) {
+          region = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                          key_region,
+                                                          scen_out_p_resolv_);
+          if(!region) {
+            event_log_->error(ERR_FAIL_EVAL);
+            utils::clear_map_node_put_key_val(conversation_out, key_error, ERR_FAIL_EVAL);
+            return 1;
+          }
+        }
         if(region) {
           if(auth_node.has_child(key_region)) {
             auth_node.remove_child(key_region);
