@@ -48,6 +48,12 @@ struct conversation {
     //parent
     scenario &parent_;
 
+    //scenario property resolver
+    scenario_property_resolver &scen_out_p_resolv_;
+
+    //scenario property evaluator
+    scenario_property_evaluator &scen_p_evaluator_;
+
     //js environment
     js::js_env &js_env_;
 

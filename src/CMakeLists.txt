@@ -3,6 +3,7 @@ project(chatterbox_binary VERSION 0.0.0)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wall -std=c++17)
+# add_compile_options(-g -Wall -std=c++17)
 endif()
 
 add_definitions(-DV8_COMPRESS_POINTERS

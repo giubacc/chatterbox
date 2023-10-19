@@ -70,7 +70,6 @@ int js_env::reset()
                                       v8::NewStringType::kNormal).ToLocalChecked(),
               v8::FunctionTemplate::New(isolate_, cbk_log));
 
-
   //bind cbk_load.
   global->Set(v8::String::NewFromUtf8(isolate_,
                                       "load",

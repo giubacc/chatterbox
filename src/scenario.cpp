@@ -5,9 +5,211 @@
 #define ERR_EXEC_BEF_HNDL       "failed to execute the before handler in the current scope"
 #define ERR_EXEC_AFT_HNDL       "failed to execute the after handler in the current scope"
 #define ERR_CONV_NOT_SEQ        "'conversations' is not a sequence"
+#define ERR_NO_SUCH_CONV        "no such 'conversations'"
+#define ERR_REQ_NOT_SEQ         "'requests' is not a sequence"
+#define ERR_NO_SUCH_REQ         "no such 'requests'"
 #define ERR_FAIL_READ_ENABLED   "failed to read 'enabled'"
+#define ERR_MALFORMED_YAML_PATH "malformed yaml path"
+#define ERR_IDX_NOT_NUMERIC     "non-numeric index"
+#define ERR_IDX_OUT_OF_BOUNDS   "index out bounds"
+#define ERR_UNEXPECTED_TKN      "unexpected token"
 
 namespace cbox {
+
+// ----------------------------------
+// --- SCENARIO PROPERTY RESOLVER ---
+// ----------------------------------
+
+// .[conversation_idx][request_idx].
+const char *quick_conv_req_access_syntax_rgx = "^(?:.\\[[0-9]{1,}\\]\\[[0-9]{1,}\\].)(.*)$";
+const char *rpr_delimits = ".[]";
+
+int scenario_property_resolver::init(std::shared_ptr<spdlog::logger> &event_log)
+{
+  event_log_ = event_log;
+  return 0;
+}
+
+int scenario_property_resolver::reset(ryml::ConstNodeRef scenario_obj_root)
+{
+  scenario_obj_root_ = scenario_obj_root;
+  return 0;
+}
+
+bool is_number(const std::string &s)
+{
+  return !s.empty() && std::find_if(s.begin(),
+  s.end(), [](unsigned char c) {
+    return !std::isdigit(c);
+  }) == s.end();
+}
+
+std::optional<ryml::ConstNodeRef> scenario_property_resolver::resolve(const std::string &path) const
+{
+  utils::str_tok tknz(path);
+  ryml::ConstNodeRef from;
+
+  if(std::regex_search(path, std::regex(quick_conv_req_access_syntax_rgx))) {
+    //quick access path syntax
+
+    if(!scenario_obj_root_.has_child(key_conversations)) {
+      event_log_->error(ERR_NO_SUCH_CONV);
+      return std::nullopt;
+    }
+
+    auto convs_ref = scenario_obj_root_[key_conversations];
+    if(!convs_ref.is_seq()) {
+      event_log_->error(ERR_CONV_NOT_SEQ);
+      return std::nullopt;
+    }
+
+    std::string tkn;
+    if(!tknz.next_token(tkn, rpr_delimits)) {
+      return std::nullopt;
+    }
+    if(!is_number(tkn)) {
+      event_log_->error(ERR_IDX_NOT_NUMERIC);
+      return std::nullopt;
+    }
+    uint32_t idx = 0;
+    {
+      std::stringstream ss;
+      ss << tkn;
+      ss >> idx;
+    }
+
+    if(idx >= convs_ref.num_children()) {
+      event_log_->error(ERR_IDX_OUT_OF_BOUNDS);
+      return std::nullopt;
+    }
+
+    auto conv_ref = convs_ref[idx];
+    if(!conv_ref.has_child(key_requests)) {
+      event_log_->error(ERR_NO_SUCH_REQ);
+      return std::nullopt;
+    }
+
+    auto reqs_ref = conv_ref[key_requests];
+    if(!reqs_ref.is_seq()) {
+      event_log_->error(ERR_REQ_NOT_SEQ);
+      return std::nullopt;
+    }
+
+    if(!tknz.next_token(tkn, rpr_delimits)) {
+      return std::nullopt;
+    }
+    if(!is_number(tkn)) {
+      event_log_->error(ERR_IDX_NOT_NUMERIC);
+      return std::nullopt;
+    }
+    {
+      std::stringstream ss;
+      ss << tkn;
+      ss >> idx;
+    }
+
+    if(idx >= reqs_ref.num_children()) {
+      event_log_->error(ERR_IDX_OUT_OF_BOUNDS);
+      return std::nullopt;
+    }
+
+    if(!tknz.next_token(tkn, rpr_delimits, true) || tkn != "]") {
+      event_log_->error(ERR_UNEXPECTED_TKN);
+      return std::nullopt;
+    }
+    from = reqs_ref[idx];
+  } else {
+    //regular path
+    from = scenario_obj_root_;
+  }
+
+  return resolve_common(from, tknz);
+}
+
+std::optional<ryml::ConstNodeRef> scenario_property_resolver::resolve_common(ryml::ConstNodeRef from,
+                                                                             utils::str_tok &tknz) const
+{
+  std::string tkn;
+  bool chase_prop = false, chase_idx = false;
+
+  bool is_delimit;
+  while(tknz.next_token(tkn, rpr_delimits, true, &is_delimit)) {
+    if(!chase_prop && !chase_idx) {
+      if(tkn == ".") {
+        chase_prop = true;
+        continue;
+      } else if(tkn == "[") {
+        if(!from.is_seq()) {
+          goto fin_null;
+        }
+        chase_idx = true;
+        continue;
+      } else {
+        goto fin_malformed;
+      }
+    }
+    if(chase_prop) {
+      if(is_delimit) {
+        goto fin_malformed;
+      }
+      if(!from.has_child(ryml::to_csubstr(tkn.c_str()))) {
+        goto fin_null;
+      }
+      from = from[ryml::to_csubstr(tkn.c_str())];
+      chase_prop = false;
+      continue;
+    }
+    if(chase_idx) {
+      if(is_delimit) {
+        goto fin_malformed;
+      }
+      if(!is_number(tkn)) {
+        goto fin_malformed;
+      }
+      std::stringstream ss;
+      ss << tkn;
+      uint32_t idx;
+      ss >> idx;
+      if(idx >= from.num_children()) {
+        goto fin_null;
+      }
+      from = from[idx];
+      if(!tknz.next_token(tkn, rpr_delimits, true) || tkn != "]") {
+        goto fin_malformed;
+      }
+      chase_idx = false;
+      continue;
+    }
+  }
+  if(chase_prop || chase_idx) {
+    goto fin_malformed;
+  }
+  return from;
+
+fin_malformed:
+  event_log_->error(ERR_MALFORMED_YAML_PATH);
+  return std::nullopt;
+fin_null:
+  return std::nullopt;
+}
+
+// -----------------------------------
+// --- SCENARIO PROPERTY EVALUATOR ---
+// -----------------------------------
+
+const char *eval_rgx = "";
+
+int scenario_property_evaluator::init(std::shared_ptr<spdlog::logger> &event_log)
+{
+  event_log_ = event_log;
+  return 0;
+}
+
+int scenario_property_evaluator::reset(ryml::ConstNodeRef scenario_obj_root)
+{
+  scenario_obj_root_ = scenario_obj_root;
+  return 0;
+}
 
 // -------------------
 // --- STACK SCOPE ---
@@ -254,6 +456,14 @@ int scenario::init(std::shared_ptr<spdlog::logger> &event_log)
   int res = 0;
   event_log_ = event_log;
 
+  if((res = scen_out_p_resolv_.init(event_log_))) {
+    return res;
+  }
+
+  if((res = scen_p_evaluator_.init(event_log_))) {
+    return res;
+  }
+
   if((res = js_env_.init(event_log_))) {
     return res;
   }
@@ -280,6 +490,12 @@ int scenario::reset(ryml::Tree &doc_in,
                        scenario_out_.rootref(),
                        ryml_scenario_out_buf_);
 
+  // reset scenario_out resolver
+  scen_out_p_resolv_.reset(scenario_out_.rootref());
+
+  // reset scenario property evaluator
+  scen_p_evaluator_.reset(scenario_out_.rootref());
+
   int res = js_env_.reset();
   return res;
 }
@@ -290,7 +506,6 @@ int scenario::process(ryml::Tree &doc_in,
   int res = 0;
 
   if((res = reset(doc_in, scenario_in))) {
-    event_log_->error("failed to reset scenario");
     return res;
   }
 

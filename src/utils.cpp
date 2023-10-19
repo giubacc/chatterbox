@@ -356,4 +356,85 @@ void aws_auth::aws_sign_v4_build(const char *method,
   reqHF["Authorization"] = aws_sign_v4_build_authorization(signature);
 }
 
+static const char *def_delims = " \t\n\r\f";
+
+str_tok::str_tok(const std::string &str) :
+  current_position_(0),
+  max_position_((long)str.length()),
+  new_position_(-1),
+  str_(str),
+  delimiters_(def_delims),
+  ret_delims_(false),
+  delims_changed_(false)
+{
+}
+
+str_tok::~str_tok()
+{}
+
+long str_tok::skip_delimit(long start_pos)
+{
+  long position = start_pos;
+  while(!ret_delims_ && position < max_position_) {
+    if(delimiters_.find(str_.at(position)) == std::string::npos) {
+      break;
+    }
+    position++;
+  }
+  return position;
+}
+
+long str_tok::scan_token(long start_pos, bool *is_delimit)
+{
+  long position = start_pos;
+  while(position < max_position_) {
+    if(delimiters_.find(str_.at(position)) != std::string::npos) {
+      break;
+    }
+    position++;
+  }
+  if(ret_delims_ && (start_pos == position)) {
+    if(delimiters_.find(str_.at(position)) != std::string::npos) {
+      if(is_delimit) {
+        *is_delimit = true;
+      }
+      position++;
+    }
+  } else if(is_delimit) {
+    *is_delimit = false;
+  }
+  return position;
+}
+
+bool str_tok::next_token(std::string &out,
+                         const char *delimiters,
+                         bool return_delimiters,
+                         bool *is_delimit)
+{
+  if(delimiters) {
+    delimiters_.assign(delimiters);
+    delims_changed_ = true;
+  }
+  ret_delims_ = return_delimiters;
+  current_position_ = (new_position_ >= 0 && !delims_changed_) ?
+                      new_position_ :
+                      skip_delimit(current_position_);
+  delims_changed_ = false;
+  new_position_ = -1;
+  if(current_position_ >= max_position_) {
+    return false;
+  }
+  long start = current_position_;
+  current_position_ = scan_token(current_position_, is_delimit);
+  out = str_.substr(start, current_position_ - start);
+  return true;
+}
+
+bool str_tok::has_more_tokens(bool return_delimiters)
+{
+  ret_delims_ = return_delimiters;
+  new_position_ = skip_delimit(current_position_);
+  return (new_position_ < max_position_);
+}
+
 }
