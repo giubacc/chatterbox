@@ -7,7 +7,7 @@
 <h1 align="left"><img alt="chatterbox-logo" src="./assets/images/cbox-logo.png"/>
 </h1>
 
-chatterbox is a tool for quickly write a conversation against a REST endpoint.
+chatterbox is a tool for chatting with a REST endpoint.
 
 You write conversations using a `yaml` formalism describing an arbitrary
 complex interaction between chatterbox and the endpoint.
@@ -22,13 +22,10 @@ chatterbox could be useful to you when you have to:
 - Quickly build a complex interaction with an endpoint.
 - Debug/test your endpoint when APIs are not available.
 
-chatterbox embeds [V8](https://v8.dev/) the Google’s open source
-high-performance JavaScript engine.
-
-The V8 engine is used to allow an input to be optionally evaluated
-as the result of a user defined JavaScript function.
-Moreover, the V8 engine allows to maintain a JavaScript context
-during the conversation; this can be used to store an arbitrary state.
+chatterbox embeds a JavaScript interpreter: [V8](https://v8.dev/)
+so the user can benefit from scripting capabilities.
+A JavaScript context is kept during the entire conversation;
+this allows to maintain an arbitrary state.
 
 ## quick example
 

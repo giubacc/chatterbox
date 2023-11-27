@@ -45,3 +45,4 @@ contrib/.cipd
 contrib/.gclient*
 contrib/rapidyaml-build
 contrib/pistache-build
+venv
