@@ -5,6 +5,7 @@ basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
 builder_image=${BUILDER_IMAGE:-"chatterbox-builder"}
 contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
+python_bin=${PYTHON_BIN:-"python3.11"}
 
 usage() {
   cat << EOF
@@ -159,6 +160,8 @@ patch_v8_code() {
 }
 
 build_v8() {
+  $python_bin -m venv venv
+  source venv/bin/activate
   echo "Building V8 ..."
   PATH=$contrib_path/depot_tools:$PATH
   cd $contrib_path

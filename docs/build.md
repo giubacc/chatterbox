@@ -3,7 +3,7 @@
 - [Build](#build)
   - [Build requirements](#build-requirements)
   - [How to build](#how-to-build)
-    - [Build using the OpenSuse Tumbleweed Docker builder image](#build-using-the-opensuse-tumbleweed-docker-builder-image)
+    - [Build using the OpenSuse Leap Docker builder image](#build-using-the-opensuse-leap-docker-builder-image)
 
 ## Build requirements
 
@@ -30,7 +30,7 @@ cd scripts
 ./build.sh build-all
 ```
 
-### Build using the OpenSuse Tumbleweed Docker builder image
+### Build using the OpenSuse Leap Docker builder image
 
 It is possible to use a Docker builder image to compile the binary
 of `chatterbox`.
@@ -55,7 +55,7 @@ localhost/chatterbox-builder                latest
 ```
 
 Using this image, it is possible to build the `chatterbox` binary
-for OpenSuse Tumbleweed:
+for OpenSuse Leap:
 
 ```shell
 cd scripts

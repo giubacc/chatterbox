@@ -1,4 +1,4 @@
-FROM opensuse/tumbleweed
+FROM opensuse/leap:15.5
 LABEL Name=chatterbox-builder
 
 RUN zypper -n install --no-recommends \
@@ -12,6 +12,7 @@ RUN zypper -n install --no-recommends \
     ccache \
     ninja \
     binutils \
+    python311 \
     gcc12-c++ \
     automake \
     autogen \
