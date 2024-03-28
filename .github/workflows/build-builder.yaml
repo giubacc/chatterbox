@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # Allow this workflow to be triggered manually
 
 env:
-  IMAGE_NAME_BUILDER: chatterbox-builder
+  IMAGE_NAME_BUILDER: chatterbox-ubuntu-builder
 
 jobs:
   build-and-push-builder:
@@ -30,7 +30,7 @@ jobs:
       - name: Build and push builder-image
         uses: docker/build-push-action@v3
         with:
-          file: 'scripts/Dockerfile.builder'
+          file: 'scripts/Dockerfile-ubuntu.builder'
           context: scripts
           push: true
           tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:latest

@@ -26,7 +26,7 @@ link_directories(${CONTRIB_PATH}/restclient-cpp/.libs
                  ${CONTRIB_PATH}/rapidyaml-build/lib
                  ${CONTRIB_PATH}/pistache/build/src
                  ${CONTRIB_PATH}/cryptopp
-                 ${CONTRIB_PATH}/v8/out/x86.release/obj
+                 ${CONTRIB_PATH}/v8/out/x64.release/obj
                  ${CONTRIB_PATH}/googletest/build/lib)
 
 add_executable(cbx_test
