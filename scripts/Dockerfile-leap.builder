@@ -24,14 +24,16 @@ RUN zypper -n install --no-recommends \
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 \
 && update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12 \
 && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12 \
-&& update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
+&& update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12 \
+&& update-alternatives --install /usr/bin/python3 python /usr/bin/python3.11 311
+
+RUN mkdir -p /project/contrib
+ENV CONTRIB_PATH /project/contrib
+ENV TAR_OPTIONS --no-same-owner
 
 COPY contrib_init.sh /usr/bin/contrib_init.sh
-COPY rapidyaml-build /contrib/rapidyaml-build
+COPY rapidyaml-build /project/contrib/rapidyaml-build
 COPY build.sh /usr/bin/build.sh
-
-ENV CONTRIB_PATH /contrib
-ENV TAR_OPTIONS --no-same-owner
 
 RUN contrib_init.sh && build.sh build-deps \
 && find /contrib -name "*.o" -type f -delete \
@@ -47,7 +49,7 @@ RUN contrib_init.sh && build.sh build-deps \
 && cp -R --parents /contrib/v8/include /tmp \
 && cp -R --parents /contrib/googletest/googletest/include /tmp \
 && cp -R --parents /contrib/restclient-cpp/.libs /tmp \
-&& cp -R --parents /contrib/v8/out/x86.release/obj /tmp \
+&& cp -R --parents /contrib/v8/out/x64.release/obj /tmp \
 && cp -R --parents /contrib/googletest/build/lib /tmp \
 && rm -rf /contrib \
 && mv /tmp/contrib /contrib

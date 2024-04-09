@@ -3,9 +3,10 @@
 container_mng=${CNT_MNG:-"docker"}
 basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
-builder_image=${BUILDER_IMAGE:-"chatterbox-builder"}
+builder_image=${BUILDER_IMAGE:-"chatterbox-ubuntu-builder"}
+builder_dockerfile=${BUILDER_DOCKERFILE:-"Dockerfile-ubuntu.builder"}
 contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
-python_bin=${PYTHON_BIN:-"python3.11"}
+python_bin=${PYTHON_BIN:-"python3"}
 
 usage() {
   cat << EOF
@@ -35,6 +36,7 @@ env variables
   BASE_DIR            Specify the directory containing src and test directories (default: ../).
   NINJA_JOBS          Specify the number of parallel ninja jobs.
   BUILDER_IMAGE       Specify the builder's image to use.
+  BUILDER_DOCKERFILE  Specify the builder's dockerfile to use.
   CONTRIB_PATH        Specify the path where contrib resources are placed.
 EOF
 }
@@ -45,8 +47,8 @@ error() {
 
 create_builder() {
   echo "Creating the chatterbox builder image ..."
-  $container_mng build -t chatterbox-builder \
-    -f Dockerfile.builder . || exit 1
+  $container_mng build -t ${builder_image} \
+    -f $builder_dockerfile . || exit 1
 }
 
 builder_build() {
@@ -155,8 +157,8 @@ clean_googletest() {
 
 # see this issue: https://bugs.chromium.org/p/v8/issues/detail?id=13455
 patch_v8_code() {
-  sed -i 's/std::is_pod/std::is_standard_layout/g' $basedir/contrib/v8/src/base/vector.h
-  sed -i 's/std::back_insert_iterator(snapshots)/std::back_insert_iterator<base::SmallVector<Snapshot, 8>>(snapshots)/g' $basedir/contrib/v8/src/compiler/turboshaft/wasm-gc-type-reducer.cc
+  sed -i 's/std::is_pod/std::is_standard_layout/g' $contrib_path/v8/src/base/vector.h
+  sed -i 's/std::back_insert_iterator(snapshots)/std::back_insert_iterator<base::SmallVector<Snapshot, 8>>(snapshots)/g' $contrib_path/v8/src/compiler/turboshaft/wasm-gc-type-reducer.cc
 }
 
 build_v8() {
@@ -181,8 +183,8 @@ EOF
 )
   patch_v8_code
 
-  gn gen out/x86.release --args="${args}"
-  ninja -j$ninja_jobs -C out/x86.release v8_monolith || exit 1
+  gn gen out/x64.release --args="${args}"
+  ninja -j$ninja_jobs -C out/x64.release v8_monolith || exit 1
 }
 
 clean_v8() {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-contrib_path=$(realpath ${CONTRIB_PATH:-"/contrib"})
+contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
 
 mkdir -p $contrib_path
 
