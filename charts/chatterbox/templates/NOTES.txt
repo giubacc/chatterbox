@@ -1,5 +1,0 @@
-Thank you for installing {{ .Chart.Name }} {{ printf "v%s" .Chart.Version }}
-
-The chatterbox endpoint is available at:
-
-{{ printf "%s.%s" (include "chatterbox.serviceName" .) .Values.backend.publicDomain | indent 4 }}

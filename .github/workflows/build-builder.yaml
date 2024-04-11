@@ -30,7 +30,7 @@ jobs:
       - name: Build and push builder-image
         uses: docker/build-push-action@v3
         with:
-          file: 'scripts/Dockerfile-ubuntu.builder'
+          file: 'scripts/Dockerfile.ubuntu.builder'
           context: scripts
           push: true
           tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:latest
