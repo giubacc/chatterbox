@@ -4,7 +4,8 @@ container_mng=${CNT_MNG:-"docker"}
 basedir=$(realpath ${BASE_DIR:-"../"})
 ninja_jobs=${NINJA_JOBS:-"6"}
 builder_image=${BUILDER_IMAGE:-"chatterbox-ubuntu-builder"}
-builder_dockerfile=${BUILDER_DOCKERFILE:-"Dockerfile-ubuntu.builder"}
+builder_dockerfile=${BUILDER_DOCKERFILE:-"Dockerfile.ubuntu.builder"}
+test_dockerfile=${TEST_DOCKERFILE:-"Dockerfile.ubuntu.test"}
 contrib_path=$(realpath ${CONTRIB_PATH:-"../contrib"})
 python_bin=${PYTHON_BIN:-"python3"}
 
@@ -27,7 +28,6 @@ commands
   builder-create            Create the chatterbox builder image.
   builder-build             Build chatterbox binary with the chatterbox builder.
   builder-build-test        Build chatterbox-test binary with the chatterbox builder.
-  chatterbox-create         Create the chatterbox image.
   chatterbox-test-create    Create the chatterbox-test image.
   help                      This message.
 
@@ -36,7 +36,8 @@ env variables
   BASE_DIR            Specify the directory containing src and test directories (default: ../).
   NINJA_JOBS          Specify the number of parallel ninja jobs.
   BUILDER_IMAGE       Specify the builder's image to use.
-  BUILDER_DOCKERFILE  Specify the builder's dockerfile to use.
+  BUILDER_DOCKERFILE  Specify the builder's Dockerfile to use.
+  TEST_DOCKERFILE     Specify the test's Dockerfile to use.
   CONTRIB_PATH        Specify the path where contrib resources are placed.
 EOF
 }
@@ -53,39 +54,33 @@ create_builder() {
 
 builder_build() {
   echo "Building chatterbox binary with the chatterbox builder ..."
-  volumes="-v $basedir:/project"
+  volumes="-v $basedir:/project/chatterbox"
 
   $container_mng run -it \
-    -e BASE_DIR=/project \
+    -e BASE_DIR=/project/chatterbox \
     -e NINJA_JOBS=${ninja_jobs} \
-    -e CONTRIB_PATH=/contrib \
+    -e CONTRIB_PATH=/project/contrib \
     ${volumes[@]} \
     ${builder_image} build || exit 1
 }
 
 builder_build_test() {
   echo "Building chatterbox-test binary with the chatterbox builder ..."
-  volumes="-v $basedir:/project"
+  volumes="-v $basedir:/project/chatterbox"
 
   $container_mng run -it \
-    -e BASE_DIR=/project \
+    -e BASE_DIR=/project/chatterbox \
     -e NINJA_JOBS=${ninja_jobs} \
-    -e CONTRIB_PATH=/contrib \
+    -e CONTRIB_PATH=/project/contrib \
     ${volumes[@]} \
     ${builder_image} build-test || exit 1
 }
 
-create_chatterbox() {
-  echo "Creating the chatterbox image ..."
-  $container_mng build -t chatterbox \
-    -f Dockerfile.chatterbox ${basedir}/build/cbox || exit 1
-}
-
 create_chatterbox_test() {
   echo "Creating the chatterbox-test image ..."
-  cp -R $basedir/test/scenarios $basedir/build/test
+  cp -R $basedir/test/scenarios $basedir/build/cboxtest
   $container_mng build -t chatterbox-test \
-    -f Dockerfile.chatterbox-test ${basedir}/build/test || exit 1
+    -f $test_dockerfile ${basedir}/build/cboxtest || exit 1
 }
 
 build() {
@@ -299,9 +294,6 @@ case ${cmd} in
     ;;
   builder-build-test)
     builder_build_test || exit 1
-    ;;
-  chatterbox-create)
-    create_chatterbox || exit 1
     ;;
   chatterbox-test-create)
     create_chatterbox_test || exit 1

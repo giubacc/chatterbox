@@ -20,8 +20,7 @@ on:
         type: string
 
 env:
-  IMAGE_NAME_BUILDER: chatterbox-builder
-  IMAGE_NAME_CHATTERBOX: chatterbox
+  IMAGE_NAME_BUILDER: chatterbox-ubuntu-builder
   IMAGE_NAME_CHATTERBOX_TEST: chatterbox-test
 
 jobs:
@@ -54,10 +53,10 @@ jobs:
       - name: Build chatterbox-test binary
         run: |
           docker run \
-            -e BASE_DIR=/project \
+            -e BASE_DIR=/project/chatterbox \
             -e NINJA_JOBS=6 \
-            -e CONTRIB_PATH=/contrib \
-            -v $GITHUB_WORKSPACE:/project \
+            -e CONTRIB_PATH=/project/contrib \
+            -v $GITHUB_WORKSPACE:/project/chatterbox \
             ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ steps.tag.outputs.tag }} build-test
 
       - name: Copy scenarios
@@ -67,7 +66,7 @@ jobs:
       - name: Build chatterbox-test-image
         uses: docker/build-push-action@v3
         with:
-          file: 'scripts/Dockerfile.chatterbox-test'
+          file: 'scripts/Dockerfile.ubuntu.test'
           context: build/cboxtest
           tags: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
           labels: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}
@@ -76,7 +75,7 @@ jobs:
         run: |
           docker run ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
 
-  build-and-push-chatterbox:
+  build-chatterbox:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -105,17 +104,8 @@ jobs:
       - name: Build chatterbox binary
         run: |
           docker run \
-            -e BASE_DIR=/project \
+            -e BASE_DIR=/project/chatterbox \
             -e NINJA_JOBS=6 \
-            -e CONTRIB_PATH=/contrib \
-            -v $GITHUB_WORKSPACE:/project \
+            -e CONTRIB_PATH=/project/contrib \
+            -v $GITHUB_WORKSPACE:/project/chatterbox \
             ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ steps.tag.outputs.tag }} build
-
-      - name: Build and push chatterbox-image
-        uses: docker/build-push-action@v3
-        with:
-          file: 'scripts/Dockerfile.chatterbox'
-          context: build/cbox
-          push: true
-          tags: ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_CHATTERBOX }}:${{ steps.tag.outputs.tag }}
-          labels: ${{ env.IMAGE_NAME_CHATTERBOX }}
