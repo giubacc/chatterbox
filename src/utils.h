@@ -42,6 +42,7 @@
 #define key_format          "format"
 #define key_headers         "headers"
 #define key_host            "host"
+#define key_id              "id"
 #define key_method          "method"
 #define key_mock            "mock"
 #define key_msec            "msec"

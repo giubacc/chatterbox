@@ -114,6 +114,9 @@ struct request {
     //scenario property evaluator
     scenario_property_evaluator &scen_p_evaluator_;
 
+    //map holding nodes with an explicit id set
+    std::unordered_map<std::string, ryml::ConstNodeRef> &indexed_nodes_map_;
+
     //js environment
     js::js_env &js_env_;
 
