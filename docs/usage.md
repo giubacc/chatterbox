@@ -10,6 +10,7 @@
     - [Conversation context](#conversation-context)
     - [Request context](#request-context)
     - [Response context](#response-context)
+    - [Referencing conversations and requests](#referencing-conversations-and-requests)
     - [Dumps and Formats](#dumps-and-formats)
   - [Scripting](#scripting)
     - [Field's value](#fields-value)
@@ -144,6 +145,36 @@ headers:
  response-foo-h1: "foo"
  response-bar-h2: "bar"
 ```
+
+### Referencing conversations and requests
+
+Any conversation or request node in the output `yaml` can be referenced in
+any subsequent node.
+
+There are currently 3 subscript syntaxes for accessing a conversations and requests:
+
+1. Full explicit path
+
+    ```script
+    {{.conversations[i].requests[j].arbitrary.path}}
+    ```
+
+2. Quick path
+
+   ```script
+   {{.[i][j].arbitrary.path}}S
+   ```
+
+3. By user defined ID
+
+   ```script
+   {{id.arbitrary.path}}
+   ```
+
+The `1` and `2` reference a conversation or a request by its natural index
+defined implicitly by the position resulted in the output yaml.
+
+The `3` uses an `id` property defined by the user for the conversation or the request.
 
 ### Dumps and Formats
 

@@ -15,6 +15,7 @@ namespace cbox {
 request::request(conversation &parent) : parent_(parent),
   scen_out_p_resolv_(parent_.scen_out_p_resolv_),
   scen_p_evaluator_(parent_.scen_p_evaluator_),
+  indexed_nodes_map_(parent_.indexed_nodes_map_),
   js_env_(parent_.js_env_),
   event_log_(parent_.event_log_) {}
 
@@ -87,6 +88,26 @@ int request::process(const std::string &raw_host,
       if(scope.enabled_) {
         parent_.stats_.incr_request_count();
         parent_.parent_.stats_.incr_request_count();
+
+        //id
+        further_eval = false;
+        auto id = js_env_.eval_as<std::string>(request_in,
+                                               key_id,
+                                               std::nullopt,
+                                               true,
+                                               nullptr,
+                                               PROP_EVAL_RGX,
+                                               &further_eval);
+        if(!id) {
+          if(further_eval) {
+            id = scen_p_evaluator_.eval_as<std::string>(request_in,
+                                                        key_id,
+                                                        scen_out_p_resolv_);
+          }
+        }
+        if(id) {
+          indexed_nodes_map_[*id] = request_out;
+        }
 
         // method
         further_eval = false;
@@ -631,16 +652,46 @@ void request::dump_hdr(const RestClient::HeaderFields &hdr) const
 
 int request::mocked_to_res(RestClient::Response &resRC)
 {
+  bool further_eval = false;
+
   // code
-  auto code = js_env_.eval_as<int32_t>(response_mock_, key_code);
+  auto code = js_env_.eval_as<int32_t>(response_mock_,
+                                       key_code,
+                                       std::nullopt,
+                                       true,
+                                       nullptr,
+                                       PROP_EVAL_RGX,
+                                       &further_eval);
+  if(!code) {
+    if(further_eval) {
+      code = scen_p_evaluator_.eval_as<int32_t>(response_mock_,
+                                                key_code,
+                                                scen_out_p_resolv_);
+    }
+  }
   if(code) {
     resRC.code = *code;
     response_mock_.remove_child(key_code);
     response_mock_[key_code] << *code;
   }
 
+  further_eval = false;
+
   // body
-  auto body = js_env_.eval_as<std::string>(response_mock_, key_body);
+  auto body = js_env_.eval_as<std::string>(response_mock_,
+                                           key_body,
+                                           std::nullopt,
+                                           true,
+                                           nullptr,
+                                           PROP_EVAL_RGX,
+                                           &further_eval);
+  if(!body) {
+    if(further_eval) {
+      body = scen_p_evaluator_.eval_as<std::string>(response_mock_,
+                                                    key_body,
+                                                    scen_out_p_resolv_);
+    }
+  }
   if(body) {
     resRC.body = *body;
     response_mock_.remove_child(key_body);

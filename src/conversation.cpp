@@ -35,6 +35,7 @@ conversation::conversation(scenario &parent) :
   parent_(parent),
   scen_out_p_resolv_(parent_.scen_out_p_resolv_),
   scen_p_evaluator_(parent_.scen_p_evaluator_),
+  indexed_nodes_map_(parent_.indexed_nodes_map_),
   js_env_(parent.js_env_),
   stats_(*this),
   event_log_(parent.event_log_)
@@ -73,7 +74,28 @@ int conversation::process(ryml::NodeRef conversation_in,
 
     if(scope.enabled_) {
       parent_.stats_.incr_conversation_count();
+
+      //id
       bool further_eval = false;
+      auto id = js_env_.eval_as<std::string>(conversation_out,
+                                             key_id,
+                                             std::nullopt,
+                                             true,
+                                             nullptr,
+                                             PROP_EVAL_RGX,
+                                             &further_eval);
+      if(!id) {
+        if(further_eval) {
+          id = scen_p_evaluator_.eval_as<std::string>(conversation_out,
+                                                      key_id,
+                                                      scen_out_p_resolv_);
+        }
+      }
+      if(id) {
+        indexed_nodes_map_[*id] = conversation_out;
+      }
+
+      further_eval = false;
       auto raw_host = js_env_.eval_as<std::string>(conversation_out,
                                                    key_host,
                                                    std::nullopt,

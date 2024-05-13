@@ -118,9 +118,20 @@ std::optional<ryml::ConstNodeRef> scenario_property_resolver::resolve(const std:
       return std::nullopt;
     }
     from = reqs_ref[idx];
-  } else {
+  } else if(path[0] == '.') {
     //regular path
     from = scenario_obj_root_;
+  } else {
+    //explicit id path
+    std::string tkn;
+    if(!tknz.next_token(tkn, rpr_delimits)) {
+      return std::nullopt;
+    }
+    auto it = parent_.indexed_nodes_map_.find(tkn);
+    if(it == parent_.indexed_nodes_map_.end()) {
+      return std::nullopt;
+    }
+    from = it->second;
   }
 
   return resolve_common(from, tknz);
@@ -444,6 +455,7 @@ void scenario::statistics::incr_categorization(const std::string &key)
 
 scenario::scenario(context &env) :
   ctx_(env),
+  scen_out_p_resolv_(*this),
   stats_(*this),
   js_env_(*this)
 {}
@@ -480,6 +492,8 @@ int scenario::reset(ryml::Tree &doc_in,
   //clear out & buffers
   scenario_out_.clear();
   ryml_scenario_out_buf_.clear();
+
+  indexed_nodes_map_.clear();
 
   // reset stats
   stats_.reset();

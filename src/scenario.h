@@ -13,7 +13,7 @@ namespace cbox {
 
 struct scenario_property_resolver {
 
-  scenario_property_resolver() = default;
+  scenario_property_resolver(scenario &parent) : parent_(parent) {}
 
   int init(std::shared_ptr<spdlog::logger> &event_log);
   int reset(ryml::ConstNodeRef scenario_obj_root);
@@ -21,6 +21,9 @@ struct scenario_property_resolver {
   std::optional<ryml::ConstNodeRef> resolve(const std::string &path) const;
 
   std::optional<ryml::ConstNodeRef> resolve_common(ryml::ConstNodeRef from, utils::str_tok &tknz) const;
+
+  //parent
+  scenario &parent_;
 
   ryml::ConstNodeRef scenario_obj_root_;
 
@@ -47,7 +50,7 @@ struct scenario_property_evaluator {
     std::string str_val, str_res;
     n_val >> str_val;
     str_res = str_val;
-    std::regex rgx("\\{\\{.*?\\}\\}");
+    std::regex rgx(PROP_EVAL_RGX);
 
     std::regex_iterator<std::string::const_iterator> rit(str_val.cbegin(), str_val.cend(), rgx);
     std::regex_iterator<std::string::const_iterator> rend;
@@ -182,6 +185,9 @@ struct scenario {
 
     //ryml scenario out support buffer
     std::vector<char> ryml_scenario_out_buf_;
+
+    //map holding nodes with an explicit id set
+    std::unordered_map<std::string, ryml::ConstNodeRef> indexed_nodes_map_;
 
     //scenario property resolver
     scenario_property_resolver scen_out_p_resolv_;

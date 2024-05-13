@@ -49,52 +49,50 @@ conversations:
     secretKey: test
   requests:
     - method: POST
+      id: req1
       enabled: true
       uri: my-bucket/my-object.mp
       queryString: uploads
       auth: aws_v4
     - method: PUT
+      id: req2
       enabled: true
       uri: my-bucket/my-object.mp
-      queryString: partNumber=1&uploadId={{.[0][0].response.body.UploadId}}
+      queryString: partNumber=1&uploadId={{req1.response.body.UploadId}}
       data: "some-test-data-1"
       auth: aws_v4
     - method: POST
       enabled: true
       uri: my-bucket/my-object.mp
-      queryString: format=json&uploadId={{.[0][0].response.body.UploadId}}
+      queryString: format=json&uploadId={{req1.response.body.UploadId}}
       auth: aws_v4
       data: |
         <?xml version="1.0" encoding="UTF-8"?>
         <CompleteMultipartUpload xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
           <Part>
-              <ETag>{{.[0][1].response.headers.ETag}}</ETag>
+              <ETag>{{req2.response.headers.ETag}}</ETag>
               <PartNumber>1</PartNumber>
           </Part>
         </CompleteMultipartUpload>
 ```
 
-As you can see, the second request is making use of the `UploadId` property
-obtained with the response's body from the first request:
+The second request is making use of the `UploadId` property
+obtained from the response's body in the first request:
 
 ```yaml
-queryString: partNumber=1&uploadId={{.[0][0].response.body.UploadId}}
+queryString: partNumber=1&uploadId={{req1.response.body.UploadId}}
 ```
 
 The syntax:
 
-```yaml
-{{.[0][0].}}
+```script
+{{req1.*}}
 ```
 
-is just a shorthand of:
-
-```yaml
-{{.conversations[0].requests[0].}}
-```
+denotes a path starting from the node identified with `id: req1` in the output `yaml`.
 
 Any property added in the output `yaml` during the conversation can be
-referenced in subsequent properties using the `{{ .property }}` syntax.
+referenced in any subsequent property using the `{{.id.*}}` syntax.
 
 ## documentation
 
