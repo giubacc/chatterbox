@@ -3,7 +3,15 @@
 
 #define ERR_FAIL_EVAL "property evaluation failed"
 
-constexpr const char *PROP_EVAL_RGX = "\\{\\{.*?\\}\\}";
+constexpr const char *REF_PROP_EVAL_RGX = "\\{\\{.*?\\}\\}";
+constexpr const char *QUICK_CONV_REQ_ACCESS_RGX = "^(?:.\\[[0-9]{1,}\\]\\[[0-9]{1,}\\].)(.*)$";
+constexpr const char *JS_FUNC_EVAL_RGX = "@[^,\\s]+\\(.*\\)";
+constexpr const char *PAR_LIST_RGX = "^\\s*([^,\\s]+)(\\s*,\\s*([^,\\s]+))*\\s*$";
+
+constexpr const char *const EVAL_RGX_LIST[] = {REF_PROP_EVAL_RGX,
+                                               JS_FUNC_EVAL_RGX,
+                                               nullptr
+                                              };
 
 namespace cbox {
 
@@ -19,7 +27,6 @@ struct scenario_property_resolver {
   int reset(ryml::ConstNodeRef scenario_obj_root);
 
   std::optional<ryml::ConstNodeRef> resolve(const std::string &path) const;
-
   std::optional<ryml::ConstNodeRef> resolve_common(ryml::ConstNodeRef from, utils::str_tok &tknz) const;
 
   //parent
@@ -42,6 +49,9 @@ struct scenario_property_evaluator {
   int init(std::shared_ptr<spdlog::logger> &event_log);
   int reset(ryml::ConstNodeRef scenario_obj_root);
 
+  bool eval_ref_prop(const std::string &in, const scenario_property_resolver &spr, std::string &out);
+  bool eval_js_func(const std::string &in, std::string &out);
+
   template <typename T>
   std::optional<T> eval_as(ryml::ConstNodeRef from,
                            const char *key,
@@ -50,21 +60,17 @@ struct scenario_property_evaluator {
     std::string str_val, str_res;
     n_val >> str_val;
     str_res = str_val;
-    std::regex rgx(PROP_EVAL_RGX);
 
-    std::regex_iterator<std::string::const_iterator> rit(str_val.cbegin(), str_val.cend(), rgx);
-    std::regex_iterator<std::string::const_iterator> rend;
+    //1 step: eval all {{..}}, we don't allow this pattern to contain any @func pattern
+    if(!eval_ref_prop(str_val, spr, str_res)) {
+      return std::nullopt;
+    }
 
-    while(rit!=rend) {
-      auto node_ref = spr.resolve(utils::trim(utils::find_and_replace(utils::find_and_replace(rit->str(),
-                                                                                              "{{", ""), "}}", "")));
-      if(node_ref && ((*node_ref).is_keyval() || (*node_ref).is_val())) {
-        auto node_val = utils::converter<std::string>::asType(*node_ref);
-        str_res = std::regex_replace(str_res,rgx,node_val,std::regex_constants::format_first_only);
-      } else {
-        return std::nullopt;
-      }
-      ++rit;
+    str_val = str_res;
+
+    //2 step: eval all @func.
+    if(!eval_js_func(str_val, str_res)) {
+      return std::nullopt;
     }
 
     if constexpr(std::is_same_v<T, std::string>) {

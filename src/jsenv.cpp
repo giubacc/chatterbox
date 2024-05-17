@@ -434,6 +434,29 @@ bool js_env::invoke_js_function(ryml::NodeRef *ctx,
     return false;
   }
 
+  // Prepare arguments
+  const int argc = (js_args.valid() ? js_args.num_children() : 0) + (ctx ? 1 : 0);
+  v8::Local<v8::Value> argv[argc];
+
+  if(ctx) {
+    argv[0] = wrap_ryml_noderef(*ctx);
+  }
+
+  if(!prepare_argv(isolate_, js_args, &argv[ctx ? 1 : 0])) {
+    error = "failed to prepare argv";
+    return false;
+  }
+
+  return invoke_js_function(js_function_name, argc, argv, process_result, error);
+}
+
+bool js_env::invoke_js_function(const char *js_function_name,
+                                int argc,
+                                v8::Local<v8::Value> argv[],
+                                const std::function <bool (v8::Isolate *isolate,
+                                                           const v8::Local<v8::Value>& result)> &process_result,
+                                std::string &error)
+{
   v8::HandleScope scope(isolate_);
   v8::Local<v8::Context> context = scenario_context_.Get(isolate_);
   v8::Context::Scope context_scope(context);
@@ -456,19 +479,6 @@ bool js_env::invoke_js_function(ryml::NodeRef *ctx,
   // It is a function; cast it to a Function
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(function_val);
 
-  // Prepare arguments
-  const int argc = (js_args.valid() ? js_args.num_children() : 0) + (ctx ? 1 : 0);
-  v8::Local<v8::Value> argv[argc];
-
-  if(ctx) {
-    argv[0] = wrap_ryml_noderef(*ctx);
-  }
-
-  if(!prepare_argv(isolate_, js_args, &argv[ctx ? 1 : 0])) {
-    error = "failed to prepare argv";
-    return false;
-  }
-
   // Invoke the function
   v8::Local<v8::Value> result;
   if(!function->Call(context, context->Global(), argc, argv).ToLocal(&result)) {
@@ -479,6 +489,53 @@ bool js_env::invoke_js_function(ryml::NodeRef *ctx,
 
   // Process result and return
   return process_result(isolate_, result);
+}
+
+// -----------------------------
+// --- JS Function Evaluator ---
+// -----------------------------
+
+std::optional<std::string> js_env::eval_as_function(const char *js_function_name,
+                                                    std::vector<std::string> &str_argv,
+                                                    const std::optional<std::string> default_value,
+                                                    bool log_errors,
+                                                    bool *is_error)
+{
+  if(!js_function_name || !js_function_name[0]) {
+    return std::nullopt;
+  }
+
+  const int argc = (int)str_argv.size();
+  v8::Local<v8::Value> argv[argc];
+
+  for(int i = 0; i < argc; ++i) {
+    argv[i] = v8::String::NewFromUtf8(isolate_,
+                                      str_argv[i].c_str(),
+                                      v8::NewStringType::kNormal).ToLocalChecked();
+  }
+
+  std::string result;
+  std::string error;
+
+  bool js_res = invoke_js_function(js_function_name,
+                                   argc,
+                                   argv,
+  [&](v8::Isolate *isl, const v8::Local<v8::Value> &res) -> bool{
+    result = utils::converter<std::string>::asType(res, isl);
+    return true;
+  },
+  error);
+
+  if(!js_res) {
+    if(log_errors) {
+      event_log_->error("failure invoking function:{}, error:{}", js_function_name, error);
+    }
+    if(is_error) {
+      *is_error = true;
+    }
+    return std::nullopt;
+  }
+  return result;
 }
 
 // -------------------------
@@ -600,6 +657,12 @@ void js_env::cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args)
     self->parent_.set_assert_failure();
   }
 }
+
+// -----------------------
+// --- Field Evaluator ---
+// -----------------------
+
+
 
 // -------------
 // --- Utils ---

@@ -48,7 +48,7 @@ int request::process(const std::string &raw_host,
                                         1,
                                         true,
                                         nullptr,
-                                        PROP_EVAL_RGX,
+                                        EVAL_RGX_LIST,
                                         &further_eval);
   if(!pfor) {
     if(further_eval) {
@@ -96,7 +96,7 @@ int request::process(const std::string &raw_host,
                                                std::nullopt,
                                                true,
                                                nullptr,
-                                               PROP_EVAL_RGX,
+                                               EVAL_RGX_LIST,
                                                &further_eval);
         if(!id) {
           if(further_eval) {
@@ -116,7 +116,7 @@ int request::process(const std::string &raw_host,
                                                    std::nullopt,
                                                    true,
                                                    nullptr,
-                                                   PROP_EVAL_RGX,
+                                                   EVAL_RGX_LIST,
                                                    &further_eval);
         if(!method) {
           if(further_eval) {
@@ -142,7 +142,7 @@ int request::process(const std::string &raw_host,
                                              std::nullopt,
                                              true,
                                              nullptr,
-                                             PROP_EVAL_RGX,
+                                             EVAL_RGX_LIST,
                                              &further_eval);
           if(!uri) {
             if(further_eval) {
@@ -169,7 +169,7 @@ int request::process(const std::string &raw_host,
                                                       std::nullopt,
                                                       true,
                                                       nullptr,
-                                                      PROP_EVAL_RGX,
+                                                      EVAL_RGX_LIST,
                                                       &further_eval);
           if(further_eval) {
             query_string = scen_p_evaluator_.eval_as<std::string>(request_in,
@@ -197,7 +197,7 @@ int request::process(const std::string &raw_host,
                                               std::nullopt,
                                               false,
                                               &is_error,
-                                              PROP_EVAL_RGX,
+                                              EVAL_RGX_LIST,
                                               &further_eval);
           if(is_error && request_in.has_child(key_data)) {
             ryml::NodeRef node_data_in = request_in[key_data];
@@ -242,7 +242,7 @@ int request::process(const std::string &raw_host,
                                               std::nullopt,
                                               true,
                                               nullptr,
-                                              PROP_EVAL_RGX,
+                                              EVAL_RGX_LIST,
                                               &further_eval);
           if(further_eval) {
             auth = scen_p_evaluator_.eval_as<std::string>(request_in,
@@ -660,7 +660,7 @@ int request::mocked_to_res(RestClient::Response &resRC)
                                        std::nullopt,
                                        true,
                                        nullptr,
-                                       PROP_EVAL_RGX,
+                                       EVAL_RGX_LIST,
                                        &further_eval);
   if(!code) {
     if(further_eval) {
@@ -683,7 +683,7 @@ int request::mocked_to_res(RestClient::Response &resRC)
                                            std::nullopt,
                                            true,
                                            nullptr,
-                                           PROP_EVAL_RGX,
+                                           EVAL_RGX_LIST,
                                            &further_eval);
   if(!body) {
     if(further_eval) {

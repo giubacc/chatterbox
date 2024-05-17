@@ -82,7 +82,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                              std::nullopt,
                                              true,
                                              nullptr,
-                                             PROP_EVAL_RGX,
+                                             EVAL_RGX_LIST,
                                              &further_eval);
       if(!id) {
         if(further_eval) {
@@ -101,7 +101,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                                    std::nullopt,
                                                    true,
                                                    nullptr,
-                                                   PROP_EVAL_RGX,
+                                                   EVAL_RGX_LIST,
                                                    &further_eval);
       if(!raw_host) {
         if(further_eval) {
@@ -134,7 +134,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                                     "s3",
                                                     true,
                                                     nullptr,
-                                                    PROP_EVAL_RGX,
+                                                    EVAL_RGX_LIST,
                                                     &further_eval);
 
         if(further_eval) {
@@ -161,7 +161,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                                        std::nullopt,
                                                        true,
                                                        nullptr,
-                                                       PROP_EVAL_RGX,
+                                                       EVAL_RGX_LIST,
                                                        &further_eval);
         if(further_eval) {
           access_key = scen_p_evaluator_.eval_as<std::string>(conversation_out,
@@ -185,7 +185,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                                        std::nullopt,
                                                        true,
                                                        nullptr,
-                                                       PROP_EVAL_RGX,
+                                                       EVAL_RGX_LIST,
                                                        &further_eval);
         if(further_eval) {
           secret_key = scen_p_evaluator_.eval_as<std::string>(conversation_out,
@@ -209,7 +209,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                                            AUTH_AWS_DEF_SIGN_HDRS,
                                                            true,
                                                            nullptr,
-                                                           PROP_EVAL_RGX,
+                                                           EVAL_RGX_LIST,
                                                            &further_eval);
         if(further_eval) {
           signed_headers = scen_p_evaluator_.eval_as<std::string>(conversation_out,
@@ -234,7 +234,7 @@ int conversation::process(ryml::NodeRef conversation_in,
                                                    "US",
                                                    true,
                                                    nullptr,
-                                                   PROP_EVAL_RGX,
+                                                   EVAL_RGX_LIST,
                                                    &further_eval);
 
         if(further_eval) {
@@ -277,10 +277,7 @@ int conversation::process(ryml::NodeRef conversation_in,
 
         //requests cycle
         for(ryml::NodeRef const &request_in : requests_in.children()) {
-
-          /*TODO parallel handling*/
           request req(*this);
-
           if((res = req.process(raw_host_,
                                 request_in,
                                 requests_out))) {

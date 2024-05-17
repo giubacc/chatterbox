@@ -18,7 +18,6 @@ struct converter<bool> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -43,7 +42,6 @@ struct converter<int32_t> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -68,7 +66,6 @@ struct converter<uint32_t> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -93,7 +90,6 @@ struct converter<double> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -118,7 +114,6 @@ struct converter<std::string> {
     if(!val.is_keyval() && !val.is_val()) {
       return false;
     }
-    //@todo
     return true;
   }
   static bool isType(const v8::Local<v8::Value> &val) {
@@ -205,6 +200,13 @@ struct js_env {
                                                      const v8::Local<v8::Value>&)> &process_result,
                           std::string &error);
 
+  bool invoke_js_function(const char *js_function_name,
+                          int argc,
+                          v8::Local<v8::Value> argv[],
+                          const std::function <bool (v8::Isolate *isolate,
+                                                     const v8::Local<v8::Value>& result)> &process_result,
+                          std::string &error);
+
   // -------------------------
   // --- Javascript -> C++ ---
   // -------------------------
@@ -223,7 +225,7 @@ struct js_env {
                            const std::optional<T> default_value = std::nullopt,
                            bool log_errors = true,
                            bool *is_error = nullptr,
-                           const char *check_regex = nullptr,
+                           const char *const check_regex[] = nullptr,
                            bool *further_eval = nullptr) {
     if(!from.has_child(ryml::to_csubstr(key))) {
       return default_value;
@@ -231,10 +233,12 @@ struct js_env {
     ryml::NodeRef val = from[ryml::to_csubstr(key)];
 
     if(check_regex && (val.is_keyval() || val.is_val())) {
-      auto str_val = utils::converter<std::string>::asType(val);
-      if(std::regex_search(utils::converter<std::string>::asType(val), std::regex(check_regex))) {
-        *further_eval = true;
-        return std::nullopt;
+      for(int i = 0; check_regex[i]!=nullptr; ++i) {
+        auto str_val = utils::converter<std::string>::asType(val);
+        if(std::regex_search(utils::converter<std::string>::asType(val), std::regex(check_regex[i]))) {
+          *further_eval = true;
+          return std::nullopt;
+        }
       }
     }
 
@@ -323,6 +327,16 @@ struct js_env {
       return result;
     }
   }
+
+  // -----------------------------
+  // --- JS Function Evaluator ---
+  // -----------------------------
+
+  std::optional<std::string> eval_as_function(const char *js_function_name,
+                                              std::vector<std::string> &argv,
+                                              const std::optional<std::string> default_value = std::nullopt,
+                                              bool log_errors = true,
+                                              bool *is_error = nullptr);
 
   // ---------------------
   // --- Generic Utils ---

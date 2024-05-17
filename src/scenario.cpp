@@ -21,7 +21,6 @@ namespace cbox {
 // ----------------------------------
 
 // .[conversation_idx][request_idx].
-const char *quick_conv_req_access_syntax_rgx = "^(?:.\\[[0-9]{1,}\\]\\[[0-9]{1,}\\].)(.*)$";
 const char *rpr_delimits = ".[]";
 
 int scenario_property_resolver::init(std::shared_ptr<spdlog::logger> &event_log)
@@ -49,7 +48,7 @@ std::optional<ryml::ConstNodeRef> scenario_property_resolver::resolve(const std:
   utils::str_tok tknz(path);
   ryml::ConstNodeRef from;
 
-  if(std::regex_search(path, std::regex(quick_conv_req_access_syntax_rgx))) {
+  if(std::regex_search(path, std::regex(QUICK_CONV_REQ_ACCESS_RGX))) {
     //quick access path syntax
 
     if(!scenario_obj_root_.has_child(key_conversations)) {
@@ -220,6 +219,40 @@ int scenario_property_evaluator::reset(ryml::ConstNodeRef scenario_obj_root)
 {
   scenario_obj_root_ = scenario_obj_root;
   return 0;
+}
+
+bool scenario_property_evaluator::eval_ref_prop(const std::string &in, const scenario_property_resolver &spr, std::string &out)
+{
+  std::regex_iterator<std::string::const_iterator> rend;
+  std::regex rgx(REF_PROP_EVAL_RGX);
+  std::regex_iterator<std::string::const_iterator> rit(in.cbegin(), in.cend(), rgx);
+
+  while(rit!=rend) {
+    auto node_ref = spr.resolve(utils::trim(utils::find_and_replace(utils::find_and_replace(rit->str(),
+                                                                                            "{{", ""), "}}", "")));
+    if(node_ref && ((*node_ref).is_keyval() || (*node_ref).is_val())) {
+      auto node_val = utils::converter<std::string>::asType(*node_ref);
+      out = std::regex_replace(out,rgx,node_val,std::regex_constants::format_first_only);
+    } else {
+      return false;
+    }
+    ++rit;
+  }
+  return true;
+}
+
+bool scenario_property_evaluator::eval_js_func(const std::string &in, std::string &out)
+{
+  std::regex_iterator<std::string::const_iterator> rend;
+  std::regex rgx(JS_FUNC_EVAL_RGX);
+  std::regex_iterator<std::string::const_iterator> rit(in.cbegin(), in.cend(), rgx);
+
+  while(rit!=rend) {
+
+
+    ++rit;
+  }
+  return true;
 }
 
 // -------------------
