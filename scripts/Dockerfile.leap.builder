@@ -28,8 +28,8 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 \
 && update-alternatives --install /usr/bin/python3 python /usr/bin/python3.11 311
 
 RUN mkdir -p /project/contrib && mkdir -p /project/chatterbox
-ENV CONTRIB_PATH /project/contrib
-ENV TAR_OPTIONS --no-same-owner
+ENV CONTRIB_PATH=/project/contrib
+ENV TAR_OPTIONS=--no-same-owner
 
 COPY contrib_init.sh /usr/bin/contrib_init.sh
 COPY rapidyaml-build /project/contrib/rapidyaml-build

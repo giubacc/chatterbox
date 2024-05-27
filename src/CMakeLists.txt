@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.12)
 project(chatterbox_binary VERSION 0.0.0)
 
+option(ADD_DEBUG_SYMBOLS "Add debug symbols" OFF)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(-Wall -std=c++17)
-# add_compile_options(-g -Wall -std=c++17)
+  add_compile_options(-Wall -std=c++20)
+  if(ADD_DEBUG_SYMBOLS)
+    add_compile_options(-g)
+  endif()
 endif()
 
 add_definitions(-DV8_COMPRESS_POINTERS

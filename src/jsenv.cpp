@@ -57,8 +57,8 @@ int js_env::init(std::shared_ptr<spdlog::logger> &event_log)
 
 int js_env::reset()
 {
-  // Create a handle scope to hold the temporary references.
-  v8::HandleScope renew_scenario_context_scope(isolate_);
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
 
   // Create a template for the global object where we set the
   // built-in global functions.
@@ -124,6 +124,7 @@ v8::Local<v8::ObjectTemplate> js_env::make_ryml_noderef_template()
 
 bool js_env::install_scenario_objects()
 {
+  v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
 
   auto &holder = nodes_holder_[&parent_.scenario_out_] = std::unordered_map<size_t, ryml::NodeRef>();
@@ -145,6 +146,7 @@ bool js_env::install_scenario_objects()
 
 v8::Local<v8::Object> js_env::wrap_ryml_noderef(ryml::NodeRef &obj)
 {
+  v8::Isolate::Scope isolate_scope(isolate_);
   v8::EscapableHandleScope handle_scope(isolate_);
 
   // Fetch the template for creating ryml::NodeRef wrappers.
@@ -221,7 +223,9 @@ bool js_env::ryml_noderef_from_js_value(ryml::NodeRef &obj_val,
                                         v8::Local<v8::Value> &js_obj_val,
                                         js_env &self)
 {
+  v8::Isolate::Scope isolate_scope(self.isolate_);
   v8::HandleScope scope(self.isolate_);
+
   v8::Local<v8::Context> ctx = self.scenario_context_.Get(self.isolate_);
 
   if(js_obj_val->IsNull()) {
@@ -276,6 +280,7 @@ void js_env::ryml_noderef_get_by_name(v8::Local<v8::Name> key,
     return;
   }
 
+  v8::Isolate::Scope isolate_scope(pci.GetIsolate());
   v8::HandleScope scope(pci.GetIsolate());
 
   v8::Local<v8::Context> context = pci.GetIsolate()->GetCurrentContext();
@@ -317,6 +322,7 @@ void js_env::ryml_noderef_set_by_name(v8::Local<v8::Name> key,
     return;
   }
 
+  v8::Isolate::Scope isolate_scope(pci.GetIsolate());
   v8::HandleScope scope(pci.GetIsolate());
 
   v8::Local<v8::Context> context = pci.GetIsolate()->GetCurrentContext();
@@ -355,6 +361,7 @@ void js_env::ryml_noderef_set_by_name(v8::Local<v8::Name> key,
 void js_env::ryml_noderef_get_by_idx(uint32_t index,
                                      const v8::PropertyCallbackInfo<v8::Value> &pci)
 {
+  v8::Isolate::Scope isolate_scope(pci.GetIsolate());
   v8::HandleScope scope(pci.GetIsolate());
 
   v8::Local<v8::Context> context = pci.GetIsolate()->GetCurrentContext();
@@ -388,6 +395,7 @@ void js_env::ryml_noderef_set_by_idx(uint32_t index,
                                      v8::Local<v8::Value> value,
                                      const v8::PropertyCallbackInfo<v8::Value> &pci)
 {
+  v8::Isolate::Scope isolate_scope(pci.GetIsolate());
   v8::HandleScope scope(pci.GetIsolate());
 
   v8::Local<v8::Context> context = pci.GetIsolate()->GetCurrentContext();
@@ -434,6 +442,7 @@ bool js_env::invoke_js_function(ryml::NodeRef *ctx,
     return false;
   }
 
+  v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope scope(isolate_);
   v8::Local<v8::Context> context = scenario_context_.Get(isolate_);
   v8::Context::Scope context_scope(context);
@@ -492,7 +501,8 @@ void js_env::cbk_log(const v8::FunctionCallbackInfo<v8::Value> &args)
   }
 
   v8::Isolate *isolate = args.GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -520,7 +530,8 @@ void js_env::cbk_load(const v8::FunctionCallbackInfo<v8::Value> &args)
   }
 
   v8::Isolate *isolate = args.GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Value> script_path_arg = args[0];
   v8::String::Utf8Value script_path(isolate, script_path_arg);
@@ -568,7 +579,8 @@ void js_env::cbk_assert(const v8::FunctionCallbackInfo<v8::Value> &args)
   }
 
   v8::Isolate *isolate = args.GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   js_env *self = static_cast<js_env *>(context->GetAlignedPointerFromEmbedderData(1));

@@ -164,7 +164,7 @@ build_v8() {
   cd $contrib_path
   fetch v8
   cd v8
-  git checkout branch-heads/11.9
+  git checkout 12.7.226
   args=$(cat <<EOF
 dcheck_always_on = false
 is_component_build = false
@@ -176,7 +176,8 @@ v8_monolithic = true
 v8_use_external_startup_data = false
 EOF
 )
-  patch_v8_code
+  #no more needed
+  #patch_v8_code
 
   gn gen out/x64.release --args="${args}"
   ninja -j$ninja_jobs -C out/x64.release v8_monolith || exit 1

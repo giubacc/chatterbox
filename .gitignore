@@ -43,6 +43,7 @@ wd
 contrib/v8
 contrib/.cipd
 contrib/.gclient*
+contrib/.gcs_entries
 contrib/rapidyaml-build
 contrib/pistache-build
 venv
