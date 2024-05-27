@@ -164,7 +164,7 @@ build_v8() {
   cd $contrib_path
   fetch v8
   cd v8
-  git checkout branch-heads/11.9
+  git checkout branch-heads/12.7.131
   args=$(cat <<EOF
 dcheck_always_on = false
 is_component_build = false
