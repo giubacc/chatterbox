@@ -1,0 +1,13 @@
+{
+  "conversations": [
+    {
+      "host": "localhost:80",
+      "requests": [
+        {
+          "method": "HEAD",
+          "uri": "test"
+        }
+      ]
+
+  ]
+}

@@ -1,0 +1,22 @@
+
+before:
+  function: onScenarioBefore
+after:
+  function: onScenarioAfter
+  args: [one, 2, three]
+conversations:
+    - host: http://cbox-cbox.127.0.0.1.omg.howdoi.website/
+      requests:
+        - method: PUT
+          uri: document
+          data:
+            conversations:
+                - host: cbox-cbox.cbox.svc.cluster.local
+                  requests:
+                    - method: PUT
+                      uri: echo
+                      data: hello!
+                      response:
+                        out:
+                          format:
+                            body: text

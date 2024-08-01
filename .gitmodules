@@ -1,0 +1,25 @@
+[submodule "contrib/cryptopp"]
+	path = contrib/cryptopp
+	url = https://github.com/weidai11/cryptopp.git
+[submodule "contrib/spdlog"]
+	path = contrib/spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "contrib/clipp"]
+	path = contrib/clipp
+	url = https://github.com/muellan/clipp.git
+[submodule "contrib/restclient-cpp"]
+	path = contrib/restclient-cpp
+	url = https://github.com/giubacc/restclient-cpp.git
+	branch = set-verify-host
+[submodule "contrib/depot_tools"]
+	path = contrib/depot_tools
+	url = https://chromium.googlesource.com/chromium/tools/depot_tools.git
+[submodule "contrib/googletest"]
+	path = contrib/googletest
+	url = https://github.com/google/googletest.git
+[submodule "contrib/rapidyaml"]
+	path = contrib/rapidyaml
+	url = https://github.com/biojppm/rapidyaml.git
+[submodule "contrib/pistache"]
+	path = contrib/pistache
+	url = https://github.com/pistacheio/pistache.git

@@ -1,0 +1,32 @@
+conversations:
+    - host: localhost:8080
+      id: conv-1
+      requests:
+        - method: GET
+          id: req-1
+          uri: user/info
+          queryString: uid=julius
+          mock:
+            body: "{\"user\":\"mark\", \"status\":\"notFound\"}"
+            code: 404
+        - method: PUT
+          id: req-2
+          uri: user
+          queryString: uid={{req-1.response.body.user}}
+          mock:
+            body: "{\"user\":\"{{req-1.response.body.user}}\", \"status\":\"created\"}"
+            code: 200
+        - method: PUT
+          id: req-3
+          uri: user
+          queryString: sid={{.[0][1].response.body.status}}
+          mock:
+            body: "{\"user\":\"{{.[0][1].response.body.user}}\", \"status\":\"created\"}"
+            code: 200
+        - method: PUT
+          id: req-4
+          uri: user
+          queryString: sid={{.conversations[0].requests[1].response.body.status}}
+          mock:
+            body: "{\"user\":\"{{.conversations[0].requests[1].response.body.user}}\", \"status\":\"created\"}"
+            code: 200

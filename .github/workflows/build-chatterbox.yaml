@@ -1,0 +1,111 @@
+---
+name: Build Chatterbox
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:  # Allow this workflow to be triggered manually
+
+  workflow_call:
+    inputs:
+      tag:
+        description: "A tag to use for the image"
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME_BUILDER: chatterbox-ubuntu-builder
+  IMAGE_NAME_CHATTERBOX_TEST: chatterbox-test
+
+jobs:
+  build-and-run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        id: tag
+        run: |
+          if [ -z "${{ inputs.tag }}" ]; then
+            echo ::set-output name=tag::"latest"
+          else
+            echo ::set-output name=tag::"${{ inputs.tag }}"
+          fi
+
+      - name: Build chatterbox-test binary
+        run: |
+          docker run \
+            -e BASE_DIR=/project/chatterbox \
+            -e NINJA_JOBS=6 \
+            -e CONTRIB_PATH=/project/contrib \
+            -v $GITHUB_WORKSPACE:/project/chatterbox \
+            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ steps.tag.outputs.tag }} build-test
+
+      - name: Copy scenarios
+        run: |
+          sudo cp -R test/scenarios build/cboxtest
+
+      - name: Build chatterbox-test-image
+        uses: docker/build-push-action@v3
+        with:
+          file: 'scripts/Dockerfile.ubuntu.test'
+          context: build/cboxtest
+          tags: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
+          labels: ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}
+
+      - name: Run tests
+        run: |
+          docker run ${{ env.IMAGE_NAME_CHATTERBOX_TEST }}:${{ steps.tag.outputs.tag }}
+
+  build-chatterbox:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        id: tag
+        run: |
+          if [ -z "${{ inputs.tag }}" ]; then
+            echo ::set-output name=tag::"latest"
+          else
+            echo ::set-output name=tag::"${{ inputs.tag }}"
+          fi
+
+      - name: Build chatterbox binary
+        run: |
+          docker run \
+            -e BASE_DIR=/project/chatterbox \
+            -e NINJA_JOBS=6 \
+            -e CONTRIB_PATH=/project/contrib \
+            -v $GITHUB_WORKSPACE:/project/chatterbox \
+            ghcr.io/${{ github.actor }}/${{ env.IMAGE_NAME_BUILDER }}:${{ steps.tag.outputs.tag }} build

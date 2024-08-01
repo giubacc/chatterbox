@@ -1,0 +1,13 @@
+FROM ubuntu:22.04
+LABEL Name=chatterbox-ubunut-test
+
+RUN apt-get update && apt-get -y install curl \
+&& apt-get autoremove
+
+RUN mkdir -p /wd/scenarios
+COPY scenarios /wd/scenarios
+
+COPY cbx_test /usr/bin/cbx_test
+
+WORKDIR /wd
+ENTRYPOINT ["cbx_test"]
